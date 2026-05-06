@@ -38,8 +38,17 @@ export default function WalletPage() {
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
-  const [wallet] = useState(() => portfolioStore.getWallet())
+  const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
   const [transactions, setTransactions] = useState(() => portfolioStore.getTransactions())
+
+  useEffect(() => {
+    const refresh = () => {
+      setWallet(portfolioStore.getWallet())
+      setTransactions(portfolioStore.getTransactions())
+    }
+    window.addEventListener('verdexis:portfolio', refresh)
+    return () => window.removeEventListener('verdexis:portfolio', refresh)
+  }, [])
 
   const totalBalance = wallet.reduce((sum, w) => sum + (w.currency === 'USD' ? w.balance : w.balance * getUsdRate(w.currency)), 0)
 

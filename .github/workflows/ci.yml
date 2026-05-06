@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install root deps
+        run: npm install --no-audit --no-fund
+
+      - name: Install app deps
+        working-directory: app
+        run: npm install --no-audit --no-fund
+
+      - name: Install server deps
+        working-directory: server
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Prisma client
+        working-directory: server
+        env:
+          DATABASE_URL: file:./ci.db
+        run: npx prisma generate
+
+      - name: Build server
+        working-directory: server
+        env:
+          DATABASE_URL: file:./ci.db
+          JWT_SECRET: ci-jwt-secret-change-me-in-production
+        run: npm run build
+
+      - name: Build frontend
+        working-directory: app
+        run: npm run build

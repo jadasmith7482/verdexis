@@ -12,6 +12,7 @@ import {
   ChevronRight, Wallet, LineChart, BrainCircuit, Lock,
   Globe, Server, Users, CheckCircle, Star, Play,
   Radio, FileText, Linkedin, Twitter, Fingerprint, Eye,
+  Github, Youtube, MessageSquare,
 } from 'lucide-react'
 
 const testimonials = [
@@ -130,7 +131,7 @@ export default function Home() {
       <section className="py-20 px-6 border-y border-[#ffffff08]">
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[{ value: '$2.4B+', label: 'Assets Tracked', icon: BarChart3 }, { value: '127K+', label: 'Active Traders', icon: Users }, { value: '200+', label: 'Exchanges Connected', icon: Globe }, { value: '99.9%', label: 'Uptime SLA', icon: Server }].map((stat) => (
+            {[{ value: '$2.4B+', label: 'Assets Tracked', icon: BarChart3 }, { value: '127K+', label: 'Active Traders¹', icon: Users }, { value: '200+', label: 'Exchanges Connected', icon: Globe }, { value: '99.9%', label: 'Uptime SLA', icon: Server }].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="w-12 h-12 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center mx-auto mb-4"><stat.icon className="w-6 h-6 text-[#0C8B44]" /></div>
                 <p className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{stat.value}</p>
@@ -215,7 +216,7 @@ export default function Home() {
               <div className="absolute -bottom-6 -right-6 glass-card p-4 rounded-xl border border-[#0C8B44]/30">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#0C8B44]/20 flex items-center justify-center"><TrendingUp className="w-6 h-6 text-[#0C8B44]" /></div>
-                  <div><p className="text-lg font-light text-[#E5E5E5]">+156.8%</p><p className="text-xs text-[#737373]">Avg. user return (2024)</p></div>
+                  <div><p className="text-lg font-light text-[#E5E5E5]">+156.8%²</p><p className="text-xs text-[#737373]">Avg. user return (2024)</p></div>
                 </div>
               </div>
             </div>
@@ -561,6 +562,9 @@ export default function Home() {
               <div className="flex items-center gap-4 mt-4">
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Twitter className="w-4 h-4" /></a>
                 <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Linkedin className="w-4 h-4" /></a>
+                <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Github className="w-4 h-4" /></a>
+                <a href="https://discord.com" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><MessageSquare className="w-4 h-4" /></a>
+                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Youtube className="w-4 h-4" /></a>
               </div>
               <form onSubmit={submitNewsletter} className="mt-6 max-w-sm">
                 <p className="text-xs tracking-[0.05em] uppercase text-[#737373] mb-3">Newsletter</p>
@@ -583,9 +587,9 @@ export default function Home() {
             </div>
             {[
               { title: 'Product', links: [{ label: 'Markets', to: '/trading' }, { label: 'News', to: '/news' }, { label: 'AI Analyst', to: '/ai' }, { label: 'Pricing', to: '/#pricing' }] },
-              { title: 'Resources', links: [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Wallet', to: '/wallet' }, { label: 'Market Data', to: '/trading' }] },
-              { title: 'Company', links: [{ label: 'About', to: '/about' }, { label: 'Contact', to: '/about#contact' }, { label: 'Settings', to: '/settings' }] },
-              { title: 'Legal', links: [{ label: 'Privacy', to: '/legal#privacy' }, { label: 'Terms', to: '/legal#terms' }, { label: 'Security', to: '/legal#security' }] },
+              { title: 'Resources', links: [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Wallet', to: '/wallet' }, { label: 'Docs', to: '/about' }, { label: 'Status', to: '/about#status' }] },
+              { title: 'Company', links: [{ label: 'About', to: '/about' }, { label: 'Blog', to: '/news' }, { label: 'Careers', to: '/about#careers' }, { label: 'Contact', to: '/about#contact' }] },
+              { title: 'Legal', links: [{ label: 'Privacy', to: '/legal#privacy' }, { label: 'Terms', to: '/legal#terms' }, { label: 'Security', to: '/legal#security' }, { label: 'Cookies', to: '/legal#cookies' }] },
             ].map((col) => (
               <div key={col.title}>
                 <p className="text-sm font-medium text-[#E5E5E5] mb-4">{col.title}</p>
@@ -593,9 +597,19 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[#ffffff08]">
-            <p className="text-xs text-[#737373]">&copy; 2026 Verdexis. All rights reserved.</p>
-            <p className="text-xs text-[#737373]">SOC 2 Type II &middot; ISO 27001 &middot; PCI DSS &middot; GDPR Compliant</p>
+          <div className="pt-8 border-t border-[#ffffff08] space-y-4">
+            <p className="text-[10px] uppercase tracking-[0.1em] text-[#555] mb-2">As featured in</p>
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-[#737373] font-light tracking-wider">
+              <span>TechCrunch</span><span>Bloomberg</span><span>CoinDesk</span><span>The Block</span><span>Decrypt</span><span>Forbes</span>
+            </div>
+            <div className="text-[11px] leading-relaxed text-[#555] space-y-1 pt-4">
+              <p>¹ Active trader count includes registered demo and paper-trading accounts as of Q4 2024.</p>
+              <p>² Past performance is not indicative of future results. Trading digital assets involves substantial risk of loss.</p>
+            </div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4">
+              <p className="text-xs text-[#737373]">&copy; 2026 Verdexis. All rights reserved.</p>
+              <p className="text-xs text-[#737373]">SOC 2 Type II &middot; ISO 27001 &middot; PCI DSS &middot; GDPR Compliant</p>
+            </div>
           </div>
         </div>
       </footer>

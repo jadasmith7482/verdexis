@@ -1,3 +1,5 @@
+import { api, getToken } from './api'
+
 export interface PortfolioHolding {
   id: string
   symbol: string
@@ -63,9 +65,9 @@ const DEFAULT_TRADES: Trade[] = [
 
 const DEFAULT_WALLET: WalletBalance[] = [
   { currency: 'USD', symbol: '$', balance: 125430.50, available: 125430.50 },
-  { currency: 'BTC', symbol: '₿', balance: 2.4538, available: 2.4538 },
-  { currency: 'ETH', symbol: 'Ξ', balance: 15.2341, available: 15.2341 },
-  { currency: 'SOL', symbol: '◎', balance: 234.56, available: 234.56 },
+  { currency: 'BTC', symbol: 'B', balance: 2.4538, available: 2.4538 },
+  { currency: 'ETH', symbol: 'E', balance: 15.2341, available: 15.2341 },
+  { currency: 'SOL', symbol: 'S', balance: 234.56, available: 234.56 },
 ]
 
 const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
@@ -76,11 +78,30 @@ const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
   { id: '5', type: 'deposit', amount: 25000, currency: 'USD', description: 'Wire Transfer Received', timestamp: new Date(Date.now() - 604800000), status: 'completed' },
 ]
 
-class PortfolioStore {
+interface ApiHolding { id: string; symbol: string; name: string; amount: number; avgPrice: number; type: string }
+interface ApiBalance { currency: string; symbol: string; balance: number; available: number }
+interface ApiTransaction { id: string; kind: 'deposit' | 'withdraw' | 'transfer'; currency: string; amount: number; reference?: string | null; status: string; createdAt: string }
+interface ApiTrade { id: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }
+
+const PORTFOLIO_EVENT = 'verdexis:portfolio'
+
+function emit() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(PORTFOLIO_EVENT))
+  }
+}
+
+function symbolFor(currency: string): string {
+  const map: Record<string, string> = { USD: '$', BTC: 'B', ETH: 'E', SOL: 'S', USDC: '$', USDT: '$' }
+  return map[currency] || currency
+}
+
+class PortfolioStoreImpl {
   private holdings: PortfolioHolding[]
   private trades: Trade[]
   private wallet: WalletBalance[]
   private transactions: WalletTransaction[]
+  private hydrated = false
 
   constructor() {
     this.holdings = this.load(STORAGE_KEYS.holdings, DEFAULT_HOLDINGS)
@@ -103,40 +124,102 @@ class PortfolioStore {
     } catch { /* ignore */ }
   }
 
-  getHoldings(): PortfolioHolding[] {
-    return this.holdings
+  async hydrate(force = false): Promise<void> {
+    if (!getToken()) return
+    if (this.hydrated && !force) return
+    try {
+      const [hRes, wRes, tRes] = await Promise.all([
+        api.listHoldings(),
+        api.getWallet(),
+        api.listTrades(),
+      ])
+
+      const apiHoldings = (hRes.holdings as ApiHolding[]).map<PortfolioHolding>((h) => {
+        const value = h.amount * h.avgPrice
+        return {
+          id: h.symbol.toLowerCase(),
+          symbol: h.symbol,
+          name: h.name,
+          quantity: h.amount,
+          avgBuyPrice: h.avgPrice,
+          currentPrice: h.avgPrice,
+          value,
+          pnl: 0,
+          pnlPercent: 0,
+          allocation: 0,
+        }
+      })
+      const totalValue = apiHoldings.reduce((s, h) => s + h.value, 0)
+      apiHoldings.forEach((h) => { h.allocation = totalValue > 0 ? Math.round((h.value / totalValue) * 100) : 0 })
+
+      const apiBalances = (wRes.balances as ApiBalance[]).map<WalletBalance>((b) => ({
+        currency: b.currency,
+        symbol: b.symbol || symbolFor(b.currency),
+        balance: b.balance,
+        available: b.available,
+      }))
+
+      const apiTransactions = (wRes.transactions as ApiTransaction[]).map<WalletTransaction>((tx) => ({
+        id: tx.id,
+        type: tx.kind,
+        amount: tx.kind === 'deposit' ? tx.amount : -Math.abs(tx.amount),
+        currency: tx.currency,
+        description: tx.reference || `${tx.kind[0].toUpperCase()}${tx.kind.slice(1)} ${tx.currency}`,
+        timestamp: new Date(tx.createdAt),
+        status: tx.status === 'completed' ? 'completed' : 'pending',
+      }))
+
+      const apiTrades = (tRes.trades as ApiTrade[]).map<Trade>((t) => ({
+        id: t.id,
+        symbol: t.symbol,
+        name: t.symbol,
+        side: t.side,
+        type: 'market',
+        price: t.price,
+        quantity: t.amount,
+        total: t.total,
+        timestamp: new Date(t.createdAt),
+      }))
+
+      this.holdings = apiHoldings
+      this.wallet = apiBalances
+      this.transactions = apiTransactions
+      this.trades = apiTrades
+
+      this.save(STORAGE_KEYS.holdings, this.holdings)
+      this.save(STORAGE_KEYS.wallet, this.wallet)
+      this.save(STORAGE_KEYS.transactions, this.transactions)
+      this.save(STORAGE_KEYS.trades, this.trades)
+      this.hydrated = true
+      emit()
+    } catch {
+      // API offline or auth expired; keep local cache
+    }
   }
+
+  getHoldings(): PortfolioHolding[] { return this.holdings }
 
   getTrades(): Trade[] {
-    return this.trades.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return [...this.trades].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }
 
-  getWallet(): WalletBalance[] {
-    return this.wallet
-  }
+  getWallet(): WalletBalance[] { return this.wallet }
 
   getTransactions(): WalletTransaction[] {
-    return this.transactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return [...this.transactions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }
 
   executeTrade(symbol: string, name: string, side: 'buy' | 'sell', price: number, quantity: number, type: string): Trade {
     const total = price * quantity
     const trade: Trade = {
       id: Date.now().toString(),
-      symbol,
-      name,
-      side,
-      type,
-      price,
-      quantity,
-      total,
+      symbol, name, side, type, price, quantity, total,
       timestamp: new Date(),
     }
 
     this.trades.push(trade)
     this.save(STORAGE_KEYS.trades, this.trades)
 
-    // Update holdings
     const existingIdx = this.holdings.findIndex((h) => h.symbol === symbol)
     if (side === 'buy') {
       if (existingIdx >= 0) {
@@ -150,45 +233,36 @@ class PortfolioStore {
         h.pnlPercent = (h.pnl / (h.avgBuyPrice * newQty)) * 100
       } else {
         this.holdings.push({
-          id: symbol.toLowerCase(),
-          symbol,
-          name,
-          quantity,
-          avgBuyPrice: price,
-          currentPrice: price,
-          value: total,
-          pnl: 0,
-          pnlPercent: 0,
-          allocation: 0,
+          id: symbol.toLowerCase(), symbol, name, quantity,
+          avgBuyPrice: price, currentPrice: price, value: total,
+          pnl: 0, pnlPercent: 0, allocation: 0,
         })
       }
-    } else {
-      if (existingIdx >= 0) {
-        const h = this.holdings[existingIdx]
-        h.quantity = Math.max(0, h.quantity - quantity)
-        h.currentPrice = price
-        h.value = h.quantity * price
-        if (h.quantity === 0) {
-          this.holdings.splice(existingIdx, 1)
-        }
-      }
+    } else if (existingIdx >= 0) {
+      const h = this.holdings[existingIdx]
+      h.quantity = Math.max(0, h.quantity - quantity)
+      h.currentPrice = price
+      h.value = h.quantity * price
+      if (h.quantity === 0) this.holdings.splice(existingIdx, 1)
     }
 
-    // Recalculate allocations
     const totalValue = this.holdings.reduce((s, h) => s + h.value, 0)
     this.holdings.forEach((h) => { h.allocation = totalValue > 0 ? Math.round((h.value / totalValue) * 100) : 0 })
-
     this.save(STORAGE_KEYS.holdings, this.holdings)
+
+    if (getToken()) {
+      api.postTrade({ symbol, name, side, amount: quantity, price, type: 'crypto' })
+        .then(() => this.hydrate(true))
+        .catch(() => { /* offline; local cache wins */ })
+    }
+    emit()
     return trade
   }
 
   addTransaction(type: 'deposit' | 'withdraw' | 'transfer', amount: number, currency: string, description: string): WalletTransaction {
     const tx: WalletTransaction = {
       id: Date.now().toString(),
-      type,
-      amount,
-      currency,
-      description,
+      type, amount, currency, description,
       timestamp: new Date(),
       status: 'completed',
     }
@@ -196,7 +270,6 @@ class PortfolioStore {
     this.transactions.push(tx)
     this.save(STORAGE_KEYS.transactions, this.transactions)
 
-    // Update wallet balance
     const walletEntry = this.wallet.find((w) => w.currency === currency)
     if (walletEntry) {
       walletEntry.balance += amount
@@ -204,6 +277,12 @@ class PortfolioStore {
       this.save(STORAGE_KEYS.wallet, this.wallet)
     }
 
+    if (getToken()) {
+      api.postTransaction({ kind: type, currency, symbol: symbolFor(currency), amount: Math.abs(amount), reference: description })
+        .then(() => this.hydrate(true))
+        .catch(() => { /* offline; local cache wins */ })
+    }
+    emit()
     return tx
   }
 
@@ -216,7 +295,15 @@ class PortfolioStore {
     this.trades = [...DEFAULT_TRADES]
     this.wallet = [...DEFAULT_WALLET]
     this.transactions = [...DEFAULT_TRANSACTIONS]
+    this.hydrated = false
+    emit()
   }
 }
 
-export const portfolioStore = new PortfolioStore()
+export const portfolioStore = new PortfolioStoreImpl()
+export const PORTFOLIO_EVENT_NAME = PORTFOLIO_EVENT
+
+if (typeof window !== 'undefined') {
+  setTimeout(() => { void portfolioStore.hydrate() }, 0)
+  window.addEventListener('verdexis:profile', () => { void portfolioStore.hydrate(true) })
+}

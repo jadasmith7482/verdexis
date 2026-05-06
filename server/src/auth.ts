@@ -1,9 +1,10 @@
 import jwt from 'jsonwebtoken'
 import type { Request, Response, NextFunction } from 'express'
 import { prisma } from './db.js'
+import { env } from './env.js'
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
-const EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn']
+const SECRET = env.JWT_SECRET
+const EXPIRES_IN = env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn']
 
 export interface AuthPayload {
   sub: string

@@ -92,7 +92,17 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData()
     const interval = setInterval(fetchData, 60000)
-    return () => clearInterval(interval)
+    const refresh = () => {
+      setHoldings(portfolioStore.getHoldings())
+      setTrades(portfolioStore.getTrades().slice(0, 5))
+      setWallet(portfolioStore.getWallet())
+      setTransactions(portfolioStore.getTransactions().slice(0, 5))
+    }
+    window.addEventListener('verdexis:portfolio', refresh)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('verdexis:portfolio', refresh)
+    }
   }, [])
 
   // Portfolio calculations
