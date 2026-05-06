@@ -32,7 +32,7 @@ const howItWorks = [
 
 const pricingPlans = [
   { name: 'Starter', price: '0', period: 'forever free', desc: 'Perfect for new investors exploring the platform.', features: ['Real-time market data', 'Portfolio tracking (50 assets)', 'Basic AI insights', '1 connected exchange', 'Email support', 'Standard charting'], cta: 'Get Started Free', highlighted: false },
-  { name: 'Pro', price: '29', period: '/month', desc: 'For serious traders who need professional tools.', features: ['Everything in Starter', 'Unlimited portfolio assets', 'Full AI analyst access', 'Unlimited exchanges', 'Priority execution routing', 'Advanced charting & indicators', 'Unlimited price alerts', 'API access (1K calls/day)'], cta: 'Start 14-Day Free Trial', highlighted: true },
+  { name: 'Pro', price: '29', period: '/month', desc: 'For serious traders who need professional tools.', features: ['Everything in Starter', 'Unlimited portfolio assets', 'Full AI analyst access', 'Unlimited exchanges', 'Priority execution routing', 'Advanced charting & indicators', 'Unlimited price alerts', 'API access (1K calls/day)'], cta: 'Upgrade to Pro', highlighted: true },
   { name: 'Institution', price: '99', period: '/month', desc: 'For funds, family offices, and professional teams.', features: ['Everything in Pro', 'Multi-user team accounts', 'Custom AI model training', 'White-label options', 'Dedicated account manager', 'Custom integrations', 'Unlimited API access', '99.9% SLA guarantee', 'On-premise deployment'], cta: 'Contact Sales', highlighted: false },
 ]
 
@@ -71,6 +71,8 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup')
   const [loading, setLoading] = useState(true)
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'sent'>('idle')
   useEffect(() => {
     marketData.getCryptoList().then(setCryptoData)
     aiService.getPortfolioInsights().then(setInsights)
@@ -78,6 +80,19 @@ export default function Home() {
   }, [])
 
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
+  const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
+  const submitNewsletter = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newsletterEmail.includes('@')) return
+    try {
+      const list = JSON.parse(localStorage.getItem('verdexis_newsletter') || '[]') as string[]
+      if (!list.includes(newsletterEmail)) list.push(newsletterEmail)
+      localStorage.setItem('verdexis_newsletter', JSON.stringify(list))
+    } catch { /* ignore */ }
+    setNewsletterStatus('sent')
+    setNewsletterEmail('')
+    setTimeout(() => setNewsletterStatus('idle'), 4000)
+  }
 
   const topCryptos = cryptoData.slice(0, 5)
   const totalValue = 2847293.5
@@ -103,11 +118,11 @@ export default function Home() {
           </h1>
           <p className="text-2xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6">AI-Powered Trading Meets Complete Financial Clarity.</p>
           <p className="text-base md:text-lg text-[#A0A0A0] max-w-lg mx-auto mb-10 leading-relaxed">Connect your wallets, automate your trades, and watch your net worth grow with institutional-grade AI analysis powered by real-time market data.</p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <button onClick={openSignup} className="px-8 py-3.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Start Free &mdash; Sign Up</button>
             <Link to="/trading" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 transition-colors"><Play className="w-4 h-4" />Explore Markets</Link>
           </div>
-          <p className="text-xs text-[#737373] mt-4">No credit card required. Free forever plan available.</p>
+          <p className="text-xs text-[#737373] mt-4">No credit card required. Free forever plan available. <button onClick={openLogin} className="text-[#0C8B44] hover:text-[#00E676] underline-offset-4 hover:underline transition-colors">Already have an account? Sign in</button></p>
         </div>
       </section>
 
@@ -125,6 +140,28 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ===== LIVE PRICE TICKER ===== */}
+      {topCryptos.length > 0 && (
+        <section className="py-4 border-y border-[#ffffff08] bg-[#0a0f11] overflow-hidden">
+          <div className="flex items-center gap-10 animate-marquee whitespace-nowrap">
+            {[...topCryptos, ...topCryptos, ...topCryptos].map((c, idx) => (
+              <div key={`${c.id}-${idx}`} className="flex items-center gap-2 text-sm">
+                {getCryptoLogo(c.id) ? (
+                  <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 text-[10px] font-bold text-[#0C8B44] flex items-center justify-center">{c.symbol.toUpperCase()[0]}</div>
+                )}
+                <span className="text-[#E5E5E5] font-medium">{c.symbol.toUpperCase()}</span>
+                <span className="text-[#A0A0A0]">${c.current_price.toLocaleString()}</span>
+                <span className={c.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}>
+                  {c.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(c.price_change_percentage_24h).toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ===== PARTNER LOGOS ===== */}
       <section className="py-16 px-6 bg-[#070C0E] border-y border-[#ffffff08]">
@@ -460,6 +497,35 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== FAQ ===== */}
+      <section id="faq" className="py-24 px-6 bg-[#0a0f11]">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44] mb-3 block">FAQ</span>
+            <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">Common Questions</h2>
+            <p className="text-[#A0A0A0]">Everything you need to know before getting started.</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { q: 'Is Verdexis really free?', a: 'Yes. The Starter plan is free forever and includes real-time market data, portfolio tracking for up to 50 assets, and basic AI insights. Upgrade only when you need advanced features.' },
+              { q: 'Do you custody my crypto?', a: 'No. Verdexis is non-custodial by default — your keys, your crypto. We support read-only API connections to your exchanges and wallets so you can track and analyse without giving up control.' },
+              { q: 'How is my data secured?', a: 'All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We are SOC 2 Type II and ISO 27001 certified, and undergo quarterly third-party penetration tests. We never sell user data.' },
+              { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to 200+ centralised exchanges (Binance, Coinbase, Kraken, etc.) and the major blockchains (Bitcoin, Ethereum, Solana, BNB Chain, Polygon, and more). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
+              { q: 'Can I cancel my subscription anytime?', a: 'Yes — cancel any time from Settings. Paid plans are billed monthly with no long-term commitment, and you keep access until the end of the billing period.' },
+              { q: 'Is the AI advice financial advice?', a: 'No. Verdexis AI provides market analysis and portfolio insights for educational purposes. It is not a registered investment adviser and nothing on the platform constitutes personalised investment advice.' },
+            ].map((item) => (
+              <details key={item.q} className="group p-5 rounded-xl bg-[#0f1619]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-colors">
+                <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-[#E5E5E5] list-none">
+                  <span>{item.q}</span>
+                  <ChevronRight className="w-4 h-4 text-[#0C8B44] transition-transform group-open:rotate-90" />
+                </summary>
+                <p className="text-sm text-[#A0A0A0] mt-3 leading-relaxed">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ===== FINAL CTA ===== */}
       <section className="py-24 px-6">
         <div className="max-w-[1280px] mx-auto">
@@ -496,6 +562,24 @@ export default function Home() {
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Twitter className="w-4 h-4" /></a>
                 <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Linkedin className="w-4 h-4" /></a>
               </div>
+              <form onSubmit={submitNewsletter} className="mt-6 max-w-sm">
+                <p className="text-xs tracking-[0.05em] uppercase text-[#737373] mb-3">Newsletter</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    aria-label="Email address for newsletter"
+                    required
+                    className="flex-1 min-w-0 px-3 py-2 text-sm bg-[#0f1619] border border-[#ffffff10] rounded-lg text-[#E5E5E5] placeholder:text-[#555] focus:outline-none focus:border-[#0C8B44]/40"
+                  />
+                  <button type="submit" className="px-4 py-2 bg-[#0C8B44] text-white text-xs font-medium uppercase tracking-[0.04em] rounded-lg hover:bg-[#0a7539] transition-colors">Join</button>
+                </div>
+                {newsletterStatus === 'sent' && (
+                  <p className="text-xs text-[#0C8B44] mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Subscribed — thanks!</p>
+                )}
+              </form>
             </div>
             {[
               { title: 'Product', links: [{ label: 'Markets', to: '/trading' }, { label: 'News', to: '/news' }, { label: 'AI Analyst', to: '/ai' }, { label: 'Pricing', to: '/#pricing' }] },
@@ -510,7 +594,7 @@ export default function Home() {
             ))}
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-[#ffffff08]">
-            <p className="text-xs text-[#737373]">&copy; 2025 Verdexis. All rights reserved.</p>
+            <p className="text-xs text-[#737373]">&copy; 2026 Verdexis. All rights reserved.</p>
             <p className="text-xs text-[#737373]">SOC 2 Type II &middot; ISO 27001 &middot; PCI DSS &middot; GDPR Compliant</p>
           </div>
         </div>
