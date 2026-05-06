@@ -126,7 +126,7 @@ export const api = {
 
   // Wallet
   getWallet: () => request<{ balances: unknown[]; transactions: unknown[] }>('/api/wallet'),
-  postTransaction: (tx: { kind: 'deposit' | 'withdraw' | 'transfer'; currency: string; symbol?: string; amount: number; reference?: string }) =>
+  postTransaction: (tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; symbol?: string; amount: number; reference?: string }) =>
     request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx) }),
 
   // Trades

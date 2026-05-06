@@ -7,14 +7,16 @@ import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
   Clock, CheckCircle, AlertCircle, Copy,
   Eye, EyeOff, Banknote, QrCode, Download,
+  Coins, Percent,
 } from 'lucide-react'
 
-type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer'
+type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer' | 'income'
+type IncomeKind = 'dividend' | 'interest'
 
 export default function WalletPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = (searchParams.get('action') as TabType | null) ?? 'overview'
-  const validTabs: TabType[] = ['overview', 'deposit', 'withdraw', 'transfer']
+  const validTabs: TabType[] = ['overview', 'deposit', 'withdraw', 'transfer', 'income']
   const [showBalance, setShowBalance] = useState(true)
   const [activeTab, setActiveTab] = useState<TabType>(
     validTabs.includes(initialTab) ? initialTab : 'overview'
@@ -38,6 +40,8 @@ export default function WalletPage() {
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
+  const [incomeKind, setIncomeKind] = useState<IncomeKind>('dividend')
+  const [incomeSource, setIncomeSource] = useState('')
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
   const [transactions, setTransactions] = useState(() => portfolioStore.getTransactions())
 
@@ -95,6 +99,18 @@ export default function WalletPage() {
     setTransactions(portfolioStore.getTransactions())
   }
 
+  const handleIncome = () => {
+    const amt = parseFloat(amount)
+    if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return }
+    const source = incomeSource.trim() || (incomeKind === 'dividend' ? 'Dividend payment' : 'Interest income')
+    portfolioStore.addTransaction(incomeKind, amt, selectedCurrency, source)
+    toast.success(`Logged ${amt.toLocaleString()} ${selectedCurrency} ${incomeKind}`)
+    setAmount('')
+    setIncomeSource('')
+    setTransactions(portfolioStore.getTransactions())
+    setWallet(portfolioStore.getWallet())
+  }
+
   const getStatusIcon = (status: string) => {
     return status === 'completed' ? <CheckCircle className="w-4 h-4 text-[#4CAF50]" /> : <Clock className="w-4 h-4 text-[#F57C00]" />
   }
@@ -114,6 +130,8 @@ export default function WalletPage() {
       case 'deposit': return <ArrowDownRight className="w-5 h-5 text-[#4CAF50]" />
       case 'withdraw': return <ArrowUpRight className="w-5 h-5 text-[#f44336]" />
       case 'transfer': return <ArrowLeftRight className="w-5 h-5 text-[#2196F3]" />
+      case 'dividend': return <Coins className="w-5 h-5 text-[#0C8B44]" />
+      case 'interest': return <Percent className="w-5 h-5 text-[#0C8B44]" />
       default: return <ArrowLeftRight className="w-5 h-5 text-[#A0A0A0]" />
     }
   }
@@ -123,6 +141,8 @@ export default function WalletPage() {
       case 'deposit': return 'bg-[#4CAF50]/10'
       case 'withdraw': return 'bg-[#f44336]/10'
       case 'transfer': return 'bg-[#2196F3]/10'
+      case 'dividend':
+      case 'interest': return 'bg-[#0C8B44]/10'
       default: return 'bg-[#1a1a1a]/50'
     }
   }
@@ -156,7 +176,7 @@ export default function WalletPage() {
       const lines = text.split(/\r?\n/).filter(Boolean)
       if (lines.length < 2) { toast.error('CSV is empty'); return }
       // Header skipped
-      const allowedTypes = ['deposit', 'withdraw', 'transfer'] as const
+      const allowedTypes = ['deposit', 'withdraw', 'transfer', 'dividend', 'interest'] as const
       let imported = 0
       let skipped = 0
       for (let i = 1; i < lines.length; i++) {
@@ -225,7 +245,7 @@ export default function WalletPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {[{ label: 'Deposit', icon: ArrowDownRight, tab: 'deposit' as TabType, color: '#0C8B44' }, { label: 'Withdraw', icon: ArrowUpRight, tab: 'withdraw' as TabType, color: '#f44336' }, { label: 'Transfer', icon: ArrowLeftRight, tab: 'transfer' as TabType, color: '#2196F3' }].map((action) => (
+                {[{ label: 'Deposit', icon: ArrowDownRight, tab: 'deposit' as TabType, color: '#0C8B44' }, { label: 'Withdraw', icon: ArrowUpRight, tab: 'withdraw' as TabType, color: '#f44336' }, { label: 'Transfer', icon: ArrowLeftRight, tab: 'transfer' as TabType, color: '#2196F3' }, { label: 'Income', icon: Coins, tab: 'income' as TabType, color: '#0C8B44' }].map((action) => (
                   <button key={action.label} onClick={() => setActiveTab(action.tab)} className="flex flex-col items-center gap-2 group">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${action.color}15`, border: `1px solid ${action.color}30` }}>
                       <action.icon className="w-6 h-6" style={{ color: action.color }} />
@@ -237,6 +257,44 @@ export default function WalletPage() {
             </div>
           </div>
 
+          {/* Income YTD summary */}
+          {(() => {
+            const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime()
+            const incomeTxs = transactions.filter(
+              (t) => (t.type === 'dividend' || t.type === 'interest') && new Date(t.timestamp).getTime() >= yearStart,
+            )
+            if (incomeTxs.length === 0) return null
+            const ytdUsd = incomeTxs.reduce((s, t) => s + Math.abs(t.amount) * getUsdRate(t.currency), 0)
+            const dividends = incomeTxs.filter((t) => t.type === 'dividend').reduce((s, t) => s + Math.abs(t.amount) * getUsdRate(t.currency), 0)
+            const interest = incomeTxs.filter((t) => t.type === 'interest').reduce((s, t) => s + Math.abs(t.amount) * getUsdRate(t.currency), 0)
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="glass-card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Coins className="w-4 h-4 text-[#0C8B44]" />
+                    <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Income YTD</p>
+                  </div>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${ytdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-xs text-[#737373] mt-1">{incomeTxs.length} payments</p>
+                </div>
+                <div className="glass-card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Coins className="w-4 h-4 text-[#0C8B44]" />
+                    <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Dividends YTD</p>
+                  </div>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${dividends.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                </div>
+                <div className="glass-card p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Percent className="w-4 h-4 text-[#0C8B44]" />
+                    <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Interest YTD</p>
+                  </div>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${interest.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Sub-balances */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {wallet.map((w) => (
@@ -247,8 +305,7 @@ export default function WalletPage() {
                     <span className="text-sm font-medium text-[#E5E5E5]">{w.currency}</span>
                   </div>
                   {w.currency !== 'USD' && <span className="text-xs text-[#737373]">${(w.balance * getUsdRate(w.currency)).toLocaleString()}</span>}
-                </div>
-                <p className="text-2xl font-light text-[#E5E5E5]">{showBalance ? <>{w.symbol}{w.balance.toLocaleString()}</> : '****'}</p>
+                </div>                <p className="text-2xl font-light text-[#E5E5E5]">{showBalance ? <>{w.symbol}{w.balance.toLocaleString()}</> : '****'}</p>
                 <p className="text-xs text-[#737373] mt-1">Available: {w.symbol}{w.available.toLocaleString()}</p>
               </div>
             ))}
@@ -256,8 +313,7 @@ export default function WalletPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-[#1a1a1a] rounded-xl mb-6 w-fit">
-            {([{ key: 'overview', label: 'Overview' }, { key: 'deposit', label: 'Deposit' }, { key: 'withdraw', label: 'Withdraw' }, { key: 'transfer', label: 'Transfer' }] as const).map((tab) => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            {([{ key: 'overview', label: 'Overview' }, { key: 'deposit', label: 'Deposit' }, { key: 'withdraw', label: 'Withdraw' }, { key: 'transfer', label: 'Transfer' }, { key: 'income', label: 'Income' }] as const).map((tab) => (              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-[#0C8B44] text-white' : 'text-[#737373] hover:text-[#E5E5E5]'}`}>
                 {tab.label}
               </button>
@@ -480,6 +536,60 @@ export default function WalletPage() {
                 <button onClick={handleTransfer} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
                   Transfer Now
                 </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'income' && (
+            <div className="glass-card p-8 max-w-lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center">
+                  <Coins className="w-5 h-5 text-[#0C8B44]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-[#E5E5E5]">Log Income</h3>
+                  <p className="text-xs text-[#737373]">Record dividends or interest credited to your wallet.</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-[#A0A0A0] mb-2 block">Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([{ k: 'dividend' as IncomeKind, label: 'Dividend', icon: Coins }, { k: 'interest' as IncomeKind, label: 'Interest', icon: Percent }]).map((opt) => (
+                      <button key={opt.k} onClick={() => setIncomeKind(opt.k)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${incomeKind === opt.k ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
+                        <opt.icon className="w-4 h-4 text-[#0C8B44]" />
+                        <span className="text-sm text-[#E5E5E5]">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm text-[#A0A0A0] mb-2 block">Currency</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {wallet.map((w) => (
+                      <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
+                        className={`p-2 rounded-lg border text-xs transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#E5E5E5]' : 'border-[#ffffff08] bg-[#1a1a1a]/50 text-[#A0A0A0]'}`}>
+                        {w.currency}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                  <input type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                </div>
+                <div>
+                  <label className="text-sm text-[#A0A0A0] mb-2 block">Source <span className="text-[#555]">(optional)</span></label>
+                  <input type="text" value={incomeSource} onChange={(e) => setIncomeSource(e.target.value)}
+                    placeholder={incomeKind === 'dividend' ? 'e.g. AAPL Q4 dividend' : 'e.g. Savings interest'}
+                    className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                </div>
+                <button onClick={handleIncome} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
+                  Record {incomeKind === 'dividend' ? 'Dividend' : 'Interest'}
+                </button>
+                <p className="text-[11px] text-[#737373] text-center">Income credits your wallet balance and shows in transaction history.</p>
               </div>
             </div>
           )}

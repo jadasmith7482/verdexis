@@ -18,7 +18,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
 })
 
 const txSchema = z.object({
-  kind: z.enum(['deposit', 'withdraw', 'transfer']),
+  kind: z.enum(['deposit', 'withdraw', 'transfer', 'dividend', 'interest']),
   currency: z.string().min(1).max(20),
   symbol: z.string().min(1).max(8).default('$'),
   amount: z.number().positive(),
@@ -42,7 +42,7 @@ router.post('/transactions', requireAuth, async (req: AuthedRequest, res) => {
     let nextBalance = existing?.balance ?? 0
     let nextAvailable = current
 
-    if (kind === 'deposit') {
+    if (kind === 'deposit' || kind === 'dividend' || kind === 'interest') {
       nextBalance += amount
       nextAvailable += amount
     } else {

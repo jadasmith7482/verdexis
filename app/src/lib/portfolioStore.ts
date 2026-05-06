@@ -27,7 +27,7 @@ export interface Trade {
 
 export interface WalletTransaction {
   id: string
-  type: 'deposit' | 'withdraw' | 'transfer'
+  type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'
   amount: number
   currency: string
   description: string
@@ -80,7 +80,7 @@ const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
 
 interface ApiHolding { id: string; symbol: string; name: string; amount: number; avgPrice: number; type: string }
 interface ApiBalance { currency: string; symbol: string; balance: number; available: number }
-interface ApiTransaction { id: string; kind: 'deposit' | 'withdraw' | 'transfer'; currency: string; amount: number; reference?: string | null; status: string; createdAt: string }
+interface ApiTransaction { id: string; kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; amount: number; reference?: string | null; status: string; createdAt: string }
 interface ApiTrade { id: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }
 
 const PORTFOLIO_EVENT = 'verdexis:portfolio'
@@ -162,7 +162,7 @@ class PortfolioStoreImpl {
       const apiTransactions = (wRes.transactions as ApiTransaction[]).map<WalletTransaction>((tx) => ({
         id: tx.id,
         type: tx.kind,
-        amount: tx.kind === 'deposit' ? tx.amount : -Math.abs(tx.amount),
+        amount: (tx.kind === 'deposit' || tx.kind === 'dividend' || tx.kind === 'interest') ? tx.amount : -Math.abs(tx.amount),
         currency: tx.currency,
         description: tx.reference || `${tx.kind[0].toUpperCase()}${tx.kind.slice(1)} ${tx.currency}`,
         timestamp: new Date(tx.createdAt),
@@ -259,7 +259,7 @@ class PortfolioStoreImpl {
     return trade
   }
 
-  addTransaction(type: 'deposit' | 'withdraw' | 'transfer', amount: number, currency: string, description: string): WalletTransaction {
+  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', amount: number, currency: string, description: string): WalletTransaction {
     const tx: WalletTransaction = {
       id: Date.now().toString(),
       type, amount, currency, description,
