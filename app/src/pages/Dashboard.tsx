@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
+import RiskMetricsCard from '../components/RiskMetricsCard'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, type WalletTransaction } from '../lib/portfolioStore'
@@ -230,6 +231,12 @@ export default function Dashboard() {
               </div>
             )
           })()}
+
+          {isAuthenticated && (
+            <div className="mb-6">
+              <RiskMetricsCard />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Portfolio Value Chart - Authenticated Only */}

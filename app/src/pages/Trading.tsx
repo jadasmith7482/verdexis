@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { portfolioStore } from '../lib/portfolioStore'
+import WatchlistPanel from '../components/WatchlistPanel'
 import { Toaster, toast } from 'sonner'
 import {
   Search, Star, RefreshCw, BarChart3, Clock, Layers,
@@ -429,6 +430,18 @@ export default function Trading() {
                 </div>
               )}
             </div>
+
+            {isAuthenticated && (
+              <div className="mt-6">
+                <WatchlistPanel
+                  availableSymbols={cryptoData.map((c) => ({ symbol: c.symbol, name: c.name }))}
+                  onSelect={(s) => {
+                    const found = cryptoData.find((c) => c.symbol.toUpperCase() === s.toUpperCase())
+                    if (found) setSelectedCrypto(found)
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

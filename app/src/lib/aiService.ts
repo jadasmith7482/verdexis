@@ -1,9 +1,34 @@
 import { marketData } from './marketData'
 
+export type PersonaId = 'verdexis' | 'buffett' | 'graham' | 'lynch' | 'munger' | 'klarman' | 'wood'
+
+export interface Persona {
+  id: PersonaId
+  name: string
+  title: string
+  philosophy: string
+  bias: 'value' | 'growth' | 'contrarian' | 'momentum' | 'balanced'
+  color: string
+  prompts: string[]
+}
+
+// Inspired by the 37-agent system in Fincept Terminal — distilled to 7 distinct
+// investor personas that flavour AI responses without needing a remote LLM.
+export const PERSONAS: Persona[] = [
+  { id: 'verdexis', name: 'Verdexis Analyst', title: 'Default · Balanced', bias: 'balanced', color: '#0C8B44', philosophy: 'Diversified, data-driven, risk-aware.', prompts: ['Analyze my portfolio', 'Best trades today?', 'Diversification ideas', 'Market sentiment'] },
+  { id: 'buffett', name: 'Warren Buffett', title: 'Long-term value', bias: 'value', color: '#D4AF37', philosophy: 'Buy wonderful businesses at fair prices. Hold forever.', prompts: ['Is BTC a wonderful business?', 'Margin of safety on ETH', 'Should I trim my position?'] },
+  { id: 'graham', name: 'Benjamin Graham', title: 'Defensive value', bias: 'value', color: '#7B9CFF', philosophy: 'Margin of safety. Mr. Market is moody — exploit, don\'t follow.', prompts: ['Calculate intrinsic value', 'Is this a defensive position?', 'Find oversold names'] },
+  { id: 'lynch', name: 'Peter Lynch', title: 'Growth at reasonable price', bias: 'growth', color: '#52C8A7', philosophy: 'Invest in what you understand. Tenbaggers hide in plain sight.', prompts: ['Spot a tenbagger setup', 'PEG ratio for SOL', 'What\'s the growth story?'] },
+  { id: 'munger', name: 'Charlie Munger', title: 'Mental models', bias: 'balanced', color: '#A78BFA', philosophy: 'Invert. All I want to know is where I\'m going to die so I\'ll never go there.', prompts: ['What can go wrong here?', 'Inverted analysis of my portfolio', 'Mental models check'] },
+  { id: 'klarman', name: 'Seth Klarman', title: 'Margin of safety', bias: 'contrarian', color: '#F59E0B', philosophy: 'Risk is what you didn\'t see. Cash is a position.', prompts: ['Where\'s the asymmetric upside?', 'Should I hold more cash?', 'Tail-risk check'] },
+  { id: 'wood', name: 'Cathie Wood', title: 'Disruptive innovation', bias: 'growth', color: '#EC4899', philosophy: 'Bet on exponential change. Conviction over consensus.', prompts: ['Innovation thesis for ETH', 'Disruptive momentum signals', 'Long-duration bets'] },
+]
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  persona?: PersonaId
 }
 
 export interface AIInsight {
@@ -82,9 +107,28 @@ class AIService {
     }
   }
 
-  async processQuery(query: string): Promise<string> {
+  async processQuery(query: string, persona: PersonaId = 'verdexis'): Promise<string> {
     const lowerQuery = query.toLowerCase()
+    const baseAnswer = await this.baseAnswer(lowerQuery)
+    return this.flavour(baseAnswer, persona)
+  }
 
+  private flavour(answer: string, persona: PersonaId): string {
+    const p = PERSONAS.find((x) => x.id === persona) || PERSONAS[0]
+    if (p.id === 'verdexis') return answer
+    const tagline: Record<PersonaId, string> = {
+      verdexis: '',
+      buffett: '\n\n— Be fearful when others are greedy. Look for businesses with durable moats and predictable cash flows.',
+      graham: '\n\n— Remember: the market is there to serve you, not instruct you. Demand a margin of safety.',
+      lynch: '\n\n— Know what you own and why. The simpler the story, the better the trade.',
+      munger: '\n\n— Invert, always invert. What would make this position fail?',
+      klarman: '\n\n— Cash is an option on opportunity. Patience compounds.',
+      wood: '\n\n— Truly disruptive technologies follow exponential curves. Size the position to your conviction.',
+    }
+    return `${answer}${tagline[p.id]}`
+  }
+
+  private async baseAnswer(lowerQuery: string): Promise<string> {
     try {
       // Portfolio-related queries
       if (lowerQuery.includes('portfolio') || lowerQuery.includes('net worth')) {
@@ -125,7 +169,7 @@ class AIService {
       }
 
       // Default response
-      return `I understand you're asking about "${query}". As your AI financial analyst, I can help with portfolio analysis, market insights, price checks, and trading strategies. Could you provide more details about what specific information you need?`
+      return `I can help with portfolio analysis, market insights, price checks, and trading strategies. Could you provide more details about what you need? You can also switch personas to see how Buffett, Graham, Lynch, Munger, Klarman, or Wood would frame the same question.`
     } catch (error) {
       console.error('Error processing query:', error)
       return `I apologize, but I'm having trouble accessing real-time market data right now. However, I can tell you that based on recent trends, diversification across BTC, ETH, and SOL remains a solid strategy. What specific aspect of your portfolio would you like to discuss?`

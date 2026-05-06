@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import Navigation from '../components/Navigation'
-import { aiService, type AIInsight, type ChatMessage } from '../lib/aiService'
+import { aiService, PERSONAS, type AIInsight, type ChatMessage, type PersonaId } from '../lib/aiService'
 import { Toaster } from 'sonner'
 import {
   Bot,
@@ -23,6 +23,8 @@ const quickPrompts = [
   'Market sentiment analysis',
 ]
 
+const PERSONA_KEY = 'verdexis_persona'
+
 export default function AIAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -36,7 +38,10 @@ export default function AIAssistant() {
   const [insights, setInsights] = useState<AIInsight[]>([])
   const [loading, setLoading] = useState(false)
   const [insightsLoading, setInsightsLoading] = useState(true)
+  const [persona, setPersona] = useState<PersonaId>(() => (typeof window !== 'undefined' ? (localStorage.getItem(PERSONA_KEY) as PersonaId | null) || 'verdexis' : 'verdexis'))
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (typeof window !== 'undefined') localStorage.setItem(PERSONA_KEY, persona) }, [persona])
 
   useEffect(() => {
     loadInsights()
@@ -66,12 +71,13 @@ export default function AIAssistant() {
     setInput('')
     setLoading(true)
 
-    const response = await aiService.processQuery(userMessage.content)
+    const response = await aiService.processQuery(userMessage.content, persona)
 
     const assistantMessage: ChatMessage = {
       role: 'assistant',
       content: response,
       timestamp: new Date(),
+      persona,
     }
 
     setMessages((prev) => [...prev, assistantMessage])
@@ -199,17 +205,28 @@ export default function AIAssistant() {
                       <p className="text-sm font-medium text-[#E5E5E5]">VERDEXIS AI</p>
                       <div className="flex items-center gap-1.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse" />
-                        <span className="text-xs text-[#737373]">Financial Analyst • Online</span>
+                        <span className="text-xs text-[#737373]">{PERSONAS.find(p => p.id === persona)?.title} • Online</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <select
+                      value={persona}
+                      onChange={(e) => setPersona(e.target.value as PersonaId)}
+                      className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]/40"
+                      title="Switch investor persona"
+                    >
+                      {PERSONAS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
                     <div className="px-3 py-1.5 rounded-lg bg-[#0C8B44]/20 text-xs text-[#0C8B44] flex items-center gap-1.5">
                       <Target className="w-3 h-3" />
                       Pro Mode
                     </div>
                   </div>
                 </div>
+                <p className="mt-2 text-[11px] text-[#737373] italic">"{PERSONAS.find(p => p.id === persona)?.philosophy}"</p>
               </div>
 
               {/* Messages */}
@@ -263,23 +280,27 @@ export default function AIAssistant() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Quick Prompts */}
-              {messages.length <= 2 && (
-                <div className="px-4 pb-2">
-                  <p className="text-xs text-[#737373] mb-2">Quick prompts:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {quickPrompts.map((prompt) => (
-                      <button
-                        key={prompt}
-                        onClick={() => handleQuickPrompt(prompt)}
-                        className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-xs text-[#A0A0A0] hover:text-[#0C8B44] hover:border-[#0C8B44]/30 transition-colors"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
+              {/* Quick Prompts — persona-aware */}
+              {messages.length <= 2 && (() => {
+                const personaObj = PERSONAS.find(p => p.id === persona)
+                const prompts = personaObj?.prompts ?? quickPrompts
+                return (
+                  <div className="px-4 pb-2">
+                    <p className="text-xs text-[#737373] mb-2">Try with <span style={{ color: personaObj?.color }}>{personaObj?.name}</span>:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {prompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => handleQuickPrompt(prompt)}
+                          className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-xs text-[#A0A0A0] hover:text-[#0C8B44] hover:border-[#0C8B44]/30 transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* Input Area */}
               <div className="p-4 border-t border-[#ffffff08]">
