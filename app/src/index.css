@@ -142,6 +142,16 @@
     animation: marquee 40s linear infinite;
     will-change: transform;
   }
+  /* Knock out the baked-in black background of the logo PNG and crop to
+     show only the V glyph (the PNG also contains "VERDEXIS" text we
+     don't want, since the wordmark is rendered as actual text beside it). */
+  /* Pre-processed transparent V glyph (see app/scripts/process-logo.py). */
+  .logo-knockout {
+    display: inline-block;
+    width: 3.5rem;
+    height: 3.5rem;
+    object-fit: contain;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

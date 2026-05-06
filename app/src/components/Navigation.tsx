@@ -100,7 +100,7 @@ export default function Navigation() {
         <div className="w-full max-w-[1280px] mx-auto px-6 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <img src="/assets/logo-icon-dark.png" alt="Verdexis" className="w-14 h-14" />
+            <img src="/assets/logo-icon-transparent.png" alt="Verdexis" className="logo-knockout" />
             <span className="text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
           </Link>
 

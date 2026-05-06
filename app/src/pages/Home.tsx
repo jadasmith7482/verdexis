@@ -555,7 +555,7 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <img src="/assets/logo-icon-dark.png" alt="Verdexis" className="w-14 h-14" />
+                <img src="/assets/logo-icon-transparent.png" alt="Verdexis" className="logo-knockout" />
                 <span className="text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
               </div>
               <p className="text-sm text-[#737373] max-w-xs leading-relaxed">AI-powered trading and portfolio management for the modern investor. Real-time data. Institutional security.</p>
