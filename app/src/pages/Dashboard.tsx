@@ -150,7 +150,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'Total Net Worth', value: `$${totalValue.toLocaleString()}`, change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
-                { label: '24h Change', value: `${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString()}`, change: 'All time P&L', positive: totalPnl >= 0, icon: TrendingUp },
+                { label: 'Unrealized P&L', value: `${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString()}`, change: 'All-time across holdings', positive: totalPnl >= 0, icon: TrendingUp },
                 { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
                 { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
               ].map((stat) => (
@@ -238,8 +238,8 @@ export default function Dashboard() {
               <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 {[
-                  { label: 'Deposit', icon: ArrowDownRight, path: '/wallet', color: '#0C8B44', desc: 'Add funds' },
-                  { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet', color: '#f44336', desc: 'Cash out' },
+                  { label: 'Deposit', icon: ArrowDownRight, path: '/wallet?action=deposit', color: '#0C8B44', desc: 'Add funds' },
+                  { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet?action=withdraw', color: '#f44336', desc: 'Cash out' },
                   { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy/Sell' },
                   { label: 'AI Insights', icon: BrainCircuit, path: '/ai', color: '#6A0DAD', desc: 'Ask AI' },
                 ].map((action) => (

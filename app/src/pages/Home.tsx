@@ -487,14 +487,19 @@ export default function Home() {
               </div>
               <p className="text-sm text-[#737373] max-w-xs leading-relaxed">AI-powered trading and portfolio management for the modern investor. Real-time data. Institutional security.</p>
               <div className="flex items-center gap-4 mt-4">
-                <a href="#" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Twitter className="w-4 h-4" /></a>
-                <a href="#" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Linkedin className="w-4 h-4" /></a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Twitter className="w-4 h-4" /></a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Linkedin className="w-4 h-4" /></a>
               </div>
             </div>
-            {[{ title: 'Product', links: ['Markets', 'News', 'Pricing'] }, { title: 'Resources', links: ['Documentation', 'API Reference', 'Market Data'] }, { title: 'Company', links: ['About', 'Blog', 'Careers'] }, { title: 'Legal', links: ['Privacy', 'Terms', 'Security'] }].map((col) => (
+            {[
+              { title: 'Product', links: [{ label: 'Markets', to: '/trading' }, { label: 'News', to: '/news' }, { label: 'AI Analyst', to: '/ai' }, { label: 'Pricing', to: '/#pricing' }] },
+              { title: 'Resources', links: [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Wallet', to: '/wallet' }, { label: 'Market Data', to: '/trading' }] },
+              { title: 'Company', links: [{ label: 'About', to: '/about' }, { label: 'Contact', to: '/about#contact' }, { label: 'Settings', to: '/settings' }] },
+              { title: 'Legal', links: [{ label: 'Privacy', to: '/legal#privacy' }, { label: 'Terms', to: '/legal#terms' }, { label: 'Security', to: '/legal#security' }] },
+            ].map((col) => (
               <div key={col.title}>
                 <p className="text-sm font-medium text-[#E5E5E5] mb-4">{col.title}</p>
-                <ul className="space-y-2">{col.links.map((link) => <li key={link}><a href="#" className="text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">{link}</a></li>)}</ul>
+                <ul className="space-y-2">{col.links.map((link) => <li key={link.label}><Link to={link.to} className="text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">{link.label}</Link></li>)}</ul>
               </div>
             ))}
           </div>

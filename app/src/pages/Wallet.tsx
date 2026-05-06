@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { portfolioStore } from '../lib/portfolioStore'
 import { Toaster, toast } from 'sonner'
@@ -11,8 +12,29 @@ import {
 type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer'
 
 export default function WalletPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('action') as TabType | null) ?? 'overview'
+  const validTabs: TabType[] = ['overview', 'deposit', 'withdraw', 'transfer']
   const [showBalance, setShowBalance] = useState(true)
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [activeTab, setActiveTab] = useState<TabType>(
+    validTabs.includes(initialTab) ? initialTab : 'overview'
+  )
+
+  // Keep URL in sync with the active tab
+  useEffect(() => {
+    const current = searchParams.get('action')
+    if (activeTab === 'overview' && current) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('action')
+      setSearchParams(next, { replace: true })
+    } else if (activeTab !== 'overview' && current !== activeTab) {
+      const next = new URLSearchParams(searchParams)
+      next.set('action', activeTab)
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
