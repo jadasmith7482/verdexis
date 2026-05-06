@@ -79,8 +79,14 @@ export default function Trading() {
       }
       portfolioStore.markToMarket(quotes)
     }
-    if (!selectedCrypto && data.length > 0) {
-      setSelectedCrypto(data[0])
+    // Re-point selectedCrypto at the fresh quote object so livePrice ticks
+    // through to the chart. Otherwise it stays frozen on the first snapshot.
+    if (data.length > 0) {
+      setSelectedCrypto((prev) => {
+        if (!prev) return data[0]
+        const fresh = data.find((c) => c.id === prev.id)
+        return fresh ?? prev
+      })
     }
     setRecentTrades(portfolioStore.getTrades().slice(0, 10))
     setLoading(false)

@@ -151,12 +151,23 @@ const DEMO_NEWS: MarketNews[] = [
 
 class MarketDataService {
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map()
-  private cacheDuration = 60000
-  private apiFailed = false
+  private cacheDuration = 30000              // generic cache (stocks etc)
+  private cryptoCacheDuration = 20000        // live crypto list refreshes faster
+  private ohlcCacheDuration = 60000          // OHLC bars don't tick every second
+  private apiFailedUntil = 0                 // cooldown timestamp; 0 = healthy
+  private apiCooldownMs = 45000              // back off this long after a failure, then retry
 
-  private getCached<T>(key: string): T | null {
+  private isApiCoolingDown(): boolean {
+    return Date.now() < this.apiFailedUntil
+  }
+
+  private markApiFailed() {
+    this.apiFailedUntil = Date.now() + this.apiCooldownMs
+  }
+
+  private getCached<T>(key: string, ttlMs: number = this.cacheDuration): T | null {
     const cached = this.cache.get(key)
-    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+    if (cached && Date.now() - cached.timestamp < ttlMs) {
       return cached.data as T
     }
     return null
@@ -203,12 +214,13 @@ class MarketDataService {
 
   async getCryptoList(): Promise<CryptoQuote[]> {
     const cacheKey = 'crypto_list'
-    const cached = this.getCached<CryptoQuote[]>(cacheKey)
+    const cached = this.getCached<CryptoQuote[]>(cacheKey, this.cryptoCacheDuration)
     if (cached) return cached
 
-    if (this.apiFailed) {
-      this.setCache(cacheKey, DEMO_CRYPTO)
-      return DEMO_CRYPTO
+    if (this.isApiCoolingDown()) {
+      const drifted = this.driftedDemoCrypto()
+      this.setCache(cacheKey, drifted)
+      return drifted
     }
 
     try {
@@ -235,10 +247,25 @@ class MarketDataService {
       return data
     } catch (error) {
       console.warn('CoinGecko API failed, using demo data:', error)
-      this.apiFailed = true
-      this.setCache(cacheKey, DEMO_CRYPTO)
-      return DEMO_CRYPTO
+      this.markApiFailed()
+      const drifted = this.driftedDemoCrypto()
+      this.setCache(cacheKey, drifted)
+      return drifted
     }
+  }
+
+  // Apply a small per-second random walk on top of DEMO_CRYPTO so the UI keeps
+  // moving when CoinGecko is rate-limiting us. Deterministic per-call so two
+  // simultaneous reads in the same tick agree.
+  private driftedDemoCrypto(): CryptoQuote[] {
+    const t = Date.now()
+    return DEMO_CRYPTO.map((c) => {
+      const seed = ((t / 1000) | 0) ^ [...c.id].reduce((s, ch) => (s * 31 + ch.charCodeAt(0)) >>> 0, 7)
+      const r = ((seed * 1664525 + 1013904223) >>> 0) / 0xffffffff
+      const driftPct = (r - 0.5) * 0.004 // +/-0.2% per tick
+      const price = c.current_price * (1 + driftPct)
+      return { ...c, current_price: price, price_change_percentage_24h: c.price_change_percentage_24h + driftPct * 100 }
+    })
   }
 
   async getCryptoPrice(ids: string[]): Promise<CryptoQuote[]> {
@@ -265,10 +292,10 @@ class MarketDataService {
     // Granularity is auto: <=2d → 30min, <=30d → 4h, >30d → 4d.
     const days = range === '1H' ? 1 : range === '1D' ? 1 : range === '1W' ? 7 : range === '1M' ? 30 : 365
     const cacheKey = `ohlc_${coinId}_${days}`
-    const cached = this.getCached<Candle[]>(cacheKey)
+    const cached = this.getCached<Candle[]>(cacheKey, this.ohlcCacheDuration)
     if (cached) return cached
 
-    if (this.apiFailed) {
+    if (this.isApiCoolingDown()) {
       const fake = this.simulateOhlc(coinId, range)
       this.setCache(cacheKey, fake)
       return fake
@@ -330,6 +357,17 @@ class MarketDataService {
       out.push({ time: now - totalMs + step * i, open, high, low, close })
       price = close
     }
+    // Tick the trailing bar with a time-based perturbation so successive calls
+    // produce a slightly different last candle (live-ticking effect even when
+    // CoinGecko is rate-limiting).
+    const last = out[out.length - 1]
+    const tickSeed = ((Date.now() / 1000) | 0) ^ seed
+    const tickRand = ((tickSeed * 1664525 + 1013904223) >>> 0) / 0xffffffff
+    const tickDrift = (tickRand - 0.5) * vol * 0.8
+    last.close = Math.max(0.0001, last.close + tickDrift)
+    last.high = Math.max(last.high, last.close)
+    last.low = Math.min(last.low, last.close)
+    last.time = Date.now()
     return out
   }
 
