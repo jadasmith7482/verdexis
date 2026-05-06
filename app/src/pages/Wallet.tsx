@@ -149,6 +149,51 @@ export default function WalletPage() {
     toast.success('Exported CSV')
   }
 
+  function importTransactionsCsv(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      const lines = text.split(/\r?\n/).filter(Boolean)
+      if (lines.length < 2) { toast.error('CSV is empty'); return }
+      // Header skipped
+      const allowedTypes = ['deposit', 'withdraw', 'transfer'] as const
+      let imported = 0
+      let skipped = 0
+      for (let i = 1; i < lines.length; i++) {
+        const cells = parseCsvLine(lines[i])
+        if (cells.length < 5) { skipped++; continue }
+        const [, typeRaw, amountRaw, currencyRaw, descriptionRaw] = cells
+        const type = typeRaw?.toLowerCase().trim() as typeof allowedTypes[number]
+        const amount = parseFloat(amountRaw)
+        const currency = (currencyRaw || 'USD').toUpperCase().trim()
+        if (!allowedTypes.includes(type) || !isFinite(amount)) { skipped++; continue }
+        portfolioStore.addTransaction(type, amount, currency, (descriptionRaw || 'Imported').replace(/^"|"$/g, ''))
+        imported++
+      }
+      setTransactions(portfolioStore.getTransactions())
+      setWallet(portfolioStore.getWallet())
+      if (imported) toast.success(`Imported ${imported} transactions${skipped ? ` (${skipped} skipped)` : ''}`)
+      else toast.error('No valid transactions found')
+    }
+    reader.readAsText(file)
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const out: string[] = []
+    let cur = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++ }
+        else inQuotes = !inQuotes
+      } else if (ch === ',' && !inQuotes) { out.push(cur); cur = '' }
+      else cur += ch
+    }
+    out.push(cur)
+    return out
+  }
+
   return (
     <div className="min-h-screen bg-[#070C0E]">
       <Toaster position="top-right" theme="dark" />
@@ -224,12 +269,23 @@ export default function WalletPage() {
             <div className="glass-card overflow-hidden">
               <div className="p-6 border-b border-[#ffffff08] flex items-center justify-between gap-4">
                 <h3 className="text-lg font-medium text-[#E5E5E5]">Transaction History</h3>
-                <button
-                  onClick={() => exportTransactionsCsv(transactions)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#A0A0A0] border border-[#ffffff10] rounded-lg hover:text-[#E5E5E5] hover:border-[#ffffff25] transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />Export CSV
-                </button>
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#A0A0A0] border border-[#ffffff10] rounded-lg hover:text-[#E5E5E5] hover:border-[#ffffff25] transition-colors cursor-pointer">
+                    <Download className="w-3.5 h-3.5 rotate-180" />Import CSV
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) importTransactionsCsv(f); e.currentTarget.value = '' }}
+                    />
+                  </label>
+                  <button
+                    onClick={() => exportTransactionsCsv(transactions)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#A0A0A0] border border-[#ffffff10] rounded-lg hover:text-[#E5E5E5] hover:border-[#ffffff25] transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />Export CSV
+                  </button>
+                </div>
               </div>
               <div className="divide-y divide-[#ffffff05]">
                 {transactions.map((tx) => (

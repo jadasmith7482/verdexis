@@ -178,6 +178,59 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Performance Metrics — inspired by Wealthfolio analytics */}
+          {isAuthenticated && (() => {
+            const allTrades = portfolioStore.getTrades()
+            const buys = allTrades.filter(t => t.side === 'buy')
+            const sells = allTrades.filter(t => t.side === 'sell')
+            const totalInvested = buys.reduce((s, t) => s + t.total, 0)
+            // Naive realized P&L using avg buy price for the same symbol at sell time
+            const avgCostBySymbol = new Map<string, { qty: number; cost: number }>()
+            buys.forEach(b => {
+              const cur = avgCostBySymbol.get(b.symbol) || { qty: 0, cost: 0 }
+              cur.qty += b.quantity; cur.cost += b.total
+              avgCostBySymbol.set(b.symbol, cur)
+            })
+            let realizedPnl = 0
+            let wins = 0
+            sells.forEach(s => {
+              const stats = avgCostBySymbol.get(s.symbol)
+              if (!stats || stats.qty === 0) return
+              const avg = stats.cost / stats.qty
+              const pnl = (s.price - avg) * s.quantity
+              realizedPnl += pnl
+              if (pnl > 0) wins++
+            })
+            const winRate = sells.length > 0 ? (wins / sells.length) * 100 : 0
+            const totalReturnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0
+            return (
+              <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff05] p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-[#E5E5E5]">Performance Metrics</h3>
+                  <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">All-time</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Total Return</p>
+                    <p className={`text-xl font-light ${totalReturnPct >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Realized P&L</p>
+                    <p className={`text-xl font-light ${realizedPnl >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{realizedPnl >= 0 ? '+' : ''}${Math.abs(realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Win Rate</p>
+                    <p className="text-xl font-light text-[#E5E5E5]">{winRate.toFixed(0)}% <span className="text-xs text-[#737373]">({wins}/{sells.length})</span></p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Total Trades</p>
+                    <p className="text-xl font-light text-[#E5E5E5]">{allTrades.length} <span className="text-xs text-[#737373]">{buys.length} buys / {sells.length} sells</span></p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Portfolio Value Chart - Authenticated Only */}
             <div className="lg:col-span-2 liquid-card p-8" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>

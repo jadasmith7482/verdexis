@@ -18,6 +18,7 @@ const privateLinks = [
   { label: 'News', path: '/news' },
   { label: 'AI Analyst', path: '/ai' },
   { label: 'Wallet', path: '/wallet' },
+  { label: 'Goals', path: '/goals' },
 ]
 
 export default function Navigation() {

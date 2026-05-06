@@ -18,6 +18,7 @@ const STATIC_ITEMS: Item[] = [
   { label: 'News', to: '/news', group: 'Pages' },
   { label: 'Settings', to: '/settings', group: 'Pages' },
   { label: 'Price Alerts', to: '/alerts', group: 'Pages' },
+  { label: 'Financial Goals', to: '/goals', group: 'Pages' },
   { label: 'Help & Docs', to: '/about', group: 'Pages' },
 ]
 

@@ -21,6 +21,7 @@ const About = lazy(() => import('./pages/About'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const Alerts = lazy(() => import('./pages/Alerts'))
+const Goals = lazy(() => import('./pages/Goals'))
 
 function PageFallback() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/news" element={<News />} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/goals" element={<Goals />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />
           <Route path="/reset" element={<ResetPassword />} />
