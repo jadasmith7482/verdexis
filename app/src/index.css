@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@property --filly {
+  syntax: '<percentage>';
+  initial-value: 0%;
+  inherits: false;
+}
+
+@layer base {
+  :root {
+    --canvas: #070C0E;
+    --surface: rgba(15, 22, 25, 0.85);
+    --surface-border: rgba(15, 22, 25, 0.4);
+    --text-primary: #E5E5E5;
+    --text-secondary: #A0A0A0;
+    --text-muted: #737373;
+    --accent: #0C8B44;
+    --accent-glow: rgba(12, 139, 68, 0.3);
+    --card-1: #0C8B44;
+    --card-2: #6A0DAD;
+    --card-3: #00838F;
+    --liquid-orange: #F57C00;
+    --liquid-green: #4CAF50;
+    --liquid-purple: #9C27B0;
+    --bar-fill-1: #4CAF50;
+    --bar-fill-2: #2196F3;
+    --bar-fill-3: #FF9800;
+    --chart-line: #00E676;
+    --glow: rgba(0, 230, 118, 0.25);
+    --separator: rgba(115, 115, 115, 0.15);
+    --background: 192 33% 3%;
+    --foreground: 0 0% 90%;
+    --card: 192 25% 8%;
+    --card-foreground: 0 0% 90%;
+    --popover: 192 25% 8%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 148 84% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 192 15% 15%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 192 15% 15%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 148 84% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 192 15% 18%;
+    --input: 192 15% 18%;
+    --ring: 148 84% 30%;
+    --radius: 0.625rem;
+  }
+
+  body {
+    @apply bg-[#070C0E] text-[#E5E5E5] antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .liquid-card {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    background: rgba(15, 22, 25, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(15, 22, 25, 0.3);
+    border-radius: 16px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .liquid-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .liquid-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    background: linear-gradient(0deg, var(--fill-color, rgba(12, 139, 68, 0.15)) var(--filly), transparent var(--filly));
+  }
+
+  .liquid-card:hover::after {
+    opacity: 1;
+    animation: liquidFill 0.8s ease forwards;
+  }
+
+  .liquid-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .glass-card {
+    background: rgba(15, 22, 25, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(15, 22, 25, 0.3);
+    border-radius: 16px;
+  }
+
+  .nav-glass {
+    background: rgba(7, 12, 14, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(115, 115, 115, 0.1);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(12, 139, 68, 0.3), 0 0 40px rgba(12, 139, 68, 0.1);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(12, 139, 68, 0.5);
+  }
+}
+
+@keyframes liquidFill {
+  0% { --filly: 0%; }
+  100% { --filly: 100%; }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

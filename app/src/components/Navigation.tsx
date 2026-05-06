@@ -1,0 +1,165 @@
+import { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { Menu, X, LogOut } from 'lucide-react'
+import AuthModal from './AuthModal'
+
+const publicLinks = [
+  { label: 'Markets', path: '/trading' },
+  { label: 'News', path: '/news' },
+  { label: 'Pricing', path: '/#pricing' },
+]
+
+const privateLinks = [
+  { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Markets', path: '/trading' },
+  { label: 'News', path: '/news' },
+  { label: 'AI Analyst', path: '/ai' },
+  { label: 'Wallet', path: '/wallet' },
+]
+
+export default function Navigation() {
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userName, setUserName] = useState('User')
+  const location = useLocation()
+
+  // Check auth state from localStorage
+  const checkAuth = () => {
+    const auth = localStorage.getItem('verdexis_auth')
+    const holdings = localStorage.getItem('verdexis_holdings')
+    setIsAuthenticated(!!auth && !!holdings)
+    if (auth) {
+      try {
+        const parsed = JSON.parse(auth)
+        setUserName(parsed.name || 'User')
+      } catch {
+        setUserName('User')
+      }
+    }
+  }
+
+  useEffect(() => {
+    checkAuth()
+    const handleStorage = () => checkAuth()
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  const isPrivatePage = ['/dashboard', '/ai', '/wallet'].includes(location.pathname)
+  const showPrivateNav = isAuthenticated || isPrivatePage
+  const navLinks = showPrivateNav ? privateLinks : publicLinks
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 50)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const openLogin = () => {
+    setAuthMode('login')
+    setAuthOpen(true)
+    setMobileOpen(false)
+  }
+
+  const openSignup = () => {
+    setAuthMode('signup')
+    setAuthOpen(true)
+    setMobileOpen(false)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('verdexis_auth')
+    localStorage.removeItem('verdexis_holdings')
+    localStorage.removeItem('verdexis_wallet')
+    localStorage.removeItem('verdexis_trades')
+    localStorage.removeItem('verdexis_transactions')
+    setIsAuthenticated(false)
+    setUserName('User')
+    window.location.reload()
+  }
+
+  return (
+    <>
+      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${scrolled ? 'nav-glass' : 'bg-transparent'}`}>
+        <div className="w-full max-w-[1280px] mx-auto px-6 flex items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/assets/logo-icon-dark.png" alt="Verdexis" className="w-14 h-14" />
+            <span className="text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
+          </Link>
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.map((link) => (
+              <Link key={link.path} to={link.path}
+                className={`text-sm font-light tracking-[0.08em] uppercase transition-colors hover:text-[#0C8B44] ${location.pathname === link.path ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            {!isAuthenticated ? (
+              <>
+                <button onClick={openLogin} className="px-5 py-2.5 text-[#A0A0A0] text-sm font-light tracking-[0.04em] uppercase hover:text-[#E5E5E5] transition-colors">Log In</button>
+                <button onClick={openSignup} className="px-6 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Sign Up</button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[#737373] hidden lg:inline">{userName}</span>
+                <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors">
+                  {userName[0]?.toUpperCase() || 'U'}
+                </Link>
+                <button onClick={handleLogout} className="w-9 h-9 rounded-full bg-[#1a1a1a] flex items-center justify-center text-[#737373] hover:text-[#f44336] hover:bg-red-500/10 transition-colors" title="Log out">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile menu button */}
+          <button className="md:hidden text-[#E5E5E5]" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div className="absolute top-16 left-0 right-0 nav-glass py-4 px-6 md:hidden">
+            <div className="flex flex-col gap-4">
+              {navLinks.map((link) => (
+                <Link key={link.path} to={link.path}
+                  className="text-sm font-light tracking-[0.08em] uppercase text-[#A0A0A0] hover:text-[#0C8B44] transition-colors"
+                  onClick={() => setMobileOpen(false)}>
+                  {link.label}
+                </Link>
+              ))}
+              {!isAuthenticated ? (
+                <div className="flex items-center gap-3 pt-3 border-t border-[#ffffff08]">
+                  <button onClick={openLogin} className="flex-1 py-2.5 text-[#A0A0A0] text-sm font-light tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg">Log In</button>
+                  <button onClick={openSignup} className="flex-1 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg">Sign Up</button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pt-3 border-t border-[#ffffff08]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">{userName[0]?.toUpperCase() || 'U'}</div>
+                    <span className="text-sm text-[#A0A0A0]">{userName}</span>
+                  </div>
+                  <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-[#737373] hover:text-[#f44336] transition-colors">
+                    <LogOut className="w-4 h-4" /> Log Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
+
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} defaultMode={authMode} />
+    </>
+  )
+}

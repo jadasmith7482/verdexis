@@ -1,0 +1,4182 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CleanPNG - Free Transparent PNG Assets</title>
+  <meta name="description" content="CleanPNG is a searchable library of transparent PNG assets, creative packs, and AI-powered image tools." />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://www.cleanpng.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CleanPNG - Free Transparent PNG Assets" />
+  <meta property="og:description" content="Search millions of transparent PNG assets, creative packs, design trends, and AI-powered image tools on CleanPNG." />
+  <meta property="og:url" content="https://www.cleanpng.com/" />
+  <meta property="og:image" content="https://u121178-b1e3-f2658d72.westc.gpuhub.com:8443/test_clean/html/pics/01.jpg" />
+
+  <style id="compiled-tailwind-local">
+/* Inlined compiled Tailwind CSS: supports direct file:// opening. */
+*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*/
+
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+     tab-size: 4;
+  /* 3 */
+  font-family: Space Grotesk, ui-sans-serif, system-ui, sans-serif;
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
+
+.container {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1536px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.pointer-events-auto {
+  pointer-events: auto;
+}
+
+.visible {
+  visibility: visible;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.collapse {
+  visibility: collapse;
+}
+
+.static {
+  position: static;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+.sticky {
+  position: sticky;
+}
+
+.-inset-1 {
+  inset: -0.25rem;
+}
+
+.end-1 {
+  inset-inline-end: 0.25rem;
+}
+
+.right-3 {
+  right: 0.75rem;
+}
+
+.right-4 {
+  right: 1rem;
+}
+
+.top-0 {
+  top: 0px;
+}
+
+.top-1\/2 {
+  top: 50%;
+}
+
+.isolate {
+  isolation: isolate;
+}
+
+.isolation-auto {
+  isolation: auto;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+.z-50 {
+  z-index: 50;
+}
+
+.float-start {
+  float: inline-start;
+}
+
+.float-end {
+  float: inline-end;
+}
+
+.float-right {
+  float: right;
+}
+
+.float-left {
+  float: left;
+}
+
+.float-none {
+  float: none;
+}
+
+.clear-start {
+  clear: inline-start;
+}
+
+.clear-end {
+  clear: inline-end;
+}
+
+.clear-left {
+  clear: left;
+}
+
+.clear-right {
+  clear: right;
+}
+
+.clear-both {
+  clear: both;
+}
+
+.clear-none {
+  clear: none;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.mr-2 {
+  margin-right: 0.5rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mt-10 {
+  margin-top: 2.5rem;
+}
+
+.mt-12 {
+  margin-top: 3rem;
+}
+
+.mt-14 {
+  margin-top: 3.5rem;
+}
+
+.mt-16 {
+  margin-top: 4rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mt-5 {
+  margin-top: 1.25rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+.mt-7 {
+  margin-top: 1.75rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.box-border {
+  box-sizing: border-box;
+}
+
+.box-content {
+  box-sizing: content-box;
+}
+
+.line-clamp-none {
+  overflow: visible;
+  display: block;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: none;
+}
+
+.block {
+  display: block;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+.inline {
+  display: inline;
+}
+
+.flex {
+  display: flex;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.table {
+  display: table;
+}
+
+.inline-table {
+  display: inline-table;
+}
+
+.table-caption {
+  display: table-caption;
+}
+
+.table-cell {
+  display: table-cell;
+}
+
+.table-column {
+  display: table-column;
+}
+
+.table-column-group {
+  display: table-column-group;
+}
+
+.table-footer-group {
+  display: table-footer-group;
+}
+
+.table-header-group {
+  display: table-header-group;
+}
+
+.table-row-group {
+  display: table-row-group;
+}
+
+.table-row {
+  display: table-row;
+}
+
+.flow-root {
+  display: flow-root;
+}
+
+.grid {
+  display: grid;
+}
+
+.inline-grid {
+  display: inline-grid;
+}
+
+.contents {
+  display: contents;
+}
+
+.list-item {
+  display: list-item;
+}
+
+.hidden {
+  display: none;
+}
+
+.h-11 {
+  height: 2.75rem;
+}
+
+.h-24 {
+  height: 6rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.h-40 {
+  height: 10rem;
+}
+
+.h-5 {
+  height: 1.25rem;
+}
+
+.h-6 {
+  height: 1.5rem;
+}
+
+.h-7 {
+  height: 1.75rem;
+}
+
+.h-\[12px\] {
+  height: 12px;
+}
+
+.h-\[130px\] {
+  height: 130px;
+}
+
+.h-\[160px\] {
+  height: 160px;
+}
+
+.h-\[8px\] {
+  height: 8px;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.max-h-\[400px\] {
+  max-height: 400px;
+}
+
+.max-h-\[520px\] {
+  max-height: 520px;
+}
+
+.min-h-\[220px\] {
+  min-height: 220px;
+}
+
+.min-h-\[250px\] {
+  min-height: 250px;
+}
+
+.min-h-\[42px\] {
+  min-height: 42px;
+}
+
+.min-h-\[44px\] {
+  min-height: 44px;
+}
+
+.min-h-\[74px\] {
+  min-height: 74px;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.w-11 {
+  width: 2.75rem;
+}
+
+.w-24 {
+  width: 6rem;
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.w-40 {
+  width: 10rem;
+}
+
+.w-5 {
+  width: 1.25rem;
+}
+
+.w-6 {
+  width: 1.5rem;
+}
+
+.w-7 {
+  width: 1.75rem;
+}
+
+.w-\[12px\] {
+  width: 12px;
+}
+
+.w-\[170px\] {
+  width: 170px;
+}
+
+.w-\[200px\] {
+  width: 200px;
+}
+
+.w-\[20px\] {
+  width: 20px;
+}
+
+.w-\[24px\] {
+  width: 24px;
+}
+
+.w-\[280px\] {
+  width: 280px;
+}
+
+.w-\[30px\] {
+  width: 30px;
+}
+
+.w-\[this-is\\\\\] {
+  width: this-is\\;
+}
+
+.w-\[this-is\] {
+  width: this-is;
+}
+
+.w-\[weird-and-invalid\] {
+  width: weird-and-invalid;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.min-w-0 {
+  min-width: 0px;
+}
+
+.min-w-\[220px\] {
+  min-width: 220px;
+}
+
+.min-w-\[250px\] {
+  min-width: 250px;
+}
+
+.min-w-\[44px\] {
+  min-width: 44px;
+}
+
+.max-w-\[1040px\] {
+  max-width: 1040px;
+}
+
+.max-w-\[400px\] {
+  max-width: 400px;
+}
+
+.max-w-\[760px\] {
+  max-width: 760px;
+}
+
+.max-w-\[780px\] {
+  max-width: 780px;
+}
+
+.max-w-\[820px\] {
+  max-width: 820px;
+}
+
+.max-w-\[860px\] {
+  max-width: 860px;
+}
+
+.max-w-\[920px\] {
+  max-width: 920px;
+}
+
+.max-w-\[940px\] {
+  max-width: 940px;
+}
+
+.max-w-\[980px\] {
+  max-width: 980px;
+}
+
+.max-w-full {
+  max-width: 100%;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.flex-shrink {
+  flex-shrink: 1;
+}
+
+.shrink {
+  flex-shrink: 1;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.grow {
+  flex-grow: 1;
+}
+
+.table-auto {
+  table-layout: auto;
+}
+
+.table-fixed {
+  table-layout: fixed;
+}
+
+.caption-top {
+  caption-side: top;
+}
+
+.caption-bottom {
+  caption-side: bottom;
+}
+
+.border-collapse {
+  border-collapse: collapse;
+}
+
+.border-separate {
+  border-collapse: separate;
+}
+
+.-translate-y-1\/2 {
+  --tw-translate-y: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.rotate-180 {
+  --tw-rotate: 180deg;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.\!transform {
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important;
+}
+
+.transform {
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.transform-cpu {
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.transform-gpu {
+  transform: translate3d(var(--tw-translate-x), var(--tw-translate-y), 0) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.transform-none {
+  transform: none;
+}
+
+.touch-auto {
+  touch-action: auto;
+}
+
+.touch-none {
+  touch-action: none;
+}
+
+.touch-pan-x {
+  --tw-pan-x: pan-x;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pan-left {
+  --tw-pan-x: pan-left;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pan-right {
+  --tw-pan-x: pan-right;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pan-y {
+  --tw-pan-y: pan-y;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pan-up {
+  --tw-pan-y: pan-up;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pan-down {
+  --tw-pan-y: pan-down;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-pinch-zoom {
+  --tw-pinch-zoom: pinch-zoom;
+  touch-action: var(--tw-pan-x) var(--tw-pan-y) var(--tw-pinch-zoom);
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+.select-none {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.select-text {
+  -webkit-user-select: text;
+     -moz-user-select: text;
+          user-select: text;
+}
+
+.select-all {
+  -webkit-user-select: all;
+     -moz-user-select: all;
+          user-select: all;
+}
+
+.select-auto {
+  -webkit-user-select: auto;
+     -moz-user-select: auto;
+          user-select: auto;
+}
+
+.resize-none {
+  resize: none;
+}
+
+.resize-y {
+  resize: vertical;
+}
+
+.resize-x {
+  resize: horizontal;
+}
+
+.resize {
+  resize: both;
+}
+
+.snap-none {
+  scroll-snap-type: none;
+}
+
+.snap-x {
+  scroll-snap-type: x var(--tw-scroll-snap-strictness);
+}
+
+.snap-y {
+  scroll-snap-type: y var(--tw-scroll-snap-strictness);
+}
+
+.snap-both {
+  scroll-snap-type: both var(--tw-scroll-snap-strictness);
+}
+
+.snap-mandatory {
+  --tw-scroll-snap-strictness: mandatory;
+}
+
+.snap-proximity {
+  --tw-scroll-snap-strictness: proximity;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+.snap-end {
+  scroll-snap-align: end;
+}
+
+.snap-center {
+  scroll-snap-align: center;
+}
+
+.snap-align-none {
+  scroll-snap-align: none;
+}
+
+.snap-normal {
+  scroll-snap-stop: normal;
+}
+
+.snap-always {
+  scroll-snap-stop: always;
+}
+
+.list-inside {
+  list-style-position: inside;
+}
+
+.list-outside {
+  list-style-position: outside;
+}
+
+.appearance-none {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+}
+
+.appearance-auto {
+  -webkit-appearance: auto;
+     -moz-appearance: auto;
+          appearance: auto;
+}
+
+.break-before-auto {
+  -moz-column-break-before: auto;
+       break-before: auto;
+}
+
+.break-before-avoid {
+  -moz-column-break-before: avoid;
+       break-before: avoid;
+}
+
+.break-before-all {
+  -moz-column-break-before: all;
+       break-before: all;
+}
+
+.break-before-avoid-page {
+  -moz-column-break-before: avoid;
+       break-before: avoid-page;
+}
+
+.break-before-page {
+  -moz-column-break-before: page;
+       break-before: page;
+}
+
+.break-before-left {
+  -moz-column-break-before: left;
+       break-before: left;
+}
+
+.break-before-right {
+  -moz-column-break-before: right;
+       break-before: right;
+}
+
+.break-before-column {
+  -moz-column-break-before: column;
+       break-before: column;
+}
+
+.break-inside-auto {
+  -moz-column-break-inside: auto;
+       break-inside: auto;
+}
+
+.break-inside-avoid {
+  -moz-column-break-inside: avoid;
+       break-inside: avoid;
+}
+
+.break-inside-avoid-page {
+  break-inside: avoid-page;
+}
+
+.break-inside-avoid-column {
+  -moz-column-break-inside: avoid;
+       break-inside: avoid-column;
+}
+
+.break-after-auto {
+  -moz-column-break-after: auto;
+       break-after: auto;
+}
+
+.break-after-avoid {
+  -moz-column-break-after: avoid;
+       break-after: avoid;
+}
+
+.break-after-all {
+  -moz-column-break-after: all;
+       break-after: all;
+}
+
+.break-after-avoid-page {
+  -moz-column-break-after: avoid;
+       break-after: avoid-page;
+}
+
+.break-after-page {
+  -moz-column-break-after: page;
+       break-after: page;
+}
+
+.break-after-left {
+  -moz-column-break-after: left;
+       break-after: left;
+}
+
+.break-after-right {
+  -moz-column-break-after: right;
+       break-after: right;
+}
+
+.break-after-column {
+  -moz-column-break-after: column;
+       break-after: column;
+}
+
+.grid-flow-row {
+  grid-auto-flow: row;
+}
+
+.grid-flow-col {
+  grid-auto-flow: column;
+}
+
+.grid-flow-dense {
+  grid-auto-flow: dense;
+}
+
+.grid-flow-row-dense {
+  grid-auto-flow: row dense;
+}
+
+.grid-flow-col-dense {
+  grid-auto-flow: column dense;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flex-row {
+  flex-direction: row;
+}
+
+.flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-col-reverse {
+  flex-direction: column-reverse;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-wrap-reverse {
+  flex-wrap: wrap-reverse;
+}
+
+.flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+.place-content-center {
+  place-content: center;
+}
+
+.place-content-start {
+  place-content: start;
+}
+
+.place-content-end {
+  place-content: end;
+}
+
+.place-content-between {
+  place-content: space-between;
+}
+
+.place-content-around {
+  place-content: space-around;
+}
+
+.place-content-evenly {
+  place-content: space-evenly;
+}
+
+.place-content-baseline {
+  place-content: baseline;
+}
+
+.place-content-stretch {
+  place-content: stretch;
+}
+
+.place-items-start {
+  place-items: start;
+}
+
+.place-items-end {
+  place-items: end;
+}
+
+.place-items-center {
+  place-items: center;
+}
+
+.place-items-baseline {
+  place-items: baseline;
+}
+
+.place-items-stretch {
+  place-items: stretch;
+}
+
+.content-normal {
+  align-content: normal;
+}
+
+.content-center {
+  align-content: center;
+}
+
+.content-start {
+  align-content: flex-start;
+}
+
+.content-end {
+  align-content: flex-end;
+}
+
+.content-between {
+  align-content: space-between;
+}
+
+.content-around {
+  align-content: space-around;
+}
+
+.content-evenly {
+  align-content: space-evenly;
+}
+
+.content-baseline {
+  align-content: baseline;
+}
+
+.content-stretch {
+  align-content: stretch;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-baseline {
+  align-items: baseline;
+}
+
+.items-stretch {
+  align-items: stretch;
+}
+
+.justify-normal {
+  justify-content: normal;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
+}
+
+.justify-evenly {
+  justify-content: space-evenly;
+}
+
+.justify-stretch {
+  justify-content: stretch;
+}
+
+.justify-items-start {
+  justify-items: start;
+}
+
+.justify-items-end {
+  justify-items: end;
+}
+
+.justify-items-center {
+  justify-items: center;
+}
+
+.justify-items-stretch {
+  justify-items: stretch;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-2\.5 {
+  gap: 0.625rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-5 {
+  gap: 1.25rem;
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+.gap-7 {
+  gap: 1.75rem;
+}
+
+.gap-8 {
+  gap: 2rem;
+}
+
+.gap-x-2 {
+  -moz-column-gap: 0.5rem;
+       column-gap: 0.5rem;
+}
+
+.gap-x-8 {
+  -moz-column-gap: 2rem;
+       column-gap: 2rem;
+}
+
+.gap-y-1 {
+  row-gap: 0.25rem;
+}
+
+.gap-y-4 {
+  row-gap: 1rem;
+}
+
+.space-x-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 0;
+  margin-right: calc(0.5rem * var(--tw-space-x-reverse));
+  margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
+}
+
+.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+}
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1.25rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1.25rem * var(--tw-space-y-reverse));
+}
+
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1.5rem * var(--tw-space-y-reverse));
+}
+
+.space-y-8 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(2rem * var(--tw-space-y-reverse));
+}
+
+.space-y-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 1;
+}
+
+.space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+.divide-x > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-x-reverse: 0;
+  border-right-width: calc(1px * var(--tw-divide-x-reverse));
+  border-left-width: calc(1px * calc(1 - var(--tw-divide-x-reverse)));
+}
+
+.divide-y > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-y-reverse: 0;
+  border-top-width: calc(1px * calc(1 - var(--tw-divide-y-reverse)));
+  border-bottom-width: calc(1px * var(--tw-divide-y-reverse));
+}
+
+.divide-y-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-y-reverse: 1;
+}
+
+.divide-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-divide-x-reverse: 1;
+}
+
+.divide-solid > :not([hidden]) ~ :not([hidden]) {
+  border-style: solid;
+}
+
+.divide-dashed > :not([hidden]) ~ :not([hidden]) {
+  border-style: dashed;
+}
+
+.divide-dotted > :not([hidden]) ~ :not([hidden]) {
+  border-style: dotted;
+}
+
+.divide-double > :not([hidden]) ~ :not([hidden]) {
+  border-style: double;
+}
+
+.divide-none > :not([hidden]) ~ :not([hidden]) {
+  border-style: none;
+}
+
+.place-self-auto {
+  place-self: auto;
+}
+
+.place-self-start {
+  place-self: start;
+}
+
+.place-self-end {
+  place-self: end;
+}
+
+.place-self-center {
+  place-self: center;
+}
+
+.place-self-stretch {
+  place-self: stretch;
+}
+
+.self-auto {
+  align-self: auto;
+}
+
+.self-start {
+  align-self: flex-start;
+}
+
+.self-end {
+  align-self: flex-end;
+}
+
+.self-center {
+  align-self: center;
+}
+
+.self-stretch {
+  align-self: stretch;
+}
+
+.self-baseline {
+  align-self: baseline;
+}
+
+.justify-self-auto {
+  justify-self: auto;
+}
+
+.justify-self-start {
+  justify-self: start;
+}
+
+.justify-self-end {
+  justify-self: end;
+}
+
+.justify-self-center {
+  justify-self: center;
+}
+
+.justify-self-stretch {
+  justify-self: stretch;
+}
+
+.overflow-auto {
+  overflow: auto;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-clip {
+  overflow: clip;
+}
+
+.overflow-visible {
+  overflow: visible;
+}
+
+.overflow-scroll {
+  overflow: scroll;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+.overflow-y-hidden {
+  overflow-y: hidden;
+}
+
+.overflow-x-clip {
+  overflow-x: clip;
+}
+
+.overflow-y-clip {
+  overflow-y: clip;
+}
+
+.overflow-x-visible {
+  overflow-x: visible;
+}
+
+.overflow-y-visible {
+  overflow-y: visible;
+}
+
+.overflow-x-scroll {
+  overflow-x: scroll;
+}
+
+.overflow-y-scroll {
+  overflow-y: scroll;
+}
+
+.overscroll-auto {
+  overscroll-behavior: auto;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+.overscroll-none {
+  overscroll-behavior: none;
+}
+
+.overscroll-y-auto {
+  overscroll-behavior-y: auto;
+}
+
+.overscroll-y-contain {
+  overscroll-behavior-y: contain;
+}
+
+.overscroll-y-none {
+  overscroll-behavior-y: none;
+}
+
+.overscroll-x-auto {
+  overscroll-behavior-x: auto;
+}
+
+.overscroll-x-contain {
+  overscroll-behavior-x: contain;
+}
+
+.overscroll-x-none {
+  overscroll-behavior-x: none;
+}
+
+.scroll-auto {
+  scroll-behavior: auto;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overflow-ellipsis {
+  text-overflow: ellipsis;
+}
+
+.text-ellipsis {
+  text-overflow: ellipsis;
+}
+
+.text-clip {
+  text-overflow: clip;
+}
+
+.hyphens-none {
+  hyphens: none;
+}
+
+.hyphens-manual {
+  hyphens: manual;
+}
+
+.hyphens-auto {
+  hyphens: auto;
+}
+
+.whitespace-normal {
+  white-space: normal;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.whitespace-pre {
+  white-space: pre;
+}
+
+.whitespace-pre-line {
+  white-space: pre-line;
+}
+
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+.whitespace-break-spaces {
+  white-space: break-spaces;
+}
+
+.text-wrap {
+  text-wrap: wrap;
+}
+
+.text-nowrap {
+  text-wrap: nowrap;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+.break-normal {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.break-words {
+  overflow-wrap: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+.break-keep {
+  word-break: keep-all;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.rounded-\[10px\] {
+  border-radius: 10px;
+}
+
+.rounded-\[8px\] {
+  border-radius: 8px;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.rounded-b {
+  border-bottom-right-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.rounded-e {
+  border-start-end-radius: 0.25rem;
+  border-end-end-radius: 0.25rem;
+}
+
+.rounded-l {
+  border-top-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.rounded-r {
+  border-top-right-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.rounded-s {
+  border-start-start-radius: 0.25rem;
+  border-end-start-radius: 0.25rem;
+}
+
+.rounded-t {
+  border-top-left-radius: 0.25rem;
+  border-top-right-radius: 0.25rem;
+}
+
+.rounded-bl {
+  border-bottom-left-radius: 0.25rem;
+}
+
+.rounded-br {
+  border-bottom-right-radius: 0.25rem;
+}
+
+.rounded-ee {
+  border-end-end-radius: 0.25rem;
+}
+
+.rounded-es {
+  border-end-start-radius: 0.25rem;
+}
+
+.rounded-se {
+  border-start-end-radius: 0.25rem;
+}
+
+.rounded-ss {
+  border-start-start-radius: 0.25rem;
+}
+
+.rounded-tl {
+  border-top-left-radius: 0.25rem;
+}
+
+.rounded-tr {
+  border-top-right-radius: 0.25rem;
+}
+
+.border {
+  border-width: 1px;
+}
+
+.border-x {
+  border-left-width: 1px;
+  border-right-width: 1px;
+}
+
+.border-y {
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.border-b {
+  border-bottom-width: 1px;
+}
+
+.border-e {
+  border-inline-end-width: 1px;
+}
+
+.border-l {
+  border-left-width: 1px;
+}
+
+.border-r {
+  border-right-width: 1px;
+}
+
+.border-s {
+  border-inline-start-width: 1px;
+}
+
+.border-t {
+  border-top-width: 1px;
+}
+
+.border-solid {
+  border-style: solid;
+}
+
+.border-dashed {
+  border-style: dashed;
+}
+
+.border-dotted {
+  border-style: dotted;
+}
+
+.border-double {
+  border-style: double;
+}
+
+.border-hidden {
+  border-style: hidden;
+}
+
+.border-none {
+  border-style: none;
+}
+
+.border-amber-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(254 243 199 / var(--tw-border-opacity, 1));
+}
+
+.border-blue-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(219 234 254 / var(--tw-border-opacity, 1));
+}
+
+.border-emerald-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(209 250 229 / var(--tw-border-opacity, 1));
+}
+
+.border-fuchsia-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(250 232 255 / var(--tw-border-opacity, 1));
+}
+
+.border-orange-300 {
+  --tw-border-opacity: 1;
+  border-color: rgb(253 186 116 / var(--tw-border-opacity, 1));
+}
+
+.border-slate-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(241 245 249 / var(--tw-border-opacity, 1));
+}
+
+.border-slate-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(226 232 240 / var(--tw-border-opacity, 1));
+}
+
+.border-white\/5 {
+  border-color: rgb(255 255 255 / 0.05);
+}
+
+.bg-\[\#0a0a0a\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(10 10 10 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[\#5fc184\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(95 193 132 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[\#797979\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(121 121 121 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[rgb\(255\2c 0\2c 0\)\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 0 0 / var(--tw-bg-opacity, 1));
+}
+
+.bg-amber-50\/55 {
+  background-color: rgb(255 251 235 / 0.55);
+}
+
+.bg-blue-50\/55 {
+  background-color: rgb(239 246 255 / 0.55);
+}
+
+.bg-brand-green {
+  --tw-bg-opacity: 1;
+  background-color: rgb(23 143 98 / var(--tw-bg-opacity, 1));
+}
+
+.bg-emerald-50 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(236 253 245 / var(--tw-bg-opacity, 1));
+}
+
+.bg-emerald-50\/55 {
+  background-color: rgb(236 253 245 / 0.55);
+}
+
+.bg-fuchsia-50\/55 {
+  background-color: rgb(253 244 255 / 0.55);
+}
+
+.bg-orange-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(249 115 22 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-100 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-200 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(148 163 184 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(15 23 42 / var(--tw-bg-opacity, 1));
+}
+
+.bg-white {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+}
+
+.bg-white\/95 {
+  background-color: rgb(255 255 255 / 0.95);
+}
+
+.bg-gradient-to-r {
+  background-image: linear-gradient(to right, var(--tw-gradient-stops));
+}
+
+.from-brand-green {
+  --tw-gradient-from: #178f62 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(23 143 98 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.to-brand-green-soft {
+  --tw-gradient-to: #47c98a var(--tw-gradient-to-position);
+}
+
+.decoration-slice {
+  -webkit-box-decoration-break: slice;
+          box-decoration-break: slice;
+}
+
+.decoration-clone {
+  -webkit-box-decoration-break: clone;
+          box-decoration-break: clone;
+}
+
+.box-decoration-slice {
+  -webkit-box-decoration-break: slice;
+          box-decoration-break: slice;
+}
+
+.box-decoration-clone {
+  -webkit-box-decoration-break: clone;
+          box-decoration-break: clone;
+}
+
+.bg-fixed {
+  background-attachment: fixed;
+}
+
+.bg-local {
+  background-attachment: local;
+}
+
+.bg-scroll {
+  background-attachment: scroll;
+}
+
+.bg-clip-border {
+  background-clip: border-box;
+}
+
+.bg-clip-padding {
+  background-clip: padding-box;
+}
+
+.bg-clip-content {
+  background-clip: content-box;
+}
+
+.bg-clip-text {
+  -webkit-background-clip: text;
+          background-clip: text;
+}
+
+.bg-repeat {
+  background-repeat: repeat;
+}
+
+.bg-no-repeat {
+  background-repeat: no-repeat;
+}
+
+.bg-repeat-x {
+  background-repeat: repeat-x;
+}
+
+.bg-repeat-y {
+  background-repeat: repeat-y;
+}
+
+.bg-repeat-round {
+  background-repeat: round;
+}
+
+.bg-repeat-space {
+  background-repeat: space;
+}
+
+.bg-origin-border {
+  background-origin: border-box;
+}
+
+.bg-origin-padding {
+  background-origin: padding-box;
+}
+
+.bg-origin-content {
+  background-origin: content-box;
+}
+
+.object-contain {
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+.object-cover {
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+
+.object-fill {
+  -o-object-fit: fill;
+     object-fit: fill;
+}
+
+.object-none {
+  -o-object-fit: none;
+     object-fit: none;
+}
+
+.object-scale-down {
+  -o-object-fit: scale-down;
+     object-fit: scale-down;
+}
+
+.p-5 {
+  padding: 1.25rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.px-1 {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.px-1\.5 {
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.px-5 {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.px-8 {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.py-10 {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+.py-12 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.py-14 {
+  padding-top: 3.5rem;
+  padding-bottom: 3.5rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-2\.5 {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.py-5 {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.py-6 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.py-7 {
+  padding-top: 1.75rem;
+  padding-bottom: 1.75rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.pb-5 {
+  padding-bottom: 1.25rem;
+}
+
+.pb-6 {
+  padding-bottom: 1.5rem;
+}
+
+.pb-8 {
+  padding-bottom: 2rem;
+}
+
+.pl-5 {
+  padding-left: 1.25rem;
+}
+
+.pr-10 {
+  padding-right: 2.5rem;
+}
+
+.pr-11 {
+  padding-right: 2.75rem;
+}
+
+.pr-20 {
+  padding-right: 5rem;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.pt-10 {
+  padding-top: 2.5rem;
+}
+
+.pt-16 {
+  padding-top: 4rem;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-justify {
+  text-align: justify;
+}
+
+.text-start {
+  text-align: start;
+}
+
+.text-end {
+  text-align: end;
+}
+
+.align-baseline {
+  vertical-align: baseline;
+}
+
+.align-top {
+  vertical-align: top;
+}
+
+.align-middle {
+  vertical-align: middle;
+}
+
+.align-bottom {
+  vertical-align: bottom;
+}
+
+.align-text-top {
+  vertical-align: text-top;
+}
+
+.align-text-bottom {
+  vertical-align: text-bottom;
+}
+
+.align-sub {
+  vertical-align: sub;
+}
+
+.align-super {
+  vertical-align: super;
+}
+
+.font-display {
+  font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-sans {
+  font-family: Space Grotesk, ui-sans-serif, system-ui, sans-serif;
+}
+
+.text-\[0\.92rem\] {
+  font-size: 0.92rem;
+}
+
+.text-\[0\.95rem\] {
+  font-size: 0.95rem;
+}
+
+.text-\[0\.98rem\] {
+  font-size: 0.98rem;
+}
+
+.text-\[1\.1rem\] {
+  font-size: 1.1rem;
+}
+
+.text-\[1\.25rem\] {
+  font-size: 1.25rem;
+}
+
+.text-\[1\.45rem\] {
+  font-size: 1.45rem;
+}
+
+.text-\[1\.55rem\] {
+  font-size: 1.55rem;
+}
+
+.text-\[1\.6rem\] {
+  font-size: 1.6rem;
+}
+
+.text-\[1\.75rem\] {
+  font-size: 1.75rem;
+}
+
+.text-\[1\.8rem\] {
+  font-size: 1.8rem;
+}
+
+.text-\[12px\] {
+  font-size: 12px;
+}
+
+.text-\[14px\] {
+  font-size: 14px;
+}
+
+.text-\[15px\] {
+  font-size: 15px;
+}
+
+.text-\[1rem\] {
+  font-size: 1rem;
+}
+
+.text-\[2\.3rem\] {
+  font-size: 2.3rem;
+}
+
+.text-\[2rem\] {
+  font-size: 2rem;
+}
+
+.font-black {
+  font-weight: 900;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-extrabold {
+  font-weight: 800;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.lowercase {
+  text-transform: lowercase;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.normal-case {
+  text-transform: none;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.not-italic {
+  font-style: normal;
+}
+
+.normal-nums {
+  font-variant-numeric: normal;
+}
+
+.ordinal {
+  --tw-ordinal: ordinal;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.slashed-zero {
+  --tw-slashed-zero: slashed-zero;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.lining-nums {
+  --tw-numeric-figure: lining-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.oldstyle-nums {
+  --tw-numeric-figure: oldstyle-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.proportional-nums {
+  --tw-numeric-spacing: proportional-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.tabular-nums {
+  --tw-numeric-spacing: tabular-nums;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.diagonal-fractions {
+  --tw-numeric-fraction: diagonal-fractions;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.stacked-fractions {
+  --tw-numeric-fraction: stacked-fractions;
+  font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+
+.leading-6 {
+  line-height: 1.5rem;
+}
+
+.leading-7 {
+  line-height: 1.75rem;
+}
+
+.leading-8 {
+  line-height: 2rem;
+}
+
+.leading-\[0\.98\] {
+  line-height: 0.98;
+}
+
+.leading-\[1\.02\] {
+  line-height: 1.02;
+}
+
+.leading-\[1\.04\] {
+  line-height: 1.04;
+}
+
+.tracking-tight {
+  letter-spacing: -0.025em;
+}
+
+.text-\[\#336699\]\/\[\.35\] {
+  color: rgb(51 102 153 / .35);
+}
+
+.text-\[\#444\] {
+  --tw-text-opacity: 1;
+  color: rgb(68 68 68 / var(--tw-text-opacity, 1));
+}
+
+.text-amber-500 {
+  --tw-text-opacity: 1;
+  color: rgb(245 158 11 / var(--tw-text-opacity, 1));
+}
+
+.text-blue-500 {
+  --tw-text-opacity: 1;
+  color: rgb(59 130 246 / var(--tw-text-opacity, 1));
+}
+
+.text-brand-green {
+  --tw-text-opacity: 1;
+  color: rgb(23 143 98 / var(--tw-text-opacity, 1));
+}
+
+.text-emerald-500 {
+  --tw-text-opacity: 1;
+  color: rgb(16 185 129 / var(--tw-text-opacity, 1));
+}
+
+.text-fuchsia-500 {
+  --tw-text-opacity: 1;
+  color: rgb(217 70 239 / var(--tw-text-opacity, 1));
+}
+
+.text-orange-600 {
+  --tw-text-opacity: 1;
+  color: rgb(234 88 12 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-300 {
+  --tw-text-opacity: 1;
+  color: rgb(203 213 225 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-400 {
+  --tw-text-opacity: 1;
+  color: rgb(148 163 184 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-500 {
+  --tw-text-opacity: 1;
+  color: rgb(100 116 139 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-600 {
+  --tw-text-opacity: 1;
+  color: rgb(71 85 105 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-700 {
+  --tw-text-opacity: 1;
+  color: rgb(51 65 85 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-800 {
+  --tw-text-opacity: 1;
+  color: rgb(30 41 59 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-900 {
+  --tw-text-opacity: 1;
+  color: rgb(15 23 42 / var(--tw-text-opacity, 1));
+}
+
+.text-transparent {
+  color: transparent;
+}
+
+.text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.underline {
+  text-decoration-line: underline;
+}
+
+.overline {
+  text-decoration-line: overline;
+}
+
+.line-through {
+  text-decoration-line: line-through;
+}
+
+.no-underline {
+  text-decoration-line: none;
+}
+
+.decoration-slate-300 {
+  text-decoration-color: #cbd5e1;
+}
+
+.decoration-solid {
+  text-decoration-style: solid;
+}
+
+.decoration-double {
+  text-decoration-style: double;
+}
+
+.decoration-dotted {
+  text-decoration-style: dotted;
+}
+
+.decoration-dashed {
+  text-decoration-style: dashed;
+}
+
+.decoration-wavy {
+  text-decoration-style: wavy;
+}
+
+.underline-offset-4 {
+  text-underline-offset: 4px;
+}
+
+.antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.subpixel-antialiased {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+.bg-blend-normal {
+  background-blend-mode: normal;
+}
+
+.bg-blend-multiply {
+  background-blend-mode: multiply;
+}
+
+.bg-blend-screen {
+  background-blend-mode: screen;
+}
+
+.bg-blend-overlay {
+  background-blend-mode: overlay;
+}
+
+.bg-blend-darken {
+  background-blend-mode: darken;
+}
+
+.bg-blend-lighten {
+  background-blend-mode: lighten;
+}
+
+.bg-blend-color-dodge {
+  background-blend-mode: color-dodge;
+}
+
+.bg-blend-color-burn {
+  background-blend-mode: color-burn;
+}
+
+.bg-blend-hard-light {
+  background-blend-mode: hard-light;
+}
+
+.bg-blend-soft-light {
+  background-blend-mode: soft-light;
+}
+
+.bg-blend-difference {
+  background-blend-mode: difference;
+}
+
+.bg-blend-exclusion {
+  background-blend-mode: exclusion;
+}
+
+.bg-blend-hue {
+  background-blend-mode: hue;
+}
+
+.bg-blend-saturation {
+  background-blend-mode: saturation;
+}
+
+.bg-blend-color {
+  background-blend-mode: color;
+}
+
+.bg-blend-luminosity {
+  background-blend-mode: luminosity;
+}
+
+.mix-blend-normal {
+  mix-blend-mode: normal;
+}
+
+.mix-blend-multiply {
+  mix-blend-mode: multiply;
+}
+
+.mix-blend-screen {
+  mix-blend-mode: screen;
+}
+
+.mix-blend-overlay {
+  mix-blend-mode: overlay;
+}
+
+.mix-blend-darken {
+  mix-blend-mode: darken;
+}
+
+.mix-blend-lighten {
+  mix-blend-mode: lighten;
+}
+
+.mix-blend-color-dodge {
+  mix-blend-mode: color-dodge;
+}
+
+.mix-blend-color-burn {
+  mix-blend-mode: color-burn;
+}
+
+.mix-blend-hard-light {
+  mix-blend-mode: hard-light;
+}
+
+.mix-blend-soft-light {
+  mix-blend-mode: soft-light;
+}
+
+.mix-blend-difference {
+  mix-blend-mode: difference;
+}
+
+.mix-blend-exclusion {
+  mix-blend-mode: exclusion;
+}
+
+.mix-blend-hue {
+  mix-blend-mode: hue;
+}
+
+.mix-blend-saturation {
+  mix-blend-mode: saturation;
+}
+
+.mix-blend-color {
+  mix-blend-mode: color;
+}
+
+.mix-blend-luminosity {
+  mix-blend-mode: luminosity;
+}
+
+.mix-blend-plus-darker {
+  mix-blend-mode: plus-darker;
+}
+
+.mix-blend-plus-lighter {
+  mix-blend-mode: plus-lighter;
+}
+
+.\!shadow {
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+  --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
+.shadow {
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-\[0_12px_24px_rgba\(15\2c 23\2c 42\2c 0\.04\)\] {
+  --tw-shadow: 0 12px 24px rgba(15,23,42,0.04);
+  --tw-shadow-colored: 0 12px 24px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-button {
+  --tw-shadow: 0 14px 28px rgba(23, 143, 98, 0.16);
+  --tw-shadow-colored: 0 14px 28px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-card {
+  --tw-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+  --tw-shadow-colored: 0 16px 36px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-sm {
+  --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.outline {
+  outline-style: solid;
+}
+
+.outline-dashed {
+  outline-style: dashed;
+}
+
+.outline-dotted {
+  outline-style: dotted;
+}
+
+.outline-double {
+  outline-style: double;
+}
+
+.ring {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.ring-inset {
+  --tw-ring-inset: inset;
+}
+
+.blur {
+  --tw-blur: blur(8px);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.drop-shadow {
+  --tw-drop-shadow: drop-shadow(0 1px 2px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.06));
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.grayscale {
+  --tw-grayscale: grayscale(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.invert {
+  --tw-invert: invert(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.sepia {
+  --tw-sepia: sepia(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.\!filter {
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow) !important;
+}
+
+.filter {
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.filter-none {
+  filter: none;
+}
+
+.backdrop-blur {
+  --tw-backdrop-blur: blur(8px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-blur-md {
+  --tw-backdrop-blur: blur(12px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-grayscale {
+  --tw-backdrop-grayscale: grayscale(100%);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-invert {
+  --tw-backdrop-invert: invert(100%);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-sepia {
+  --tw-backdrop-sepia: sepia(100%);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-filter {
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-filter-none {
+  backdrop-filter: none;
+}
+
+.transition {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-\[width\] {
+  transition-property: width;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-colors {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.duration-150 {
+  transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+.duration-300 {
+  transition-duration: 300ms;
+}
+
+.ease-in {
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ease-linear {
+  transition-timing-function: linear;
+}
+
+.ease-out {
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+.contain-none {
+  contain: none;
+}
+
+.contain-content {
+  contain: content;
+}
+
+.contain-strict {
+  contain: strict;
+}
+
+.contain-size {
+  --tw-contain-size: size;
+  contain: var(--tw-contain-size) var(--tw-contain-layout) var(--tw-contain-paint) var(--tw-contain-style);
+}
+
+.contain-inline-size {
+  --tw-contain-size: inline-size;
+  contain: var(--tw-contain-size) var(--tw-contain-layout) var(--tw-contain-paint) var(--tw-contain-style);
+}
+
+.contain-layout {
+  --tw-contain-layout: layout;
+  contain: var(--tw-contain-size) var(--tw-contain-layout) var(--tw-contain-paint) var(--tw-contain-style);
+}
+
+.contain-paint {
+  --tw-contain-paint: paint;
+  contain: var(--tw-contain-size) var(--tw-contain-layout) var(--tw-contain-paint) var(--tw-contain-style);
+}
+
+.contain-style {
+  --tw-contain-style: style;
+  contain: var(--tw-contain-size) var(--tw-contain-layout) var(--tw-contain-paint) var(--tw-contain-style);
+}
+
+.content-\[\'this-is-also-valid\]-weirdly-enough\'\] {
+  --tw-content: 'this-is-also-valid]-weirdly-enough';
+  content: var(--tw-content);
+}
+
+.forced-color-adjust-auto {
+  forced-color-adjust: auto;
+}
+
+.forced-color-adjust-none {
+  forced-color-adjust: none;
+}
+
+@media (min-width: 640px) {
+  .sm\:container {
+    width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .sm\:container {
+      max-width: 640px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .sm\:container {
+      max-width: 768px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .sm\:container {
+      max-width: 1024px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .sm\:container {
+      max-width: 1280px;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .sm\:container {
+      max-width: 1536px;
+    }
+  }
+}
+
+.hover\:bg-brand-green:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(23 143 98 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-green-600:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(22 163 74 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-200:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-300:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(203 213 225 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-800:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(30 41 59 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:font-bold:hover {
+  font-weight: 700;
+}
+
+.hover\:text-black:hover {
+  --tw-text-opacity: 1;
+  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-slate-900:hover {
+  --tw-text-opacity: 1;
+  color: rgb(15 23 42 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-white:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.hover\:opacity-90:hover {
+  opacity: 0.9;
+}
+
+.hover\:shadow-card:hover {
+  --tw-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+  --tw-shadow-colored: 0 16px 36px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.before\:hover\:text-center:hover::before {
+  content: var(--tw-content);
+  text-align: center;
+}
+
+.hover\:before\:text-center:hover::before {
+  content: var(--tw-content);
+  text-align: center;
+}
+
+.focus\:border-brand-green:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(23 143 98 / var(--tw-border-opacity, 1));
+}
+
+.focus\:ring-4:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.focus\:ring-brand-green\/10:focus {
+  --tw-ring-color: rgb(23 143 98 / 0.1);
+}
+
+.focus\:hover\:text-center:hover:focus {
+  text-align: center;
+}
+
+.hover\:focus\:text-center:focus:hover {
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .sm\:mt-10 {
+    margin-top: 2.5rem;
+  }
+
+  .sm\:h-10 {
+    height: 2.5rem;
+  }
+
+  .sm\:h-28 {
+    height: 7rem;
+  }
+
+  .sm\:h-44 {
+    height: 11rem;
+  }
+
+  .sm\:h-\[180px\] {
+    height: 180px;
+  }
+
+  .sm\:w-10 {
+    width: 2.5rem;
+  }
+
+  .sm\:w-28 {
+    width: 7rem;
+  }
+
+  .sm\:w-44 {
+    width: 11rem;
+  }
+
+  .sm\:w-\[220px\] {
+    width: 220px;
+  }
+
+  .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sm\:gap-6 {
+    gap: 1.5rem;
+  }
+
+  .sm\:gap-8 {
+    gap: 2rem;
+  }
+
+  .sm\:space-y-5 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(1.25rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(1.25rem * var(--tw-space-y-reverse));
+  }
+
+  .sm\:p-7 {
+    padding: 1.75rem;
+  }
+
+  .sm\:p-8 {
+    padding: 2rem;
+  }
+
+  .sm\:px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .sm\:py-10 {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .sm\:py-6 {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .sm\:py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .sm\:text-\[1\.08rem\] {
+    font-size: 1.08rem;
+  }
+
+  .sm\:text-\[1\.85rem\] {
+    font-size: 1.85rem;
+  }
+
+  .sm\:text-\[1\.95rem\] {
+    font-size: 1.95rem;
+  }
+
+  .sm\:text-\[14px\] {
+    font-size: 14px;
+  }
+
+  .sm\:text-\[15px\] {
+    font-size: 15px;
+  }
+
+  .sm\:text-\[16px\] {
+    font-size: 16px;
+  }
+
+  .sm\:text-\[1rem\] {
+    font-size: 1rem;
+  }
+
+  .sm\:text-\[2\.05rem\] {
+    font-size: 2.05rem;
+  }
+
+  .sm\:text-\[2\.25rem\] {
+    font-size: 2.25rem;
+  }
+
+  .sm\:text-\[2\.35rem\] {
+    font-size: 2.35rem;
+  }
+
+  .sm\:text-\[2\.6rem\] {
+    font-size: 2.6rem;
+  }
+
+  .sm\:underline {
+    text-decoration-line: underline;
+  }
+}
+
+@media (min-width: 768px) {
+  .md\:flex {
+    display: flex;
+  }
+
+  .md\:hidden {
+    display: none;
+  }
+
+  .md\:flex-row {
+    flex-direction: row;
+  }
+
+  .md\:items-start {
+    align-items: flex-start;
+  }
+
+  .md\:justify-between {
+    justify-content: space-between;
+  }
+
+  .md\:gap-10 {
+    gap: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .lg\:grid-cols-\[minmax\(0\2c 1\.08fr\)_minmax\(320px\2c 0\.92fr\)\] {
+    grid-template-columns: minmax(0,1.08fr) minmax(320px,0.92fr);
+  }
+
+  .lg\:flex-row {
+    flex-direction: row;
+  }
+
+  .lg\:items-start {
+    align-items: flex-start;
+  }
+
+  .lg\:items-center {
+    align-items: center;
+  }
+
+  .lg\:justify-start {
+    justify-content: flex-start;
+  }
+
+  .lg\:justify-center {
+    justify-content: center;
+  }
+
+  .lg\:gap-12 {
+    gap: 3rem;
+  }
+
+  .lg\:gap-8 {
+    gap: 2rem;
+  }
+
+  .lg\:px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .lg\:pb-7 {
+    padding-bottom: 1.75rem;
+  }
+
+  .lg\:pt-20 {
+    padding-top: 5rem;
+  }
+
+  .lg\:text-left {
+    text-align: left;
+  }
+
+  .lg\:text-\[2\.7rem\] {
+    font-size: 2.7rem;
+  }
+
+  .lg\:text-\[2\.9rem\] {
+    font-size: 2.9rem;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  @media (min-width: 1024px) {
+    .dark\:lg\:hover\:\[paint-order\:markers\]:hover {
+      paint-order: markers;
+    }
+  }
+}
+
+/* Production utility patch for index.html
+   Replaces the old Tailwind Play CDN runtime output for classes used on this page. */
+.bg-black { background-color: rgb(0 0 0); }
+.bg-slate-50 { background-color: rgb(248 250 252); }
+.bg-gradient-to-b { background-image: linear-gradient(to bottom, var(--tw-gradient-stops)); }
+.from-emerald-50 {
+  --tw-gradient-from: #ecfdf5 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(236 253 245 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.to-brand-soft { --tw-gradient-to: #2dcf84 var(--tw-gradient-to-position); }
+.to-white { --tw-gradient-to: #fff var(--tw-gradient-to-position); }
+.border-0 { border-width: 0px; }
+.border-white\/10 { border-color: rgb(255 255 255 / 0.1); }
+.h-52 { height: 13rem; }
+.w-72 { width: 18rem; }
+.max-w-3xl { max-width: 48rem; }
+.max-w-4xl { max-width: 56rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.p-2 { padding: 0.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.pb-4 { padding-bottom: 1rem; }
+.pb-10 { padding-bottom: 2.5rem; }
+.pt-6 { padding-top: 1.5rem; }
+.pt-14 { padding-top: 3.5rem; }
+.rounded-lg { border-radius: 0.5rem; }
+.rounded-xl { border-radius: 0.75rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-base { font-size: 1rem; line-height: 1.5rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+.leading-tight { line-height: 1.25; }
+.hover\:text-brand-green:hover { color: #178f62; }
+@media (min-width: 640px) {
+  .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm\:text-5xl { font-size: 3rem; line-height: 1; }
+}
+@media (min-width: 768px) {
+  .md\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+  </style>
+<style>
+
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .page-shell { width: 100%; max-width: none; margin: 0; }
+    @media (min-width: 1024px) { .page-shell { padding-left: 56px !important; padding-right: 56px !important; } }
+
+    .chip { border: 1px solid #d8e2df; border-radius: 9999px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #344054; background: #fff; }
+    .chip:hover { border-color: #178f62; color: #178f62; }
+
+    .card-title { font-size: 14px; font-weight: 800; line-height: 1.25; margin-top: 10px; color: #0f172a; }
+    .card-tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+    .card-tags a { display: inline-flex; align-items: center; border-radius: 9999px; padding: 4px 12px; font-size: 12px; font-weight: 700; line-height: 1; color: #64748b; background: #e8eef3; }
+    .card-tags a:hover { color: #178f62; background: #dff5ec; }
+
+    /* Trend collage cards: desktop is exactly 5 cards per row. */
+    .collage-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: start; }
+    .collage-card { display: block; min-width: 0; }
+    .collage-card > a { box-shadow: 0 0 0 rgba(15, 23, 42, 0); }
+    .collage-card > a:hover { transform: translateY(-1px); box-shadow: 0 20px 44px rgba(15, 23, 42, 0.1); }
+    .trend-card__title { margin-top: 10px; font-size: 16px; line-height: 1.25; font-weight: 800; color: #0f172a; }
+    .trend-card__meta { margin-top: 3px; font-size: 14px; color: #64748b; }
+    .collage-media { display: grid; aspect-ratio: 1 / 1; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 4px; background: #fff; padding: 4px; }
+    .collage-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .collage-media--left-large > :first-child { grid-column: 1; grid-row: 1 / span 2; }
+    .collage-media--left-large > :nth-child(2) { grid-column: 2; grid-row: 1; }
+    .collage-media--left-large > :nth-child(3) { grid-column: 2; grid-row: 2; }
+    .collage-media--right-large > :first-child { grid-column: 1; grid-row: 1; }
+    .collage-media--right-large > :nth-child(2) { grid-column: 1; grid-row: 2; }
+    .collage-media--right-large > :nth-child(3) { grid-column: 2; grid-row: 1 / span 2; }
+    .media-hover { position: relative; overflow: hidden; }
+    .media-hover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.12)); opacity: 0; transition: opacity 180ms ease; pointer-events: none; }
+    .media-hover:hover::after { opacity: 1; }
+
+    /* Fresh PNG list: natural image-width flow, not fixed equal-width cards. */
+    .png-flow-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 28px 14px; }
+    .png-card { flex: 0 0 auto; width: min-content; max-width: 390px; }
+    .png-card__media { display: block; overflow: hidden; border-radius: 4px; background: #fff; }
+    .png-card__media img { display: block; width: auto; height: 250px; max-width: 390px; object-fit: contain; }
+    .png-card .card-title { max-width: 100%; }
+
+    @media (max-width: 1280px) { .png-card__media img { height: 220px; max-width: 340px; } .png-card { max-width: 340px; } }
+    @media (max-width: 1024px) { .collage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .png-card__media img { height: 200px; max-width: 300px; } .png-card { max-width: 300px; } }
+    @media (max-width: 768px) { .collage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .png-flow-grid { gap: 24px 12px; } .png-card__media img { height: 180px; max-width: 260px; } .png-card { max-width: 260px; } }
+    @media (max-width: 520px) { .collage-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); } .png-card { width: 100%; max-width: none; } .png-card__media img { width: 100%; height: auto; max-width: none; } }
+</style>
+</head>
+<body class="bg-white text-slate-900">
+
+<!-- ===================== HEADER (EDIT LINKS) ===================== -->
+<header class="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur">
+  <div class="page-shell flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-8">
+      <a href="https://www.cleanpng.com" class="text-2xl font-black tracking-tight">Clean<span class="text-brand-green">PNG</span></a>
+      <nav class="hidden gap-6 text-sm font-semibold text-slate-600 md:flex">
+        <a href="https://www.cleanpng.com/free/wedding.html" class="hover:text-slate-900">Wedding</a>
+        <a href="https://www.cleanpng.com/free/Summer.html" class="hover:text-slate-900">Summer</a>
+        <a href="https://www.cleanpng.com/free/Birthday.html" class="hover:text-slate-900">Birthday</a>
+        <a href="https://www.cleanpng.com/free/Frame.html" class="hover:text-slate-900">Frame</a>
+      </nav>
+    </div>
+    <div class="hidden items-center gap-4 md:flex">
+      <label class="relative block">
+        <span class="sr-only">Search PNG</span>
+        <input id="header-search-input" type="text" placeholder="Search Summer PNG..." class="w-72 rounded-lg border border-slate-200 px-4 py-2 pr-11 text-sm" />
+        <button id="header-search-btn" type="button" class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Search">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        </button>
+      </label>
+      <a href="https://members.cleanpng.com/login.html" class="text-sm font-semibold text-slate-700">Log in</a>
+      <a href="https://members.cleanpng.com/register.html" class="rounded-lg bg-brand-green px-4 py-2 text-sm font-bold text-white">Sign up</a>
+    </div>
+  </div>
+  <div class="border-t border-slate-100 px-4 py-3 sm:px-6 md:hidden">
+    <label class="relative block">
+      <span class="sr-only">Search PNG</span>
+      <input id="mobile-header-search-input" type="text" placeholder="Search Summer PNG..." class="h-10 w-full rounded-lg border border-slate-200 px-4 pr-11 text-sm" />
+      <button id="mobile-header-search-btn" type="button" class="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Search">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      </button>
+    </label>
+  </div>
+</header>
+
+<main>
+  <!-- ===================== HERO (EDIT COPY / HOT TAGS) ===================== -->
+  <section class="bg-gradient-to-b from-emerald-50 to-white">
+    <div class="page-shell px-4 pb-10 pt-14 text-center sm:px-6 lg:px-8 lg:pt-20">
+      <h1 class="text-4xl font-black leading-tight tracking-tight sm:text-5xl">Over 12.6M+<br><span class="bg-gradient-to-r from-brand-green to-brand-soft bg-clip-text text-transparent">High-quality PNG</span></h1>
+      <p class="mx-auto mt-5 max-w-3xl text-base text-slate-600">The world's largest archive for transparent PNG images. 100% Free!</p>
+      <div class="mx-auto mt-8 max-w-3xl">
+        <div class="flex rounded-xl border border-slate-200 bg-white p-2 shadow-card">
+          <input id="hero-search-input" type="text" placeholder="Search Summer PNG..." class="flex-1 border-0 px-3 py-2 text-sm outline-none" />
+          <button id="hero-search-btn" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Search</button>
+        </div>
+      </div>
+      <div class="mx-auto mt-5 flex max-w-4xl flex-wrap items-center justify-center gap-2">
+        <a class="chip" href="https://www.cleanpng.com/png/flower/">flower</a>
+        <a class="chip" href="https://www.cleanpng.com/free/heart.html">heart</a>
+        <a class="chip" href="https://www.cleanpng.com/free/arrow.html">arrow</a>
+        <a class="chip" href="https://www.cleanpng.com/free/tree.html">tree</a>
+        <a class="chip" href="https://www.cleanpng.com/free/frame.html">frame</a>
+        <a class="chip" href="https://www.cleanpng.com/free/star.html">star</a>
+        <a class="chip" href="https://www.cleanpng.com/free/cloud.html">cloud</a>
+        <a class="chip" href="https://www.cleanpng.com/free/coffee.html">coffee</a>
+        <a class="chip" href="https://www.cleanpng.com/free/food.html">food</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SECTION A (EDIT TITLE/TEXT/CARDS) ===================== -->
+  <section class="py-10">
+    <div class="page-shell px-4 sm:px-6 lg:px-8">
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black">Explore marketing calendar</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Explore Marketing Calendar highlights key holidays and seasonal trends throughout the year, helping you capture timely traffic opportunities. Discover upcoming events, popular themes, and ready-to-use PNG visuals to streamline your creative workflow, plan campaigns efficiently, and stay ahead with relevant, high-impact designs.</p>
+        </div>
+        <a href="https://www.cleanpng.com/holiday/" class="rounded-lg bg-brand-green px-5 py-2 text-sm font-bold text-white">Explore</a>
+      </div>
+      <div class="collage-grid">
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/international-yoga-day.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240509/ubt/avcwwo0tv.webp" alt="International Yoga Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/20230516/hkb/transparent-yoga-day-1711138983144.webp" alt="International Yoga Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240509/wqt/avcvaohls.webp" alt="International Yoga Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/international-yoga-day.html">International Yoga Day</a></h3><p class="trend-card__meta">380 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/international-picnic-day.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/20240316/wlr/transparent-hand-drawn-hand-drawn-picnic-day-lettering-with-food-1710835476114.webp" alt="International Picnic Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/20240316/ssj/transparent-picnic-day-picnic-event-outdoor-advertisement-red-and-white-picnic-day-poster-1710835548076.webp" alt="International Picnic Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/omp/ams/adgnbo2u1.webp" alt="International Picnic Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/international-picnic-day.html">International Picnic Day</a></h3><p class="trend-card__meta">20 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/global-wellness-day.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240522/qrh/axyh4eui2.webp" alt="Global Wellness Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240523/pll/ax7n1hko0.webp" alt="Global Wellness Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/tbh/zae/vek20ee1p.webp" alt="Global Wellness Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/global-wellness-day.html">Global Wellness Day</a></h3><p class="trend-card__meta">39 resources</p></article>
+
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/global-running-day.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/cqy/idu/augtuad39.webp" alt="Global Running Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/qhv/rdf/aubqfc0sr.webp" alt="Global Running Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/lde/bzd/acznm887e.webp" alt="Global Running Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/global-running-day.html">Global Running Day</a></h3><p class="trend-card__meta">58 resources</p></article>
+
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/global-day-of-parents.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/vip/brs/aurblfzg3.webp" alt="Global Day of Parents"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/bmz/gyd/ausw4d5js.webp" alt="Global Day of Parents"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/zun/yxm/aucqgm1xd.webp" alt="Global Day of Parents"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/global-day-of-parents.html">Global Day of Parents</a></h3><p class="trend-card__meta">35 resources</p></article>
+
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/juneteenth.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240523/pfb/ax6v92izk.webp" alt="Juneteenth"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240523/alv/ax8vpwrfv.webp" alt="Juneteenth"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240523/bz/ax7m1qgsi.webp" alt="Juneteenth"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/juneteenth.html">Juneteenth</a></h3><p class="trend-card__meta">71 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/world-food-safety-day.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240511/zu/av0uf8t0v.webp" alt="World Food Safety Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240512/jea/av4827djh.webp" alt="World Food Safety Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20240511/fz/av0vumfgz.webp" alt="World Food Safety Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/world-food-safety-day.html">World Food Safety Day</a></h3><p class="trend-card__meta">58 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/fathers-day/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/zun/ukm/ab641wcqz.webp" alt="Fathers Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/qmr/arc/vt5e6jvpt.webp" alt="Fathers Day"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/clz/gii/vum12r0mm.webp" alt="Fathers Day"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/fathers-day/">Fathers Day</a></h3><p class="trend-card__meta">477 resources</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SECTION A2 DESIGN TRENDS (EDIT TITLE/TEXT/CARDS) ===================== -->
+  <section class="bg-slate-50 py-10">
+    <div class="page-shell px-4 sm:px-6 lg:px-8">
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black">Keep up with the design trends</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Keep up with the latest design trends through curated HUB collections tailored for modern creatives. Discover popular themes, trending styles, and high-demand PNG assets across categories, helping you create visually relevant content, stay inspired, and produce designs that align with current market and user interests.</p>
+        </div>
+        <a href="https://www.cleanpng.com/png/trending.html" class="rounded-lg bg-brand-green px-5 py-2 text-sm font-bold text-white">Explore</a>
+      </div>
+      <div class="collage-grid">
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/cartoon-office-worker/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/bnj/svk/vqkvvkr7v.webp" alt="Cartoon Office Worker"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/dmx/zgr/ace0s4k6m.webp" alt="Cartoon Office Worker"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/ztq/zsy/vqkbktxa6.webp" alt="Cartoon Office Worker"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/cartoon-office-worker/">Cartoon Office Worker</a></h3><p class="trend-card__meta">305 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/holding-object/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/lnd/20241201/ow/3019eee6440a173008c4a201f3acbc.webp" alt="Holding Object"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/yax/juj/v8lqurtlv.webp" alt="Holding Object"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/nhp/fmm/ajwr4f64d.webp" alt="Holding Object"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/holding-object/">Holding Object</a></h3><p class="trend-card__meta">350 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/businessman-emotion/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/kqp/jjs/vldmrd67m.webp" alt="Businessman Emotion"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/nhp/rdm/acnkzj2ka.webp" alt="Businessman Emotion"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/gzz/aaj/abqqrv8y3.webp" alt="Businessman Emotion"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/businessman-emotion/">Businessman Emotion</a></h3><p class="trend-card__meta">650 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/sale-promotion-text/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/rpi/dhx/a42vtonbp.webp" alt="Sale Promotion Text"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/pxt/gsn/a2w5jcaf2.webp" alt="Sale Promotion Text"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/jpr/mzl/vxpzz1kku.webp" alt="Sale Promotion Text"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/sale-promotion-text/">Sale Promotion Text</a></h3><p class="trend-card__meta">705 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/cartoon-people-activity/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/wli/qxf/a5x6f23g7.webp" alt="Cartoon People Activity"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/kyi/umt/a3m3lnqqa.webp" alt="Cartoon People Activity"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/rtf/qer/vpnxyhkrk.webp" alt="Cartoon People Activity"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/cartoon-people-activity/">Cartoon People Activity</a></h3><p class="trend-card__meta">516 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/png/cartoon-home-life/" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/kyz/tkn/afzg5x2i8.webp" alt="Cartoon Home Life"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/fmd/eab/vyt4av8re.webp" alt="Cartoon Home Life"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/uta/qxr/vkgapjm47.webp" alt="Cartoon Home Life"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/png/cartoon-home-life/">Cartoon Home Life</a></h3><p class="trend-card__meta">275 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/Cartoon-Success.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--left-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/lke/qne/vq0lqatum.webp" alt="Cartoon Success"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/vkp/ejd/vo2jyzinn.webp" alt="Cartoon Success"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/jgh/rrt/vq270a0c1.webp" alt="Cartoon Success"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/Cartoon-Success.html">Cartoon Success</a></h3><p class="trend-card__meta">195 resources</p></article>
+
+        <article class="collage-card"><a href="https://www.cleanpng.com/free/cartoon-learning.html" class="trend-card__link group transition hover:shadow-card"><div class="media-hover"><div class="collage-media collage-media--right-large"><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci4/taw/ozg/vqhhns5y8.webp" alt="Cartoon Learning"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci2/ufq/kjt/vq2x35vnb.webp" alt="Cartoon Learning"></div><div class="checkerboard overflow-hidden rounded-[8px]"><img src="https://icon2.cleanpng.com/ci3/qmr/cdf/vbsaxshn2.webp" alt="Cartoon Learning"></div></div></div></a><h3 class="trend-card__title"><a href="https://www.cleanpng.com/free/cartoon-learning.html">Cartoon Learning</a></h3><p class="trend-card__meta">655 resources</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SECTION B PNG GRID (EDIT ITEMS) ===================== -->
+  <section class="bg-slate-50 py-10">
+    <div class="page-shell px-4 sm:px-6 lg:px-8">
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black">Browse fresh creative PNG</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Browse fresh creative PNGs updated daily with high-quality, transparent images across trending categories. Discover new visuals optimized for SEO, featuring popular search keywords and versatile styles - perfect for social media, marketing, design projects, and boosting your content visibility online.</p>
+        </div>
+      </div>
+      <div class="png-flow-grid">
+        <article class="png-card"><a href="https://www.cleanpng.com/png-gold-round-floral-wreath-8725611/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/fbr/ysw/vf71ubkc4.webp" alt="frame with flowers PNG"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-gold-round-floral-wreath-8725611/">Frame With Flowers</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/gold-circle-floral-wreath.html">Floral Wreath</a><a href="https://www.cleanpng.com/free/round-frame.html">Round Frame</a><a href="https://www.cleanpng.com/free/blue-flowers.html">Blue Flowers</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-birthday-girl-holding-sign-8505316/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci2/fwc/jfn/a3dd5zl7h.webp" alt="Birthday Girl Holding Sign"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-birthday-girl-holding-sign-8505316/">Birthday Girl Holding Sign</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/birthday-girl.html">Birthday Girl</a><a href="https://www.cleanpng.com/free/happy-birthday.html">Happy Birthday</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-surprised-boy-covering-his-mouth-8718608/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci4/fmz/kaz/vbtxc6qt4.webp" alt="Surprised Boy Covering His Mouth PNG"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-surprised-boy-covering-his-mouth-8718608/">Surprised Boy Covering His Mouth</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/child-feeling-shy.html">Child Feeling Shy</a><a href="https://www.cleanpng.com/free/cartoon-child.html">Cartoon Child</a><a href="https://www.cleanpng.com/free/boy-feeling-alone.html">Boy Feeling Alone</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-cute-boy-holding-gift-8703580/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci4/kih/rye/vupf6szhz.webp" alt="Cute Boy Holding Gift PNG"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-cute-boy-holding-gift-8703580/">Cute Boy Holding Gift</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/holding-gift-moment.html">Holding Gift Moment</a><a href="https://www.cleanpng.com/free/boy-holding-colorful-bouquet.html">Boy Holding Bouquet</a><a href="https://www.cleanpng.com/free/boy-holding-open-book.html">Boy Holding Book</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-person-carrying-orange-flag-8700262/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/bxq/iar/vuzs3nkxt.webp" alt="Person Carrying Orange Flag"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-person-carrying-orange-flag-8700262/">Person Carrying Orange Flag</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/life-milestone-success.html">Life Milestone Success</a><a href="https://www.cleanpng.com/free/businessman-celebrating-success.html">Businessman Celebrating Success</a><a href="https://www.cleanpng.com/free/successful-businessman.html">Successful Businessman</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-man-holding-blank-sign-8654985/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/kqp/jsa/volzhtukr.webp" alt="Man Holding Blank Sign"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-man-holding-blank-sign-8654985/">Man Holding Blank Sign</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/man-holding-tablet.html">Man Holding Tablet</a><a href="https://www.cleanpng.com/free/businesswoman-holding-coffee-cup.html">Businesswoman Holding Coffee Cup</a><a href="https://www.cleanpng.com/free/man-holding.html">Man Holding</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-blue-floral-corner-frame-8601170/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci4/mqg/ebt/v8tu9pfrx.webp" alt="Blue Flower Frame"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-blue-floral-corner-frame-8601170/">Blue Flower Frame</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/floral-corner-frame.html">Floral Corner Frame</a><a href="https://www.cleanpng.com/free/blue-floral-corner.html">Blue Floral Corner</a><a href="https://www.cleanpng.com/free/rectangle-flower-frame.html">Rectangle Flower Frame</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-cozy-woman-drinking-coffee-8580241/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/est/xku/vz3vy21pu.webp" alt="Woman Drinking Warm Coffee"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-cozy-woman-drinking-coffee-8580241/">Woman Drinking Warm Coffee</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/woman-with-hot-drink.html">Woman With Hot Drink</a><a href="https://www.cleanpng.com/free/girl-drinking-wine.html">Girl Drinking Wine</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-confused-businessman-shrugging-8701081/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/hod/yff/vtjv6613t.webp" alt="Confused businessman shrugging"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-confused-businessman-shrugging-8701081/">Confused businessman shrugging</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/shrugging-person.html">Shrugging Person</a><a href="https://www.cleanpng.com/free/man-shrugging.html">Man Shrugging</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-businessman-presenting-8633068/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/est/ljx/vlodgl7ix.webp" alt="Cartoon Businessman Presenting"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-businessman-presenting-8633068/">Cartoon Businessman Presenting</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/png/presenting-businessman/">Presenting Businessman</a><a href="https://www.cleanpng.com/free/girl-presenting-idea.html">Girl Presenting Idea</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-yellow-balloons-for-celebration-8562903/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci4/pdp/ifp/vy8lo2oe6.webp" alt="Shiny Gold Balloons"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-yellow-balloons-for-celebration-8562903/">Shiny Gold Balloons</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/birthday-balloons.html">Birthday Balloons</a><a href="https://www.cleanpng.com/free/party-balloons.html">Party Balloons</a><a href="https://www.cleanpng.com/free/heart-shaped-balloons.html">Heart Shaped Balloons</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-surprised-blue-haired-girl-8704417/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci2/uyn/qnc/vuft6ssz7.webp" alt="Surprised Blue Haired Girl"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-surprised-blue-haired-girl-8704417/">Surprised Blue Haired Girl</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/anime-girl.html">Anime Girl</a><a href="https://www.cleanpng.com/free/blue-haired-surprised-girl.html">Surprised Girl</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-hijab-girl-with-flowers-8653131/" class="png-card__media"><img src="https://icon2.cleanpng.com/ci3/oxe/aua/vo7m9lol9.webp" alt="Muslim Girl Holding Flower"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-hijab-girl-with-flowers-8653131/">Muslim Girl Holding Flower</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/muslim-girl-reading-quran.html">Reading Quran</a><a href="https://www.cleanpng.com/free/muslim-girl-in-mosque-window.html">In Mosque Window</a><a href="https://www.cleanpng.com/free/muslim-girl-cartoon.html">Muslim Girl Cartoon</a></div></article>
+
+        <article class="png-card"><a href="https://www.cleanpng.com/png-burger-layers-cartoon-illustration-8267851/" class="png-card__media"><img src="https://icon2.cleanpng.com/lnd/20241021/sh/99f0e55e29ef02af36064c69b44a43.webp" alt="Floating Burger"></a><h3 class="card-title"><a href="https://www.cleanpng.com/png-burger-layers-cartoon-illustration-8267851/">Floating Burger</a></h3><div class="card-tags"><a href="https://www.cleanpng.com/free/burger-layers.html">Burger Layers</a><a href="https://www.cleanpng.com/free/burger-with-lettuce.html">Burger With Lettuce</a></div></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TAG DIRECTORY (EDIT TAGS) ===================== -->
+  <section class="py-10">
+    <div class="page-shell px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-black">Browse PNG by Tag</h2>
+      <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-slate-700 sm:grid-cols-3 lg:grid-cols-6">
+        <a href="https://www.cleanpng.com/free/mountain.html" class="hover:text-brand-green">mountain</a>
+        <a href="https://www.cleanpng.com/free/leaf.html" class="hover:text-brand-green">leaf</a>
+        <a href="https://www.cleanpng.com/free/house.html" class="hover:text-brand-green">house</a>
+        <a href="https://www.cleanpng.com/free/cloud.html" class="hover:text-brand-green">cloud</a>
+        <a href="https://www.cleanpng.com/free/food.html" class="hover:text-brand-green">food</a>
+        <a href="https://www.cleanpng.com/free/coffee.html" class="hover:text-brand-green">coffee</a>
+        <a href="https://www.cleanpng.com/free/book.html" class="hover:text-brand-green">book</a>
+        <a href="https://www.cleanpng.com/free/people.html" class="hover:text-brand-green">people</a>
+        <a href="https://www.cleanpng.com/free/ribbon.html" class="hover:text-brand-green">ribbon</a>
+        <a href="https://www.cleanpng.com/free/frame.html" class="hover:text-brand-green">frame</a>
+        <a href="https://www.cleanpng.com/free/beach.html" class="hover:text-brand-green">beach</a>
+        <a href="https://www.cleanpng.com/free/kids.html" class="hover:text-brand-green">kids</a>
+        <a href="https://www.cleanpng.com/free/wedding.html" class="hover:text-brand-green">wedding</a>
+        <a href="https://www.cleanpng.com/free/skull.html" class="hover:text-brand-green">skull</a>
+        <a href="https://www.cleanpng.com/free/summer.html" class="hover:text-brand-green">summer</a>
+        <a href="https://www.cleanpng.com/free/football.html" class="hover:text-brand-green">football</a>
+        <a href="https://www.cleanpng.com/free/money.html" class="hover:text-brand-green">money</a>
+        <a href="https://www.cleanpng.com/free/music.html" class="hover:text-brand-green">music</a>
+        <a href="https://www.cleanpng.com/free/butterfly.html" class="hover:text-brand-green">butterfly</a>
+        <a href="https://www.cleanpng.com/free/school.html" class="hover:text-brand-green">school</a>
+        <a href="https://www.cleanpng.com/free/crown.html" class="hover:text-brand-green">crown</a>
+        <a href="https://www.cleanpng.com/free/water.html" class="hover:text-brand-green">water</a>
+        <a href="https://www.cleanpng.com/free/fire.html" class="hover:text-brand-green">fire</a>
+        <a href="https://www.cleanpng.com/free/moon.html" class="hover:text-brand-green">moon</a>
+        <a href="https://www.cleanpng.com/free/landscape.html" class="hover:text-brand-green">landscape</a>
+        <a href="https://www.cleanpng.com/free/rose.html" class="hover:text-brand-green">rose</a>
+        <a href="https://www.cleanpng.com/free/unicorn.html" class="hover:text-brand-green">unicorn</a>
+        <a href="https://www.cleanpng.com/free/brain.html" class="hover:text-brand-green">brain</a>
+        <a href="https://www.cleanpng.com/free/mandala.html" class="hover:text-brand-green">mandala</a>
+        <a href="https://www.cleanpng.com/free/rainbow.html" class="hover:text-brand-green">rainbow</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FAQ (EDIT Q/A) ===================== -->
+  <section class="bg-slate-50 py-12">
+    <div class="page-shell px-4 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-3xl">
+        <h2 class="text-center text-2xl font-black">Frequently Asked Questions</h2>
+        <div class="mt-8 space-y-3">
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">What is CleanPNG?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">CleanPNG is a free online platform offering millions of high-quality PNG images with transparent backgrounds, ready for personal and commercial use in design, marketing, and content creation.</div>
+          </article>
+
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">Are all PNG images on CleanPNG free to use?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">Yes, most PNG images on CleanPNG are free to download and use. However, users should always check the specific license details on each image page for usage guidelines.</div>
+          </article>
+
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">Do I need to create an account to download PNG images?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">No, CleanPNG allows you to download images without registration, providing a fast and seamless experience for users.</div>
+          </article>
+
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">How can I find the best PNG images quickly?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">You can use the search bar, explore popular tags, browse curated HUB collections, or check trending and seasonal categories in the marketing calendar.</div>
+          </article>
+
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">What types of PNG images are available on CleanPNG?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">CleanPNG offers a wide variety of PNGs, including people, objects, animals, text, icons, decorations, and seasonal or holiday-themed graphics.</div>
+          </article>
+
+          <article class="rounded-lg border border-slate-200 bg-white">
+            <button class="faq-toggle flex w-full items-center justify-between px-5 py-4 text-left font-bold">Can I use CleanPNG images for commercial projects?<span>+</span></button>
+            <div class="faq-answer hidden px-5 pb-4 text-sm text-slate-600">Many images can be used for commercial purposes, such as ads, websites, and presentations. Always review the license information provided with each image to ensure proper usage.</div>
+          </article>
+
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== FOOTER (EDIT LINKS) ===================== -->
+<footer class="bg-black text-white">
+  <div class="page-shell px-4 py-12 sm:px-6 lg:px-8">
+    <div class="grid gap-8 md:grid-cols-3">
+      <div>
+        <h3 class="text-xl font-bold text-slate-400">Content</h3>
+        <div class="mt-3 space-y-2 text-sm text-slate-400">
+          <a href="https://www.cleanpng.com/png/trending.html" class="block hover:text-white">Trending Resources</a>
+          <a href="https://www.cleanpng.com/png/popular.html" class="block hover:text-white">Popular Resources</a>
+          <a href="https://www.cleanpng.com/png/top.html" class="block hover:text-white">Featured Resources</a>
+          <a href="https://www.cleanpng.com/holiday/" class="block hover:text-white">Marketing Calendar</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold text-slate-400">Contributor</h3>
+        <div class="mt-3 space-y-2 text-sm text-slate-400">
+          <a href="https://members.cleanpng.com/login.html" class="block hover:text-white">Login</a>
+          <a href="https://members.cleanpng.com/register.html" class="block hover:text-white">Sign Up</a>
+          <a href="https://members.cleanpng.com/upload.html" class="block hover:text-white">Submit Images</a>
+        </div>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold text-slate-400">Contact</h3>
+        <div class="mt-3 space-y-2 text-sm text-slate-400">
+          <a href="https://www.cleanpng.com/about.html" class="block hover:text-white">About</a>
+          <a href="https://www.cleanpng.com/dmca.html" class="block hover:text-white">DMCA</a>
+          <a href="https://www.cleanpng.com/terms.html" class="block hover:text-white">Terms &amp; Cookies</a>
+          <a href="https://www.cleanpng.com/contact.html" class="block hover:text-white">Contact Us</a>
+        </div>
+      </div>
+    </div>
+    <div class="mt-10 border-t border-white/10 pt-6 text-center text-sm text-slate-500">Copyright 2026 Cleanpng.com All Rights Reserved.</div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.faq-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var ans = btn.nextElementSibling;
+      var icon = btn.querySelector('span');
+      var open = !ans.classList.contains('hidden');
+      ans.classList.toggle('hidden');
+      icon.textContent = open ? '+' : '-';
+    });
+  });
+
+  function performLegacySearch(query) {
+    if (!query) return;
+    var searchTerm = query.toLowerCase().replace(/\s{2,}/g, " ").trim();
+    if (searchTerm === "") return;
+
+    var words = searchTerm.split(" ");
+    if (words.length > 10) {
+      words = words.filter(function(word) {
+        var w = word.toLowerCase();
+        return w !== "with" && w !== "in" && w !== "of" && w !== "and";
+      });
+      if (words.length > 10) words = words.slice(0, 10);
+      if (words.length === 0) return;
+    }
+
+    var slug = words.map(function(word) {
+      return word.replace(/'/g, "");
+    }).join("-");
+
+    if (slug && slug !== "search-png-images") {
+      var target = "https://www.cleanpng.com/free/" + slug + ".html";
+      var tag = slug + "_user";
+
+      // Keep legacy hit tracking behavior from cleanpng_web_en.
+      fetch("https://topdata.freepnges.com/cleanpng_hits_process.php?id=" + encodeURIComponent(tag) + "&hl=cleanpngtag_user")
+        .catch(function() {});
+
+      window.location.href = target;
+    }
+  }
+
+  function bindSearchInputEnter(input) {
+    if (!input) return;
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        performLegacySearch(input.value);
+      }
+    });
+  }
+
+  var headerInput = document.getElementById("header-search-input");
+  var headerBtn = document.getElementById("header-search-btn");
+  var mobileHeaderInput = document.getElementById("mobile-header-search-input");
+  var mobileHeaderBtn = document.getElementById("mobile-header-search-btn");
+  var heroInput = document.getElementById("hero-search-input");
+  var heroBtn = document.getElementById("hero-search-btn");
+
+  bindSearchInputEnter(headerInput);
+  bindSearchInputEnter(mobileHeaderInput);
+  if (headerBtn && headerInput) {
+    headerBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      performLegacySearch(headerInput.value);
+    });
+  }
+  if (mobileHeaderBtn && mobileHeaderInput) {
+    mobileHeaderBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      performLegacySearch(mobileHeaderInput.value);
+    });
+  }
+  bindSearchInputEnter(heroInput);
+  if (heroBtn && heroInput) {
+    heroBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      performLegacySearch(heroInput.value);
+    });
+  }
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f79dfd95f905121',t:'MTc3ODA5MDMyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
