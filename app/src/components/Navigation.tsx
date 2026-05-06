@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X, LogOut, Settings as SettingsIcon } from 'lucide-react'
 import AuthModal from './AuthModal'
+import NotificationBell from './NotificationBell'
 import { getAvatar } from '../lib/userProfile'
 import { api, clearStoredAuth, getToken } from '../lib/api'
 
@@ -122,6 +123,7 @@ export default function Navigation() {
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[#737373] hidden lg:inline">{userName}</span>
+                <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
                   {avatar ? (
                     <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" />

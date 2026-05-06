@@ -133,6 +133,26 @@ export const api = {
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),
   postTrade: (t: { symbol: string; name?: string; side: 'buy' | 'sell'; amount: number; price: number; type?: 'crypto' | 'stock' | 'etf' }) =>
     request('/api/trades', { method: 'POST', body: JSON.stringify(t) }),
+
+  // Watchlist
+  listWatchlist: () => request<{ watchlist: { id: string; symbol: string; name: string; type: string }[] }>('/api/watchlist'),
+  addWatch: (item: { symbol: string; name: string; type?: 'crypto' | 'stock' | 'etf' }) =>
+    request('/api/watchlist', { method: 'POST', body: JSON.stringify(item) }),
+  removeWatch: (symbol: string) =>
+    request(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
+
+  // Price alerts
+  listAlerts: () => request<{ alerts: { id: string; symbol: string; name: string; direction: 'above' | 'below'; target: number; active: boolean; triggered: boolean; createdAt: string }[] }>('/api/alerts'),
+  addAlert: (a: { symbol: string; name: string; direction: 'above' | 'below'; target: number }) =>
+    request('/api/alerts', { method: 'POST', body: JSON.stringify(a) }),
+  removeAlert: (id: string) => request(`/api/alerts/${id}`, { method: 'DELETE' }),
+  checkAlerts: (prices: { symbol: string; price: number }[]) =>
+    request<{ triggered: number }>('/api/alerts/check', { method: 'POST', body: JSON.stringify({ prices }) }),
+
+  // Notifications
+  listNotifications: () => request<{ notifications: { id: string; kind: string; title: string; body: string | null; read: boolean; createdAt: string }[]; unread: number }>('/api/notifications'),
+  markAllRead: () => request('/api/notifications/read', { method: 'POST' }),
+  removeNotification: (id: string) => request(`/api/notifications/${id}`, { method: 'DELETE' }),
 }
 
 /**

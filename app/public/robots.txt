@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /wallet
+Disallow: /ai
+Disallow: /settings
+Disallow: /alerts
+
+Sitemap: https://verdexis.app/sitemap.xml

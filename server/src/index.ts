@@ -9,6 +9,9 @@ import profileRoutes from './routes/profile.js'
 import holdingsRoutes from './routes/holdings.js'
 import walletRoutes from './routes/wallet.js'
 import tradesRoutes from './routes/trades.js'
+import watchlistRoutes from './routes/watchlist.js'
+import alertsRoutes from './routes/alerts.js'
+import notificationsRoutes from './routes/notifications.js'
 
 const app = express()
 const PORT = env.PORT
@@ -28,6 +31,9 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/holdings', holdingsRoutes)
 app.use('/api/wallet', walletRoutes)
 app.use('/api/trades', tradesRoutes)
+app.use('/api/watchlist', watchlistRoutes)
+app.use('/api/alerts', alertsRoutes)
+app.use('/api/notifications', notificationsRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path })

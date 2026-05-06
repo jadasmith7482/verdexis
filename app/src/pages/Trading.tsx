@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { portfolioStore } from '../lib/portfolioStore'
@@ -410,6 +411,10 @@ export default function Trading() {
                 className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${orderSide === 'buy' ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#f44336] text-white hover:bg-[#d32f2f]'}`}>
                 {orderSide === 'buy' ? 'Buy' : 'Sell'} {selectedCrypto?.symbol.toUpperCase() || 'BTC'}
               </button>
+
+              <Link to="/alerts" className="mt-2 block text-center text-[11px] text-[#737373] hover:text-[#0C8B44] transition-colors">
+                Set price alert →
+              </Link>
 
               {isAuthenticated ? (
                 <div className="mt-4 p-4 rounded-xl bg-[#1a1a1a]/50">

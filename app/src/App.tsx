@@ -4,6 +4,9 @@ import ScrollToTop from './components/ScrollToTop'
 import CookieBanner from './components/CookieBanner'
 import OfflineToast from './components/OfflineToast'
 import RequireAuth from './components/RequireAuth'
+import CommandPalette from './components/CommandPalette'
+import ErrorBoundary from './components/ErrorBoundary'
+import AlertChecker from './components/AlertChecker'
 import { Toaster } from 'sonner'
 
 const Home = lazy(() => import('./pages/Home'))
@@ -17,6 +20,7 @@ const Legal = lazy(() => import('./pages/Legal'))
 const About = lazy(() => import('./pages/About'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const Alerts = lazy(() => import('./pages/Alerts'))
 
 function PageFallback() {
   return (
@@ -28,7 +32,7 @@ function PageFallback() {
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       <ScrollToTop />
       <Suspense fallback={<PageFallback />}>
         <Routes>
@@ -39,15 +43,18 @@ export default function App() {
           <Route path="/wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
           <Route path="/news" element={<News />} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+          <Route path="/alerts" element={<Alerts />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      <CommandPalette />
       <CookieBanner />
       <OfflineToast />
+      <AlertChecker />
       <Toaster position="top-right" theme="dark" richColors />
-    </>
+    </ErrorBoundary>
   )
 }

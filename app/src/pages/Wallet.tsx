@@ -6,7 +6,7 @@ import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
   Clock, CheckCircle, AlertCircle, Copy,
-  Eye, EyeOff, Banknote, QrCode,
+  Eye, EyeOff, Banknote, QrCode, Download,
 } from 'lucide-react'
 
 type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer'
@@ -127,6 +127,28 @@ export default function WalletPage() {
     }
   }
 
+  function exportTransactionsCsv(rows: typeof transactions) {
+    const header = ['Date', 'Type', 'Amount', 'Currency', 'Description', 'Status']
+    const csv = [header.join(',')]
+      .concat(rows.map((t) => [
+        new Date(t.timestamp).toISOString(),
+        t.type,
+        t.amount,
+        t.currency,
+        `"${t.description.replace(/"/g, '""')}"`,
+        t.status,
+      ].join(',')))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `verdexis-transactions-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+    toast.success('Exported CSV')
+  }
+
   return (
     <div className="min-h-screen bg-[#070C0E]">
       <Toaster position="top-right" theme="dark" />
@@ -200,8 +222,14 @@ export default function WalletPage() {
           {/* Tab Content */}
           {activeTab === 'overview' && (
             <div className="glass-card overflow-hidden">
-              <div className="p-6 border-b border-[#ffffff08]">
+              <div className="p-6 border-b border-[#ffffff08] flex items-center justify-between gap-4">
                 <h3 className="text-lg font-medium text-[#E5E5E5]">Transaction History</h3>
+                <button
+                  onClick={() => exportTransactionsCsv(transactions)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#A0A0A0] border border-[#ffffff10] rounded-lg hover:text-[#E5E5E5] hover:border-[#ffffff25] transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />Export CSV
+                </button>
               </div>
               <div className="divide-y divide-[#ffffff05]">
                 {transactions.map((tx) => (

@@ -23,6 +23,9 @@ model User {
   transactions  Transaction[]
   trades        Trade[]
   resetTokens   PasswordReset[]
+  watchlist     Watchlist[]
+  alerts        PriceAlert[]
+  notifications Notification[]
 }
 
 model PasswordReset {
@@ -90,6 +93,48 @@ model Trade {
   amount    Float
   price     Float
   total     Float
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  name      String
+  type      String   @default("crypto") // 'crypto' | 'stock' | 'etf'
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+  @@index([userId])
+}
+
+model PriceAlert {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol     String
+  name       String
+  direction  String   // 'above' | 'below'
+  target     Float
+  active     Boolean  @default(true)
+  triggered  Boolean  @default(false)
+  triggeredAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, active])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String   // 'alert' | 'trade' | 'deposit' | 'system'
+  title     String
+  body      String?
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
