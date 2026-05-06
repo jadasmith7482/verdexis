@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { Toaster, toast } from 'sonner'
@@ -6,6 +6,8 @@ import {
   User, Shield, Bell, Palette, Globe, Key, LogOut, Mail,
   Smartphone, Check, ChevronRight, Trash2, Camera,
 } from 'lucide-react'
+import { fileToAvatarDataUrl, getAvatar, updateProfile } from '../lib/userProfile'
+import { applyTheme } from '../lib/themeApplier'
 
 type Section = 'profile' | 'security' | 'preferences' | 'notifications'
 
@@ -48,6 +50,9 @@ export default function Settings() {
   const [section, setSection] = useState<Section>('profile')
   const [prefs, setPrefs] = useState<UserPrefs>(DEFAULT_PREFS)
   const [isAuthed, setIsAuthed] = useState(false)
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const auth = localStorage.getItem('verdexis_auth')
@@ -57,6 +62,7 @@ export default function Settings() {
     }
     setIsAuthed(true)
     setPrefs(loadPrefs())
+    setAvatar(getAvatar())
   }, [])
 
   const update = <K extends keyof UserPrefs>(key: K, value: UserPrefs[K]) => {
@@ -66,8 +72,35 @@ export default function Settings() {
     if (key === 'name' || key === 'email') {
       const auth = JSON.parse(localStorage.getItem('verdexis_auth') || '{}')
       localStorage.setItem('verdexis_auth', JSON.stringify({ ...auth, [key]: value }))
+      window.dispatchEvent(new Event('verdexis:profile'))
+    }
+    if (key === 'theme') {
+      applyTheme(value as UserPrefs['theme'])
+      window.dispatchEvent(new Event('verdexis:prefs'))
     }
     toast.success('Saved')
+  }
+
+  const handleAvatarPick = async (file?: File | null) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file)
+      updateProfile({ avatar: dataUrl })
+      setAvatar(dataUrl)
+      toast.success('Avatar updated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update avatar')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleAvatarRemove = () => {
+    updateProfile({ avatar: null })
+    setAvatar(null)
+    toast.success('Avatar removed')
   }
 
   const handleLogout = () => {
@@ -163,12 +196,38 @@ export default function Settings() {
                   <h2 className="text-xl font-light text-[#E5E5E5]">Profile</h2>
 
                   <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center text-3xl font-light text-white">
-                      {prefs.name[0]?.toUpperCase() || 'U'}
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center text-3xl font-light text-white overflow-hidden">
+                      {avatar ? (
+                        <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        prefs.name[0]?.toUpperCase() || 'U'
+                      )}
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 text-sm text-[#A0A0A0] border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44] transition-colors">
-                      <Camera className="w-4 h-4" /> Change avatar
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        className="hidden"
+                        aria-label="Upload avatar"
+                        onChange={(e) => handleAvatarPick(e.target.files?.[0])}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-[#A0A0A0] border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44] transition-colors disabled:opacity-50"
+                      >
+                        <Camera className="w-4 h-4" /> {uploading ? 'Uploading…' : avatar ? 'Replace avatar' : 'Change avatar'}
+                      </button>
+                      {avatar && (
+                        <button
+                          onClick={handleAvatarRemove}
+                          className="text-xs text-[#737373] hover:text-[#f44336] transition-colors text-left"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <Field label="Full name">
@@ -303,20 +362,19 @@ export default function Settings() {
                     </div>
                   </Field>
 
-                  <Field label="Theme">
+                  <Field label="Theme" hint="Light theme is in preview — most surfaces remain dark.">
                     <div className="grid grid-cols-3 gap-2">
                       {(['dark', 'light', 'auto'] as const).map((t) => (
                         <button
                           key={t}
                           onClick={() => update('theme', t)}
-                          disabled={t !== 'dark'}
                           className={`py-2.5 rounded-lg text-sm font-medium capitalize transition-colors ${
                             prefs.theme === t
                               ? 'bg-[#0C8B44] text-white'
-                              : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-[#A0A0A0]'
+                              : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'
                           }`}
                         >
-                          {t}{t !== 'dark' && ' (soon)'}
+                          {t}
                         </button>
                       ))}
                     </div>

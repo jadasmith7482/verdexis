@@ -415,7 +415,13 @@ export default function Home() {
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature) => <li key={feature} className="flex items-start gap-3 text-sm text-[#A0A0A0]"><CheckCircle className="w-4 h-4 text-[#0C8B44] shrink-0 mt-0.5" />{feature}</li>)}
                 </ul>
-                <button onClick={openSignup} className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${plan.highlighted ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#1a1a1a] text-[#E5E5E5] hover:bg-[#252525]'}`}>{plan.cta}</button>
+                <button onClick={() => {
+                  if (plan.name === 'Institution') {
+                    window.location.href = 'mailto:sales@verdexis.com?subject=Institution%20plan%20inquiry'
+                  } else {
+                    openSignup()
+                  }
+                }} className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${plan.highlighted ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#1a1a1a] text-[#E5E5E5] hover:bg-[#252525]'}`}>{plan.cta}</button>
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X, LogOut, Settings as SettingsIcon } from 'lucide-react'
 import AuthModal from './AuthModal'
+import { getAvatar } from '../lib/userProfile'
 
 const publicLinks = [
   { label: 'Markets', path: '/trading' },
@@ -24,6 +25,7 @@ export default function Navigation() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState('User')
+  const [avatar, setAvatar] = useState<string | null>(null)
   const location = useLocation()
 
   // Check auth state from localStorage
@@ -39,13 +41,18 @@ export default function Navigation() {
         setUserName('User')
       }
     }
+    setAvatar(getAvatar())
   }
 
   useEffect(() => {
     checkAuth()
     const handleStorage = () => checkAuth()
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    window.addEventListener('verdexis:profile', handleStorage)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('verdexis:profile', handleStorage)
+    }
   }, [])
 
   const isPrivatePage = ['/dashboard', '/ai', '/wallet'].includes(location.pathname)
@@ -111,8 +118,12 @@ export default function Navigation() {
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-xs text-[#737373] hidden lg:inline">{userName}</span>
-                <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors" title="Dashboard">
-                  {userName[0]?.toUpperCase() || 'U'}
+                <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
+                  {avatar ? (
+                    <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    userName[0]?.toUpperCase() || 'U'
+                  )}
                 </Link>
                 <Link to="/settings" className="w-9 h-9 rounded-full bg-[#1a1a1a] flex items-center justify-center text-[#737373] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 transition-colors" title="Settings">
                   <SettingsIcon className="w-4 h-4" />
@@ -149,7 +160,7 @@ export default function Navigation() {
               ) : (
                 <div className="flex items-center justify-between pt-3 border-t border-[#ffffff08]">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">{userName[0]?.toUpperCase() || 'U'}</div>
+                    <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] overflow-hidden">{avatar ? <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" /> : (userName[0]?.toUpperCase() || 'U')}</div>
                     <span className="text-sm text-[#A0A0A0]">{userName}</span>
                   </div>
                   <div className="flex items-center gap-3">
