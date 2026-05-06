@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
+import CandleChart from '../components/CandleChart'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { portfolioStore } from '../lib/portfolioStore'
 import WatchlistPanel from '../components/WatchlistPanel'
@@ -124,38 +125,23 @@ export default function Trading() {
     setRecentTrades(portfolioStore.getTrades().slice(0, 10))
   }
 
-  const generateCandlestickData = () => {
-    const points = timeRange === '1H' ? 60 : timeRange === '1D' ? 24 : timeRange === '1W' ? 7 : timeRange === '1M' ? 30 : 12
-    return Array.from({ length: points }, () => {
-      const base = selectedCrypto?.current_price || 50000
-      const volatility = base * 0.02
-      const open = base + (Math.random() - 0.5) * volatility * 2
-      const close = open + (Math.random() - 0.5) * volatility
-      const high = Math.max(open, close) + Math.random() * volatility * 0.5
-      const low = Math.min(open, close) - Math.random() * volatility * 0.5
-      return { open, close, high, low }
-    })
-  }
-
-  const candlesticks = generateCandlestickData()
-  const maxPrice = Math.max(...candlesticks.map((c) => c.high))
-  const minPrice = Math.min(...candlesticks.map((c) => c.low))
-  const priceRange = maxPrice - minPrice
-
-  const generateOrderBook = () => {
+  // Deterministic order book derived from the current symbol+price so it doesn't
+  // re-roll on every render. Re-derives only when the price ticks.
+  const orderBook = useMemo(() => {
     const currentPrice = selectedCrypto?.current_price || 50000
+    const seedSrc = `${selectedCrypto?.id ?? 'x'}_${currentPrice.toFixed(2)}`
+    let rng = [...seedSrc].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 11) || 1
+    const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 0xffffffff }
     const asks = Array.from({ length: 10 }, (_, i) => ({
       price: currentPrice + (10 - i) * (currentPrice * 0.0005),
-      size: Math.random() * 10 + 0.1,
+      size: rand() * 10 + 0.1,
     })).reverse()
     const bids = Array.from({ length: 10 }, (_, i) => ({
       price: currentPrice - (i + 1) * (currentPrice * 0.0005),
-      size: Math.random() * 10 + 0.1,
+      size: rand() * 10 + 0.1,
     }))
     return { asks, bids }
-  }
-
-  const orderBook = generateOrderBook()
+  }, [selectedCrypto?.id, selectedCrypto?.current_price])
 
   return (
     <div className="min-h-screen bg-[#070C0E]">
@@ -257,49 +243,20 @@ export default function Trading() {
             {/* Center - Chart */}
             <div className="lg:col-span-6 space-y-4">
               <div className="glass-card p-4">
-                <div className="h-80">
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                    {candlesticks.map((candle, i) => {
-                      const isGreen = candle.close >= candle.open
-                      const x = (i / candlesticks.length) * 100
-                      const candleWidth = 100 / candlesticks.length * 0.6
-                      const highY = ((maxPrice - candle.high) / priceRange) * 100
-                      const lowY = ((maxPrice - candle.low) / priceRange) * 100
-                      const openY = ((maxPrice - candle.open) / priceRange) * 100
-                      const closeY = ((maxPrice - candle.close) / priceRange) * 100
-                      const bodyTop = Math.min(openY, closeY)
-                      const bodyHeight = Math.abs(closeY - openY) || 0.5
-                      return (
-                        <g key={i}>
-                          {/* Wick */}
-                          <line
-                            x1={x + candleWidth / 2}
-                            y1={highY}
-                            x2={x + candleWidth / 2}
-                            y2={lowY}
-                            stroke={isGreen ? '#4CAF50' : '#f44336'}
-                            strokeWidth={0.3}
-                            opacity={0.8}
-                          />
-                          {/* Body */}
-                          <rect
-                            x={x + (100 / candlesticks.length - candleWidth) / 2}
-                            y={bodyTop}
-                            width={candleWidth}
-                            height={Math.max(bodyHeight, 0.5)}
-                            fill={isGreen ? '#4CAF50' : '#f44336'}
-                            opacity={0.85}
-                            rx={0.3}
-                          />
-                        </g>
-                      )
-                    })}
-                  </svg>
-                </div>
+                {selectedCrypto ? (
+                  <CandleChart
+                    coinId={selectedCrypto.id}
+                    symbol={selectedCrypto.symbol}
+                    livePrice={selectedCrypto.current_price}
+                    range={timeRange}
+                  />
+                ) : (
+                  <div className="h-80 flex items-center justify-center text-xs text-[#737373]">Select a market to view chart</div>
+                )}
                 <div className="flex justify-between mt-2 text-xs text-[#737373]">
-                  <span>Low: ${minPrice.toLocaleString()}</span>
-                  <span>High: ${maxPrice.toLocaleString()}</span>
-                  <span>Range: ${priceRange.toLocaleString()}</span>
+                  <span>24h Low: ${selectedCrypto?.low_24h?.toLocaleString() ?? '—'}</span>
+                  <span>24h High: ${selectedCrypto?.high_24h?.toLocaleString() ?? '—'}</span>
+                  <span>Vol: ${selectedCrypto ? (selectedCrypto.total_volume / 1_000_000).toFixed(1) + 'M' : '—'}</span>
                 </div>
               </div>
 

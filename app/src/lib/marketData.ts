@@ -38,6 +38,16 @@ export interface MarketNews {
   url: string
 }
 
+export interface Candle {
+  time: number // ms epoch
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+export type OhlcRange = '1H' | '1D' | '1W' | '1M' | '1Y'
+
 // Demo data that looks realistic
 const DEMO_CRYPTO: CryptoQuote[] = [
   {
@@ -248,6 +258,79 @@ class MarketDataService {
     } catch {
       return DEMO_CRYPTO.filter((c) => ids.includes(c.id))
     }
+  }
+
+  async getOhlc(coinId: string, range: OhlcRange): Promise<Candle[]> {
+    // CoinGecko's /coins/{id}/ohlc supports days = 1, 7, 14, 30, 90, 180, 365, max.
+    // Granularity is auto: <=2d → 30min, <=30d → 4h, >30d → 4d.
+    const days = range === '1H' ? 1 : range === '1D' ? 1 : range === '1W' ? 7 : range === '1M' ? 30 : 365
+    const cacheKey = `ohlc_${coinId}_${days}`
+    const cached = this.getCached<Candle[]>(cacheKey)
+    if (cached) return cached
+
+    if (this.apiFailed) {
+      const fake = this.simulateOhlc(coinId, range)
+      this.setCache(cacheKey, fake)
+      return fake
+    }
+
+    try {
+      const url = `${COINGECKO_BASE}/coins/${coinId}/ohlc?vs_currency=usd&days=${days}`
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+      if (!res.ok) throw new Error(`OHLC ${res.status}`)
+      const raw = (await res.json()) as Array<[number, number, number, number, number]>
+      if (!Array.isArray(raw) || raw.length === 0) throw new Error('empty')
+      let candles: Candle[] = raw.map(([time, open, high, low, close]) => ({ time, open, high, low, close }))
+      // For "1H" tighten to the last hour using the highest-resolution slice we got back.
+      if (range === '1H') {
+        const cutoff = Date.now() - 60 * 60 * 1000
+        const recent = candles.filter((c) => c.time >= cutoff)
+        if (recent.length >= 4) candles = recent
+        else candles = candles.slice(-12)
+      }
+      this.setCache(cacheKey, candles)
+      return candles
+    } catch (error) {
+      console.warn('CoinGecko OHLC failed, simulating:', error)
+      const fake = this.simulateOhlc(coinId, range)
+      this.setCache(cacheKey, fake)
+      return fake
+    }
+  }
+
+  // Deterministic, seeded random walk used as a fallback so the chart doesn't
+  // re-roll on every render. Uses a coin/range seed so it's stable per pair.
+  private simulateOhlc(coinId: string, range: OhlcRange): Candle[] {
+    const seed = [...coinId, range].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 7)
+    let rng = seed || 1
+    const rand = () => {
+      rng = (rng * 1664525 + 1013904223) >>> 0
+      return rng / 0xffffffff
+    }
+    const points = range === '1H' ? 30 : range === '1D' ? 48 : range === '1W' ? 56 : range === '1M' ? 60 : 52
+    const totalMs =
+      range === '1H' ? 60 * 60 * 1000 :
+      range === '1D' ? 24 * 60 * 60 * 1000 :
+      range === '1W' ? 7 * 24 * 60 * 60 * 1000 :
+      range === '1M' ? 30 * 24 * 60 * 60 * 1000 :
+      365 * 24 * 60 * 60 * 1000
+    const step = totalMs / points
+    const seedQuote = DEMO_CRYPTO.find((c) => c.id === coinId)
+    const base = seedQuote?.current_price ?? 50000
+    const vol = base * 0.012
+    let price = base * (1 - 0.03 + rand() * 0.06)
+    const out: Candle[] = []
+    const now = Date.now()
+    for (let i = 0; i < points; i++) {
+      const open = price
+      const drift = (rand() - 0.5) * vol * 1.4
+      const close = Math.max(0.0001, open + drift)
+      const high = Math.max(open, close) + rand() * vol * 0.6
+      const low = Math.min(open, close) - rand() * vol * 0.6
+      out.push({ time: now - totalMs + step * i, open, high, low, close })
+      price = close
+    }
+    return out
   }
 
   async getMarketNews(): Promise<MarketNews[]> {
