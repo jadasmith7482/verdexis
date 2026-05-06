@@ -82,6 +82,18 @@ export default function Dashboard() {
     ])
     setCryptoData(crypto)
     setInsights(aiInsights)
+
+    // Mark portfolio to market with the live quotes we just fetched so
+    // value / P&L / allocation reflect actual prices, not avg-buy.
+    if (crypto && crypto.length) {
+      const quotes: Record<string, number> = {}
+      for (const c of crypto) {
+        quotes[c.id] = c.current_price
+        if (c.symbol) quotes[c.symbol.toLowerCase()] = c.current_price
+      }
+      portfolioStore.markToMarket(quotes)
+    }
+
     setHoldings(portfolioStore.getHoldings())
     setTrades(portfolioStore.getTrades().slice(0, 5))
     setWallet(portfolioStore.getWallet())

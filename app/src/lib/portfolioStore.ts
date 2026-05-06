@@ -199,6 +199,33 @@ class PortfolioStoreImpl {
 
   getHoldings(): PortfolioHolding[] { return this.holdings }
 
+  /**
+   * Update currentPrice / value / pnl / allocation from a live quote map keyed by
+   * coin id (e.g. 'bitcoin') OR lower-case symbol (e.g. 'btc'). Called whenever
+   * the crypto market list refreshes so the portfolio actually moves with the market.
+   * Persists to localStorage and emits a single change event.
+   */
+  markToMarket(quotes: Record<string, number>): void {
+    if (!this.holdings.length) return
+    let changed = false
+    for (const h of this.holdings) {
+      const live = quotes[h.id] ?? quotes[h.symbol?.toLowerCase()] ?? quotes[h.symbol]
+      if (typeof live !== 'number' || !isFinite(live) || live <= 0) continue
+      if (live === h.currentPrice) continue
+      h.currentPrice = live
+      h.value = h.quantity * live
+      const cost = h.avgBuyPrice * h.quantity
+      h.pnl = h.value - cost
+      h.pnlPercent = cost > 0 ? (h.pnl / cost) * 100 : 0
+      changed = true
+    }
+    if (!changed) return
+    const totalValue = this.holdings.reduce((s, x) => s + x.value, 0)
+    this.holdings.forEach((h) => { h.allocation = totalValue > 0 ? Math.round((h.value / totalValue) * 100) : 0 })
+    this.save(STORAGE_KEYS.holdings, this.holdings)
+    emit()
+  }
+
   getTrades(): Trade[] {
     return [...this.trades].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }

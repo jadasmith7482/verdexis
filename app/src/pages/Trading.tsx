@@ -71,6 +71,14 @@ export default function Trading() {
     setLoading(true)
     const data = await marketData.getCryptoList()
     setCryptoData(data)
+    if (data && data.length) {
+      const quotes: Record<string, number> = {}
+      for (const c of data) {
+        quotes[c.id] = c.current_price
+        if (c.symbol) quotes[c.symbol.toLowerCase()] = c.current_price
+      }
+      portfolioStore.markToMarket(quotes)
+    }
     if (!selectedCrypto && data.length > 0) {
       setSelectedCrypto(data[0])
     }
