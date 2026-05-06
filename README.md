@@ -134,30 +134,73 @@ verdexis/
 ```
 
 ## Getting Started
+
+The repo is now a **monorepo** with two workspaces:
+
+- `app/` — Vite + React frontend (port 3000)
+- `server/` — Express + Prisma + SQLite backend API (port 4000)
+
 ```bash
-# Install dependencies
+# Install everything (root + app + server)
 npm install
+npm run install:all
 
-# Run dev server
+# Initialise the database (one-time)
+npm run db:migrate
+
+# Run frontend + backend together
 npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
+The frontend proxies `/api/*` to the backend during dev (see `app/vite.config.ts`).
+If the backend is offline, the UI falls back to localStorage-only mock auth so the
+demo still works.
+
 ## Environment Variables
-Copy [`app/.env.example`](app/.env.example) to `app/.env.local` and fill in your free API keys:
+
+### Frontend (`app/.env.local`)
+Copy [`app/.env.example`](app/.env.example):
 
 ```env
-# Vite client-side keys (must be prefixed with VITE_)
+# Optional API base override (defaults to '' so requests go through the Vite proxy)
+VITE_API_URL=
+
+# Free public market data keys (optional — app falls back to demo data without them)
 VITE_ALPHA_VANTAGE_KEY=your_key
 VITE_FINNHUB_KEY=your_key
 ```
 
-CoinGecko public endpoints work without a key. Without keys, the app falls back to realistic demo data.
+### Backend (`server/.env`)
+Copy [`server/.env.example`](server/.env.example):
+
+```env
+PORT=4000
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="change-me-to-a-32-byte-random-string"
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:5173,http://localhost:3000
+APP_BASE_URL=http://localhost:5173
+```
+
+## API surface (server)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/health` | Service heartbeat |
+| POST | `/api/auth/signup` | Create account, returns JWT |
+| POST | `/api/auth/login` | Returns JWT |
+| POST | `/api/auth/forgot` | Request password reset link (logged to server console in dev) |
+| POST | `/api/auth/reset` | Submit `{ token, password }` |
+| GET | `/api/auth/me` | Current user (requires Bearer token) |
+| POST | `/api/auth/logout` | Clears cookie (JWT remains valid until expiry) |
+| PATCH | `/api/profile` | Update name / avatar / prefs / 2FA |
+| DELETE | `/api/profile` | Hard-delete the account |
+| GET / POST | `/api/holdings` | List / upsert portfolio holdings |
+| GET | `/api/wallet` | Balances + last 50 transactions |
+| POST | `/api/wallet/transactions` | Deposit / withdraw / transfer (atomic) |
+| GET / POST | `/api/trades` | List / execute trades (adjusts balances + holdings atomically) |
+
+Auth via `Authorization: Bearer <jwt>` header. Tokens are issued for 7 days.
 
 ## Deployment
 The platform is deployed at: **https://6ourstyon7pic.kimi.page**

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Shield, Fingerprint, KeyRound, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { api, setToken, setStoredUser, type ApiError } from '../lib/api'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -30,20 +31,28 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
         return
       }
       setLoading(true)
-      setTimeout(() => {
-        setLoading(false)
+      try {
+        await api.forgot(form.email)
         setResetSent(true)
         toast.success('Reset link sent', { description: `Check ${form.email} for next steps.` })
-      }, 900)
+      } catch (err) {
+        // Even on error, show generic success to avoid user enumeration UX surprises.
+        const e = err as ApiError
+        if (e.status && e.status >= 400 && e.status < 500) {
+          setResetSent(true)
+          toast.success('Reset link sent', { description: 'If that email exists, a link is on the way.' })
+        } else {
+          setError('Could not reach the server. Please try again.')
+        }
+      } finally {
+        setLoading(false)
+      }
       return
     }
 
     setLoading(true)
 
-    setTimeout(() => {
-      // Set mock auth state
-      localStorage.setItem('verdexis_auth', JSON.stringify({ email: form.email, name: form.firstName || 'User' }))
-      // Ensure demo portfolio data exists
+    const seedDemoData = () => {
       if (!localStorage.getItem('verdexis_holdings')) {
         localStorage.setItem('verdexis_holdings', JSON.stringify([
           { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', quantity: 2.45, avgBuyPrice: 67432, currentPrice: 97432, value: 238708, pnl: 12450, pnlPercent: 8.15, allocation: 45 },
@@ -61,11 +70,38 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           { currency: 'SOL', symbol: '◎', balance: 234.56, available: 234.56 },
         ]))
       }
+    }
+
+    try {
+      const res = mode === 'signup'
+        ? await api.signup(form.email, form.password, `${form.firstName} ${form.lastName}`.trim() || 'User')
+        : await api.login(form.email, form.password)
+      setToken(res.token)
+      setStoredUser(res.user)
+      seedDemoData()
+      toast.success(mode === 'signup' ? 'Account created' : 'Welcome back')
       setLoading(false)
       onClose()
       window.dispatchEvent(new Event('storage'))
       window.location.reload()
-    }, 1200)
+      return
+    } catch (err) {
+      const e = err as ApiError
+      // Network/server unreachable -> fall back to localStorage-only mock so the demo still works.
+      const offline = !e.status || e.status === 0 || e.status >= 500
+      if (!offline) {
+        setError(e.error || 'Authentication failed')
+        setLoading(false)
+        return
+      }
+      console.warn('[verdexis] API offline, using local mock auth')
+      localStorage.setItem('verdexis_auth', JSON.stringify({ email: form.email, name: form.firstName || 'User' }))
+      seedDemoData()
+      setLoading(false)
+      onClose()
+      window.dispatchEvent(new Event('storage'))
+      window.location.reload()
+    }
   }
 
   const switchMode = () => {

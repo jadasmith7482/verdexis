@@ -1,0 +1,92 @@
+import { Router } from 'express'
+import { z } from 'zod'
+import { prisma } from '../db.js'
+import { requireAuth, type AuthedRequest } from '../auth.js'
+
+const router = Router()
+
+router.get('/', requireAuth, async (req: AuthedRequest, res) => {
+  const [balances, transactions] = await Promise.all([
+    prisma.walletBalance.findMany({ where: { userId: req.userId! } }),
+    prisma.transaction.findMany({
+      where: { userId: req.userId! },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+  ])
+  res.json({ balances, transactions })
+})
+
+const txSchema = z.object({
+  kind: z.enum(['deposit', 'withdraw', 'transfer']),
+  currency: z.string().min(1).max(20),
+  symbol: z.string().min(1).max(8).default('$'),
+  amount: z.number().positive(),
+  reference: z.string().max(200).optional(),
+})
+
+router.post('/transactions', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = txSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input' })
+    return
+  }
+  const { kind, currency, symbol, amount, reference } = parsed.data
+
+  // Atomically apply to balance + record transaction.
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletBalance.findUnique({
+      where: { userId_currency: { userId: req.userId!, currency } },
+    })
+    const current = existing?.available ?? 0
+    let nextBalance = existing?.balance ?? 0
+    let nextAvailable = current
+
+    if (kind === 'deposit') {
+      nextBalance += amount
+      nextAvailable += amount
+    } else {
+      // withdraw or transfer both decrement
+      if (current < amount) {
+        throw Object.assign(new Error('Insufficient funds'), { status: 400 })
+      }
+      nextBalance -= amount
+      nextAvailable -= amount
+    }
+
+    const balance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: req.userId!, currency } },
+      create: {
+        userId: req.userId!,
+        currency,
+        symbol,
+        balance: nextBalance,
+        available: nextAvailable,
+      },
+      update: { balance: nextBalance, available: nextAvailable, symbol },
+    })
+
+    const transaction = await tx.transaction.create({
+      data: {
+        userId: req.userId!,
+        kind,
+        currency,
+        amount,
+        reference,
+        status: 'completed',
+      },
+    })
+
+    return { balance, transaction }
+  }).catch((err: Error & { status?: number }) => {
+    return { error: err.message, status: err.status || 500 }
+  })
+
+  if ('error' in result) {
+    res.status(result.status || 500).json({ error: result.error })
+    return
+  }
+  res.status(201).json(result)
+})
+
+export default router

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, X, LogOut, Settings as SettingsIcon } from 'lucide-react'
 import AuthModal from './AuthModal'
 import { getAvatar } from '../lib/userProfile'
+import { api, clearStoredAuth, getToken } from '../lib/api'
 
 const publicLinks = [
   { label: 'Markets', path: '/trading' },
@@ -78,7 +79,10 @@ export default function Navigation() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('verdexis_auth')
+    if (getToken()) {
+      api.logout().catch(() => { /* ignore */ })
+    }
+    clearStoredAuth()
     localStorage.removeItem('verdexis_holdings')
     localStorage.removeItem('verdexis_wallet')
     localStorage.removeItem('verdexis_trades')

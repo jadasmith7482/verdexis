@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { fileToAvatarDataUrl, getAvatar, updateProfile } from '../lib/userProfile'
 import { applyTheme } from '../lib/themeApplier'
+import { api, clearStoredAuth, getToken, setStoredUser } from '../lib/api'
 
 type Section = 'profile' | 'security' | 'preferences' | 'notifications'
 
@@ -78,6 +79,14 @@ export default function Settings() {
       applyTheme(value as UserPrefs['theme'])
       window.dispatchEvent(new Event('verdexis:prefs'))
     }
+    // Best-effort sync to API; ignore if offline.
+    if (getToken()) {
+      const patch: Record<string, unknown> = {}
+      if (key === 'name') patch.name = value
+      else if (key === 'twoFactorEnabled') patch.twoFactor = value
+      else patch.prefs = next
+      api.patchProfile(patch).catch(() => { /* offline ok */ })
+    }
     toast.success('Saved')
   }
 
@@ -88,6 +97,12 @@ export default function Settings() {
       const dataUrl = await fileToAvatarDataUrl(file)
       updateProfile({ avatar: dataUrl })
       setAvatar(dataUrl)
+      if (getToken()) {
+        try {
+          const res = await api.patchProfile({ avatar: dataUrl })
+          setStoredUser(res.user)
+        } catch { /* offline ok */ }
+      }
       toast.success('Avatar updated')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not update avatar')
@@ -97,14 +112,20 @@ export default function Settings() {
     }
   }
 
-  const handleAvatarRemove = () => {
+  const handleAvatarRemove = async () => {
     updateProfile({ avatar: null })
     setAvatar(null)
+    if (getToken()) {
+      try { await api.patchProfile({ avatar: null }) } catch { /* offline ok */ }
+    }
     toast.success('Avatar removed')
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('verdexis_auth')
+    if (getToken()) {
+      api.logout().catch(() => { /* ignore */ })
+    }
+    clearStoredAuth()
     localStorage.removeItem('verdexis_holdings')
     localStorage.removeItem('verdexis_wallet')
     localStorage.removeItem('verdexis_trades')
@@ -113,8 +134,11 @@ export default function Settings() {
     setTimeout(() => { window.location.href = '/' }, 600)
   }
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (!confirm('Permanently delete your account and all data? This cannot be undone.')) return
+    if (getToken()) {
+      try { await api.deleteAccount() } catch { /* offline ok */ }
+    }
     localStorage.clear()
     toast.success('Account deleted')
     setTimeout(() => { window.location.href = '/' }, 600)
@@ -285,7 +309,18 @@ export default function Settings() {
                         <p className="text-xs text-[#737373] mt-1">Last changed: never</p>
                       </div>
                       <button
-                        onClick={() => toast.info('Password reset email sent')}
+                        onClick={async () => {
+                          if (!getToken()) {
+                            toast.info('Sign in with the API to enable password reset')
+                            return
+                          }
+                          try {
+                            await api.forgot(prefs.email)
+                            toast.success('Reset link sent', { description: `Check ${prefs.email}` })
+                          } catch {
+                            toast.error('Could not send reset link')
+                          }
+                        }}
                         className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors"
                       >
                         Change

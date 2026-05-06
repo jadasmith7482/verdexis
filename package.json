@@ -1,0 +1,19 @@
+{
+  "name": "verdexis",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm:dev:server\" \"npm:dev:app\"",
+    "dev:app": "npm --prefix app run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build": "npm --prefix server run build && npm --prefix app run build",
+    "install:all": "npm --prefix app install && npm --prefix server install",
+    "db:migrate": "npm --prefix server run prisma:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "dependencies": {
+    "verdexis-server": "file:server"
+  }
+}
