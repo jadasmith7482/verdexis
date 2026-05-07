@@ -12,6 +12,8 @@ import {
   BrainCircuit,
   RefreshCw,
   Target,
+  PanelLeftOpen,
+  X,
 } from 'lucide-react'
 
 const quickPrompts = [
@@ -39,6 +41,7 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(false)
   const [insightsLoading, setInsightsLoading] = useState(true)
   const [persona, setPersona] = useState<PersonaId>(() => (typeof window !== 'undefined' ? (localStorage.getItem(PERSONA_KEY) as PersonaId | null) || 'verdexis' : 'verdexis'))
+  const [insightsOpen, setInsightsOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (typeof window !== 'undefined') localStorage.setItem(PERSONA_KEY, persona) }, [persona])
@@ -97,11 +100,18 @@ export default function AIAssistant() {
       <Toaster position="top-right" theme="dark" />
       <Navigation />
 
-      <div className="pt-20 pb-8 h-screen">
-        <div className="max-w-[1440px] mx-auto px-4 h-full">
+      <div className="pt-16 lg:pt-20 pb-2 lg:pb-8 h-[100dvh]">
+        <div className="max-w-[1440px] mx-auto px-2 sm:px-4 h-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-            {/* Left Sidebar - Insights */}
-            <div className="lg:col-span-3 glass-card overflow-hidden flex flex-col">
+            {/* Left Sidebar - Insights (drawer on mobile, fixed on desktop) */}
+            <div
+              className={`${
+                insightsOpen
+                  ? 'fixed inset-0 z-40 bg-[#070C0E]/95 backdrop-blur-md p-4 pt-20 flex'
+                  : 'hidden'
+              } lg:static lg:z-auto lg:bg-transparent lg:backdrop-blur-none lg:p-0 lg:pt-0 lg:flex lg:col-span-3`}
+            >
+            <div className="glass-card overflow-hidden flex flex-col w-full h-full">
               <div className="p-4 border-b border-[#ffffff08]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -116,12 +126,21 @@ export default function AIAssistant() {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={loadInsights}
-                    className="p-2 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${insightsLoading ? 'animate-spin' : ''}`} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={loadInsights}
+                      className="p-2 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${insightsLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button
+                      onClick={() => setInsightsOpen(false)}
+                      className="lg:hidden p-2 rounded-lg text-[#737373] hover:text-[#E5E5E5] transition-colors"
+                      aria-label="Close insights"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -191,46 +210,54 @@ export default function AIAssistant() {
                 </div>
               </div>
             </div>
+            </div>
 
             {/* Main Chat Area */}
-            <div className="lg:col-span-9 glass-card overflow-hidden flex flex-col">
+            <div className="lg:col-span-9 glass-card overflow-hidden flex flex-col min-h-0">
               {/* Chat Header */}
-              <div className="p-4 border-b border-[#ffffff08]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center">
-                      <Bot className="w-5 h-5 text-white" />
+              <div className="p-3 sm:p-4 border-b border-[#ffffff08]">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <button
+                      onClick={() => setInsightsOpen(true)}
+                      className="lg:hidden p-2 rounded-lg text-[#A0A0A0] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 transition-colors shrink-0"
+                      aria-label="Open insights"
+                    >
+                      <PanelLeftOpen className="w-5 h-5" />
+                    </button>
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center shrink-0">
+                      <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-[#E5E5E5]">VERDEXIS AI</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[#E5E5E5] truncate">VERDEXIS AI</p>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse" />
-                        <span className="text-xs text-[#737373]">{PERSONAS.find(p => p.id === persona)?.title} • Online</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#4CAF50] animate-pulse shrink-0" />
+                        <span className="text-[11px] sm:text-xs text-[#737373] truncate">{PERSONAS.find(p => p.id === persona)?.title} • Online</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-auto">
                     <select
                       value={persona}
                       onChange={(e) => setPersona(e.target.value as PersonaId)}
-                      className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]/40"
+                      className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]/40 max-w-[120px] sm:max-w-none"
                       title="Switch investor persona"
                     >
                       {PERSONAS.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
-                    <div className="px-3 py-1.5 rounded-lg bg-[#0C8B44]/20 text-xs text-[#0C8B44] flex items-center gap-1.5">
+                    <div className="hidden sm:flex px-3 py-1.5 rounded-lg bg-[#0C8B44]/20 text-xs text-[#0C8B44] items-center gap-1.5">
                       <Target className="w-3 h-3" />
                       Pro Mode
                     </div>
                   </div>
                 </div>
-                <p className="mt-2 text-[11px] text-[#737373] italic">"{PERSONAS.find(p => p.id === persona)?.philosophy}"</p>
+                <p className="mt-2 text-[11px] text-[#737373] italic line-clamp-2">"{PERSONAS.find(p => p.id === persona)?.philosophy}"</p>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-3 sm:p-4 space-y-4 min-h-0">
                 {messages.map((msg, i) => (
                   <div
                     key={i}
@@ -250,7 +277,7 @@ export default function AIAssistant() {
                       )}
                     </div>
                     <div
-                      className={`max-w-[70%] p-4 rounded-2xl ${
+                      className={`max-w-[85%] sm:max-w-[70%] p-3 sm:p-4 rounded-2xl ${
                         msg.role === 'assistant'
                           ? 'bg-[#0C8B44]/10 border border-[#0C8B44]/20 text-[#E5E5E5] rounded-tl-sm'
                           : 'bg-[#1a1a1a] text-[#E5E5E5] rounded-tr-sm'
@@ -285,7 +312,7 @@ export default function AIAssistant() {
                 const personaObj = PERSONAS.find(p => p.id === persona)
                 const prompts = personaObj?.prompts ?? quickPrompts
                 return (
-                  <div className="px-4 pb-2">
+                  <div className="px-3 sm:px-4 pb-2">
                     <p className="text-xs text-[#737373] mb-2">Try with <span style={{ color: personaObj?.color }}>{personaObj?.name}</span>:</p>
                     <div className="flex flex-wrap gap-2">
                       {prompts.map((prompt) => (
@@ -303,15 +330,15 @@ export default function AIAssistant() {
               })()}
 
               {/* Input Area */}
-              <div className="p-4 border-t border-[#ffffff08]">
-                <div className="flex items-center gap-3">
+              <div className="p-3 sm:p-4 border-t border-[#ffffff08]">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Ask about your portfolio, market trends, or trading strategies..."
-                    className="flex-1 px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] transition-colors"
+                    placeholder="Ask anything about your portfolio…"
+                    className="flex-1 min-w-0 px-3 sm:px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] transition-colors"
                   />
                   <button
                     onClick={handleSend}
