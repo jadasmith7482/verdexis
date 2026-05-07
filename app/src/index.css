@@ -139,6 +139,38 @@
   100% { transform: translateX(-33.3333%); }
 }
 
+/* Full-page transfer status overlay --------------------------------- */
+@keyframes statusFill {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes statusDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes statusFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes statusBackdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.status-overlay {
+  animation: statusBackdrop 240ms ease-out both;
+}
+.status-disc {
+  animation: statusFill 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.status-svg path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: statusDraw 520ms cubic-bezier(0.65, 0, 0.45, 1) 320ms forwards;
+}
+.status-text {
+  animation: statusFade 360ms ease-out 600ms both;
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;

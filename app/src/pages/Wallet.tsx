@@ -60,6 +60,18 @@ export default function WalletPage() {
   const [transferNote, setTransferNote] = useState('')
   const [transferCurrency, setTransferCurrency] = useState('USD')
   const [transferSending, setTransferSending] = useState(false)
+  // Full-page success / error overlay shown after a transfer attempt.
+  const [transferStatus, setTransferStatus] = useState<
+    | { kind: 'success'; title: string; message: string }
+    | { kind: 'error'; title: string; message: string }
+    | null
+  >(null)
+  // Auto-dismiss the success overlay; errors stay until the user clicks.
+  useEffect(() => {
+    if (transferStatus?.kind !== 'success') return
+    const t = setTimeout(() => setTransferStatus(null), 2400)
+    return () => clearTimeout(t)
+  }, [transferStatus])
   const [incomeKind, setIncomeKind] = useState<IncomeKind>('dividend')
   const [incomeSource, setIncomeSource] = useState('')
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
@@ -259,11 +271,20 @@ export default function WalletPage() {
   const handleTransfer = async () => {
     if (transferMode === 'send') {
       const amt = parseFloat(amount)
-      if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return }
+      if (!amt || amt <= 0) {
+        setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Enter a valid amount.' })
+        return
+      }
       const email = transferRecipient.trim().toLowerCase()
-      if (!email || !/^.+@.+\..+$/.test(email)) { toast.error('Enter a recipient email'); return }
+      if (!email || !/^.+@.+\..+$/.test(email)) {
+        setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Enter a recipient email.' })
+        return
+      }
       const balance = wallet.find(w => w.currency === transferCurrency)?.available ?? 0
-      if (amt > balance) { toast.error(`Insufficient ${transferCurrency} balance`); return }
+      if (amt > balance) {
+        setTransferStatus({ kind: 'error', title: 'Transfer declined', message: `Insufficient ${transferCurrency} balance.` })
+        return
+      }
       setTransferSending(true)
       try {
         if (getToken()) {
@@ -271,26 +292,40 @@ export default function WalletPage() {
         }
         // Reflect locally either way (offline-friendly).
         portfolioStore.addTransaction('transfer', -amt, transferCurrency, `Sent to ${email}${transferNote ? ' — ' + transferNote : ''}`)
-        toast.success(`Sent ${amt} ${transferCurrency} to ${transferRecipientName || email}`)
+        setTransferStatus({
+          kind: 'success',
+          title: 'Transfer sent',
+          message: `Sent ${amt} ${transferCurrency} to ${transferRecipientName || email}.`,
+        })
         setAmount(''); setTransferNote(''); setTransferRecipient(''); setTransferRecipientName(null); setTransferRecipientStatus('idle')
         setTransactions([...portfolioStore.getTransactions()])
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Transfer failed'
-        toast.error(msg)
+        setTransferStatus({ kind: 'error', title: 'Transfer declined', message: msg })
       } finally {
         setTransferSending(false)
       }
       return
     }
     // Convert USD -> crypto inside the same wallet (legacy behaviour).
-    if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return }
+    if (!amount || parseFloat(amount) <= 0) {
+      setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Enter a valid amount.' })
+      return
+    }
     const amt = -parseFloat(amount)
     const usdAvailable = wallet.find(w => w.currency === 'USD')?.available ?? 0
-    if (Math.abs(amt) > usdAvailable) { toast.error('Insufficient USD balance'); return }
+    if (Math.abs(amt) > usdAvailable) {
+      setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Insufficient USD balance.' })
+      return
+    }
     portfolioStore.addTransaction('transfer', amt, 'USD', `Convert to ${selectedCurrency}`)
     const receiveAmt = Math.abs(amt) / getUsdRate(selectedCurrency)
     portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Converted from USD`)
-    toast.success(`Converted ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}`)
+    setTransferStatus({
+      kind: 'success',
+      title: 'Conversion complete',
+      message: `Converted ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}.`,
+    })
     setAmount('')
     setTransactions([...portfolioStore.getTransactions()])
   }
@@ -438,6 +473,44 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-[#070C0E]">
       <Toaster position="top-right" theme="dark" />
+      {transferStatus && (
+        <div
+          className="status-overlay fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-6"
+          onClick={() => setTransferStatus(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex flex-col items-center text-center max-w-sm">
+            <div
+              className={`status-disc w-32 h-32 rounded-full flex items-center justify-center ${
+                transferStatus.kind === 'success'
+                  ? 'bg-[#0C8B44]/20 ring-4 ring-[#0C8B44]/40'
+                  : 'bg-red-500/20 ring-4 ring-red-500/40'
+              }`}
+            >
+              <svg className="status-svg w-20 h-20" viewBox="0 0 52 52" fill="none" stroke={transferStatus.kind === 'success' ? '#0C8B44' : '#ef4444'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                {transferStatus.kind === 'success' ? (
+                  <path d="M14 27 L23 36 L40 18" />
+                ) : (
+                  <path d="M18 18 L34 34 M34 18 L18 34" />
+                )}
+              </svg>
+            </div>
+            <div className="status-text mt-6">
+              <h2 className={`text-2xl font-semibold ${transferStatus.kind === 'success' ? 'text-white' : 'text-red-400'}`}>{transferStatus.title}</h2>
+              <p className="mt-2 text-sm text-[#A0A0A0] leading-relaxed">{transferStatus.message}</p>
+              {transferStatus.kind === 'error' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTransferStatus(null) }}
+                  className="mt-6 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <Navigation />
       <LinkBankModal isOpen={linkBankOpen} onClose={() => setLinkBankOpen(false)} onLinked={(id) => setSelectedBankId(id)} />
       <WalletPickerModal
