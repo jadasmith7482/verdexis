@@ -123,7 +123,7 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
           kind,
           currency,
           amount,
-          reference: reference ? `${reference} (awaiting admin approval)` : 'Deposit request (awaiting admin approval)',
+          reference: reference ? `${reference} (pending review)` : 'Deposit request (pending review)',
           status: 'pending',
         },
       })

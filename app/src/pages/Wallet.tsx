@@ -276,7 +276,7 @@ export default function WalletPage() {
         setTransferStatus({
           kind: 'success',
           title: 'Wire deposit submitted',
-          message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire to ${wireInstructions.bankName}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
+          message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire to ${wireInstructions.bankName}. Pending review — your balance will update once the deposit clears.`,
         })
         setAmount('')
         setTransactions(portfolioStore.getTransactions())
@@ -297,7 +297,7 @@ export default function WalletPage() {
       setTransferStatus({
         kind: 'success',
         title: 'ACH deposit submitted',
-        message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${bank.institution} ····${bank.accountMask}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
+        message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${bank.institution} ····${bank.accountMask}. Pending review — your balance will update once the deposit clears.`,
       })
       setAmount('')
       setTransactions(portfolioStore.getTransactions())
@@ -311,7 +311,7 @@ export default function WalletPage() {
     setTransferStatus({
       kind: 'success',
       title: 'Deposit submitted',
-      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
+      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Pending review — your balance will update once the deposit clears.`,
     })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
@@ -455,7 +455,7 @@ export default function WalletPage() {
     return status === 'completed' ? <CheckCircle className="w-4 h-4 text-[#4CAF50]" /> : <Clock className="w-4 h-4 text-[#F57C00]" />
   }
   const getStatusText = (status: string) => {
-    if (status === 'pending') return 'Awaiting approval'
+    if (status === 'pending') return 'Pending review'
     return status
   }
 

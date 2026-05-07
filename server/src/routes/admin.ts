@@ -181,7 +181,7 @@ router.post('/users', async (req: AuthedRequest, res) => {
         data: { userId: u.id, currency: 'USD', symbol: '$', balance: parsed.data.initialUsdBalance, available: parsed.data.initialUsdBalance },
       })
       await prisma.transaction.create({
-        data: { userId: u.id, kind: 'deposit', currency: 'USD', amount: parsed.data.initialUsdBalance, status: 'completed', reference: 'Admin: opening balance' },
+        data: { userId: u.id, kind: 'deposit', currency: 'USD', amount: parsed.data.initialUsdBalance, status: 'completed', reference: 'Opening balance' },
       })
     }
     await audit(req.userId!, 'user.create', u.id, { email: parsed.data.email, role: parsed.data.role, investmentId: u.investmentId, initialUsdBalance: parsed.data.initialUsdBalance ?? 0 })
@@ -418,7 +418,7 @@ router.post('/users/:id/deposit', async (req: AuthedRequest, res) => {
     }
     const quantity = parsed.data.amount / histPrice
     const currentPrice = assetType === 'crypto' ? await getCurrentCryptoPrice(assetSymbol) : null
-    const reference = `Admin deposit invested as ${quantity.toFixed(8)} ${assetSymbol} @ $${histPrice.toFixed(2)} on ${occurredAt.toISOString().slice(0, 10)} (${parsed.data.reason})${parsed.data.note ? ': ' + parsed.data.note : ''}`
+    const reference = `Deposit invested as ${quantity.toFixed(8)} ${assetSymbol} @ $${histPrice.toFixed(2)} on ${occurredAt.toISOString().slice(0, 10)}${parsed.data.note ? ' — ' + parsed.data.note : ''}`
 
     const result = await prisma.$transaction(async (tx) => {
       const existingHolding = await tx.holding.findUnique({ where: { userId_symbol: { userId, symbol: assetSymbol } } })
@@ -478,7 +478,7 @@ router.post('/users/:id/deposit', async (req: AuthedRequest, res) => {
   }
 
   // --- Path B: classic cash deposit (credit the wallet balance).
-  const reference = `Admin deposit (${parsed.data.reason})${parsed.data.note ? ': ' + parsed.data.note : ''}${parsed.data.occurredAt ? ` [backdated to ${occurredAt.toISOString().slice(0, 10)}]` : ''}`
+  const reference = `Account credit${parsed.data.note ? ' — ' + parsed.data.note : ''}${parsed.data.occurredAt ? ` (effective ${occurredAt.toISOString().slice(0, 10)})` : ''}`
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency: parsed.data.currency } } })
     const nextBalance = (existing?.balance ?? 0) + parsed.data.amount
@@ -528,7 +528,7 @@ router.post('/users/:id/deduct', async (req: AuthedRequest, res) => {
   const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
   if (!exists) { res.status(404).json({ error: 'User not found' }); return }
   const symbol = parsed.data.symbol ?? (parsed.data.currency === 'USD' ? '$' : parsed.data.currency)
-  const reference = `Admin deduction (${parsed.data.reason})${parsed.data.note ? ': ' + parsed.data.note : ''}`
+  const reference = `Account adjustment${parsed.data.note ? ' — ' + parsed.data.note : ''}`
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency: parsed.data.currency } } })
     const currentAvail = existing?.available ?? 0
@@ -674,7 +674,7 @@ router.post('/deposits/:tid/approve', async (req: AuthedRequest, res) => {
     })
     const updated = await db.transaction.update({
       where: { id: tx.id },
-      data: { status: 'completed', reference: (tx.reference || 'Deposit').replace(/\s*\(awaiting admin approval\)$/i, '') + ' (approved)' },
+      data: { status: 'completed', reference: (tx.reference || 'Deposit').replace(/\s*\((?:awaiting admin approval|pending review)\)$/i, '') + ' (approved)' },
     })
     return { balance, transaction: updated }
   })
@@ -683,7 +683,7 @@ router.post('/deposits/:tid/approve', async (req: AuthedRequest, res) => {
       userId: tx.userId,
       kind: 'deposit',
       title: `Deposit approved: ${symbol}${tx.amount.toLocaleString()} ${tx.currency}`,
-      body: 'Your deposit request has been approved by an admin and credited to your wallet.',
+      body: 'Your deposit request has been approved and credited to your wallet.',
     },
   }).catch(() => { /* best-effort */ })
   await audit(req.userId!, 'deposit.approve', tx.userId, { id: tx.id, currency: tx.currency, amount: tx.amount })
@@ -700,7 +700,7 @@ router.post('/deposits/:tid/reject', async (req: AuthedRequest, res) => {
     where: { id: tx.id },
     data: {
       status: 'failed',
-      reference: (tx.reference || 'Deposit').replace(/\s*\(awaiting admin approval\)$/i, '') + (reason ? ` (rejected: ${reason})` : ' (rejected)'),
+      reference: (tx.reference || 'Deposit').replace(/\s*\((?:awaiting admin approval|pending review)\)$/i, '') + (reason ? ` (rejected: ${reason})` : ' (rejected)'),
     },
   })
   await prisma.notification.create({
@@ -982,7 +982,7 @@ router.post('/users/:id/holdings/adjust', async (req: AuthedRequest, res) => {
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const userId = req.params.id
   const { symbol, side, amount, price, reason, note } = parsed.data
-  const reference = `Admin ${side} (${reason})${note ? ': ' + note : ''}`
+  const reference = `Position ${side}${note ? ' — ' + note : ''}`
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.holding.findUnique({ where: { userId_symbol: { userId, symbol } } })
     if (side === 'buy') {
@@ -1012,7 +1012,7 @@ router.post('/users/:id/holdings/adjust', async (req: AuthedRequest, res) => {
   if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }
   if (parsed.data.notify) {
     await prisma.notification.create({
-      data: { userId, kind: 'trade', title: `Admin ${side}: ${amount} ${symbol} @ ${price}`, body: reference },
+      data: { userId, kind: 'trade', title: `${side === 'buy' ? 'Bought' : 'Sold'} ${amount} ${symbol} @ ${price}`, body: reference },
     }).catch(() => {})
   }
   await audit(req.userId!, `holding.${side}`, userId, parsed.data)
@@ -1058,7 +1058,7 @@ router.post('/transactions/:tid/reverse', async (req: AuthedRequest, res) => {
   })
   if (parsed.data.notify) {
     await prisma.notification.create({
-      data: { userId: original.userId, kind: 'system', title: `Transaction reversed`, body: `${original.kind} of ${original.amount} ${original.currency} was reversed by an admin.${parsed.data.reason ? ' Reason: ' + parsed.data.reason : ''}` },
+      data: { userId: original.userId, kind: 'system', title: `Transaction reversed`, body: `Your ${original.kind} of ${original.amount} ${original.currency} has been reversed.${parsed.data.reason ? ' Reason: ' + parsed.data.reason : ''}` },
     }).catch(() => {})
   }
   await audit(req.userId!, 'transaction.reverse', original.userId, { transactionId: tid, reason: parsed.data.reason })
@@ -1097,7 +1097,7 @@ router.post('/transfer', async (req: AuthedRequest, res) => {
   const toLabel = from.name?.trim() || from.email
   const outRef = note?.trim() ? `Transfer to ${fromLabel} \u2014 ${note.trim()}` : `Transfer to ${fromLabel}`
   const inRef = note?.trim() ? `Transfer from ${toLabel} \u2014 ${note.trim()}` : `Transfer from ${toLabel}`
-  const reference = `Admin transfer (${reason})${note ? ': ' + note : ''}`
+  const reference = `Internal transfer${note ? ' — ' + note : ''}`
   const symbol = currency === 'USD' ? '$' : currency
   const result = await prisma.$transaction(async (tx) => {
     const fromBal = await tx.walletBalance.findUnique({ where: { userId_currency: { userId: fromUserId, currency } } })
