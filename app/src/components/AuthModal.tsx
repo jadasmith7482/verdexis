@@ -335,8 +335,11 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
 
           {/* Trust indicators */}
           <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-[#ffffff08]">
-            <span className="flex items-center gap-1 text-xs text-[#737373]">
-              <Shield className="w-3 h-3" /> 256-bit SSL
+            <span className="flex items-center gap-1 text-xs text-[#737373]" title="All traffic encrypted with TLS 1.3">
+              <Lock className="w-3 h-3" /> TLS 1.3
+            </span>
+            <span className="flex items-center gap-1 text-xs text-[#737373]" title="Data at rest encrypted with AES-256">
+              <Shield className="w-3 h-3" /> AES-256
             </span>
             <span className="flex items-center gap-1 text-xs text-[#737373]">
               <Fingerprint className="w-3 h-3" /> 2FA Ready
