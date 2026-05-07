@@ -138,7 +138,7 @@ export default function Home() {
         <section className="py-4 border-y border-[#ffffff08] bg-[#0a0f11] overflow-hidden">
           <div className="flex items-center gap-10 animate-marquee whitespace-nowrap">
             {[...topCryptos, ...topCryptos, ...topCryptos].map((c, idx) => (
-              <div key={`${c.id}-${idx}`} className="flex items-center gap-2 text-sm">
+              <Link to={`/asset/${c.id}`} key={`${c.id}-${idx}`} className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
                 {getCryptoLogo(c.id) ? (
                   <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-5 h-5 rounded-full object-cover" />
                 ) : (
@@ -149,7 +149,7 @@ export default function Home() {
                 <span className={c.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}>
                   {c.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(c.price_change_percentage_24h).toFixed(2)}%
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -252,7 +252,7 @@ export default function Home() {
               </div>
               <div className="mt-6 space-y-3">
                 {topCryptos.slice(0, 3).map((c) => (
-                  <div key={c.id} className="flex items-center justify-between">
+                  <Link to={`/asset/${c.id}`} key={c.id} className="flex items-center justify-between hover:bg-[#ffffff05] -mx-2 px-2 py-1 rounded-lg transition-colors">
                     <div className="flex items-center gap-3">
                       {getCryptoLogo(c.id) ? (
                         <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-8 h-8 rounded-full object-cover" />
@@ -265,7 +265,7 @@ export default function Home() {
                       <div className="w-24 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#0C8B44]" style={{ width: `${Math.random() * 60 + 20}%` }} /></div>
                       <span className="text-sm text-[#A0A0A0] w-20 text-right">${c.current_price.toLocaleString()}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -316,7 +316,7 @@ export default function Home() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {topCryptos.slice(0, 3).map((c) => (
-                  <div key={c.id} className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05]">
+                  <Link to={`/asset/${c.id}`} key={c.id} className="block p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {getCryptoLogo(c.id) ? (
@@ -336,7 +336,7 @@ export default function Home() {
                         return <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${Math.max(10, height)}%`, background: c.price_change_percentage_24h >= 0 ? '#4CAF50' : '#f44336', opacity: 0.4 + (i / arr.length) * 0.6 }} />
                       })}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

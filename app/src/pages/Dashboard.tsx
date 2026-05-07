@@ -474,7 +474,7 @@ export default function Dashboard() {
                   {/* Holdings List */}
                   <div className="space-y-3">
                     {holdings.map((h) => (
-                      <div key={h.id} className="flex items-center justify-between py-2">
+                      <Link to={`/asset/${h.id}`} key={h.id} className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
                         <div className="flex items-center gap-3">
                           {getCryptoLogo(h.id) ? (
                             <img src={getCryptoLogo(h.id)!} alt={h.name} className="w-9 h-9 rounded-full object-cover" />
@@ -494,7 +494,7 @@ export default function Dashboard() {
                             {fmtMoney(h.pnl, { sign: true })} ({h.pnlPercent.toFixed(2)}%)
                           </p>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
 

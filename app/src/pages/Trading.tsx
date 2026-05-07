@@ -220,8 +220,8 @@ export default function Trading() {
               </div>
               <div className="divide-y divide-[#ffffff05] max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hide">
                 {filteredCryptos.map((crypto) => (
-                  <button key={crypto.id} onClick={() => setSelectedCrypto(crypto)}
-                    className={`w-full flex items-center justify-between p-4 hover:bg-[#ffffff05] transition-colors ${selectedCrypto?.id === crypto.id ? 'bg-[#0C8B44]/10' : ''}`}>
+                  <div key={crypto.id} className={`w-full flex items-stretch ${selectedCrypto?.id === crypto.id ? 'bg-[#0C8B44]/10' : 'hover:bg-[#ffffff05]'} transition-colors`}>
+                    <button onClick={() => setSelectedCrypto(crypto)} className="flex-1 flex items-center justify-between p-4 text-left">
                     <div className="flex items-center gap-3">
                       {getCryptoLogo(crypto.id) ? (
                         <img src={getCryptoLogo(crypto.id)!} alt={crypto.name} className="w-8 h-8 rounded-full object-cover" />
@@ -240,6 +240,14 @@ export default function Trading() {
                       </p>
                     </div>
                   </button>
+                    <Link
+                      to={`/asset/${crypto.id}`}
+                      title={`Open ${crypto.name} detail`}
+                      className="px-3 flex items-center text-[10px] uppercase tracking-wider text-[#737373] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 border-l border-[#ffffff05] transition-colors"
+                    >
+                      Open
+                    </Link>
+                  </div>
                 ))}
               </div>
             </div>
