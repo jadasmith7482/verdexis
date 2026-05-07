@@ -138,7 +138,7 @@ export default function WalletPage() {
     }
     return (
       <img
-        src={cryptoIconFor(currency)}
+        src={cryptoIconFor(currency) ?? undefined}
         alt={currency}
         className="rounded-full bg-[#0C8B44]/10 shrink-0 object-contain"
         style={{ width: size, height: size }}
