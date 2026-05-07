@@ -1,24 +1,27 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import LinkBankModal from '../components/LinkBankModal'
 import WalletPickerModal from '../components/WalletPickerModal'
+import QrCode from '../components/QrCode'
 import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
+import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor } from '../lib/cryptoIcon'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
   Clock, CheckCircle, AlertCircle, Copy,
-  Eye, EyeOff, Banknote, QrCode, Download,
+  Eye, EyeOff, Banknote, QrCode as QrCodeIcon, Download,
   Coins, Percent, Plus, Trash2, Wallet as WalletIcon,
-  ExternalLink,
+  ExternalLink, Building2, Shield,
 } from 'lucide-react'
 
 type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer' | 'income'
 type IncomeKind = 'dividend' | 'interest'
+type UsdMethod = 'ach' | 'wire'
 
 export default function WalletPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -54,6 +57,20 @@ export default function WalletPage() {
   const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
   const [selectedBankId, setSelectedBankId] = useState<string>(() => listBanks()[0]?.id ?? '')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
+  const [usdMethod, setUsdMethod] = useState<UsdMethod>('ach')
+  const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
+  const [instructionsTick, setInstructionsTick] = useState(0)
+  const wireInstructions = useMemo(
+    () => depositInstructions.getWire(selectedCurrency),
+    // re-read whenever admin saves new instructions OR currency changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedCurrency, instructionsTick],
+  )
+  const cryptoInstructions = useMemo(
+    () => depositInstructions.getCrypto(selectedCurrency),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedCurrency, instructionsTick],
+  )
   const web3 = useWeb3()
   const [web3TransferAmount, setWeb3TransferAmount] = useState('')
   const [web3Sending, setWeb3Sending] = useState(false)
@@ -119,6 +136,14 @@ export default function WalletPage() {
     })
   }, [])
 
+  // React when admin updates wire / crypto deposit instructions in another tab.
+  useEffect(() => {
+    return onDepositInstructionsChanged(() => {
+      setAdminMode(isAdmin())
+      setInstructionsTick((n) => n + 1)
+    })
+  }, [])
+
   const totalBalance = wallet.reduce((sum, w) => sum + (w.currency === 'USD' ? w.balance : w.balance * getUsdRate(w.currency)), 0)
 
   function getUsdRate(currency: string): number {
@@ -159,6 +184,21 @@ export default function WalletPage() {
     }
     const amt = parseFloat(amount)
     if (selectedCurrency === 'USD') {
+      if (usdMethod === 'wire') {
+        if (!wireInstructions) {
+          toast.error('Wire instructions are not configured yet — contact support.')
+          return
+        }
+        const ref = wireInstructions.reference || 'Wire deposit'
+        portfolioStore.addTransaction('deposit', amt, 'USD', `Wire to ${wireInstructions.bankName} · ${ref}`)
+        toast.success(
+          `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire deposit`,
+          { description: `Send from your bank to ${wireInstructions.bankName}. Funds credit on receipt (typically 1 business day).` },
+        )
+        setAmount('')
+        setTransactions(portfolioStore.getTransactions())
+        return
+      }
       const bank = banks.find((b) => b.id === selectedBankId)
       if (!bank) {
         toast.error('Link a bank account first')
@@ -176,8 +216,12 @@ export default function WalletPage() {
       setTransactions(portfolioStore.getTransactions())
       return
     }
-    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency})`)
-    toast.success(`Deposited ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}`, { description: 'Funds will be available shortly' })
+    if (!cryptoInstructions) {
+      toast.error(`No ${selectedCurrency} deposit address configured. Ask an admin to set one.`)
+      return
+    }
+    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`)
+    toast.success(`Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency} deposit`, { description: 'Funds will be available after on-chain confirmation.' })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
@@ -614,7 +658,14 @@ export default function WalletPage() {
 
           {activeTab === 'deposit' && (
             <div className="glass-card p-8 max-w-lg">
-              <h3 className="text-xl font-medium text-[#E5E5E5] mb-6">Deposit Funds</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-medium text-[#E5E5E5]">Deposit Funds</h3>
+                {adminMode && (
+                  <Link to="/admin/deposits" className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.05em] text-[#0C8B44] hover:text-[#0a7539]">
+                    <Shield className="w-3 h-3" />Admin
+                  </Link>
+                )}
+              </div>
               <div className="mb-6">
                 <label className="text-sm text-[#A0A0A0] mb-2 block">Select Currency</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -629,6 +680,33 @@ export default function WalletPage() {
               </div>
               {selectedCurrency === 'USD' ? (
                 <div className="space-y-4">
+                  {/* ACH vs Wire method picker */}
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">Funding method</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setUsdMethod('ach')}
+                        className={`p-3 rounded-xl border text-left transition-all ${usdMethod === 'ach' ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Banknote className={`w-4 h-4 ${usdMethod === 'ach' ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`} />
+                          <span className="text-sm font-medium text-[#E5E5E5]">ACH</span>
+                        </div>
+                        <p className="text-[11px] text-[#737373]">Link a bank · 1–3 business days · No fee</p>
+                      </button>
+                      <button
+                        onClick={() => setUsdMethod('wire')}
+                        className={`p-3 rounded-xl border text-left transition-all ${usdMethod === 'wire' ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building2 className={`w-4 h-4 ${usdMethod === 'wire' ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`} />
+                          <span className="text-sm font-medium text-[#E5E5E5]">Wire transfer</span>
+                        </div>
+                        <p className="text-[11px] text-[#737373]">Same-day · No limit · Fees may apply</p>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-sm text-[#A0A0A0] mb-2 block" htmlFor="deposit-amt">Amount</label>
                     <div className="relative">
@@ -643,76 +721,94 @@ export default function WalletPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-[#A0A0A0]">Funding source</label>
-                      <button onClick={() => setLinkBankOpen(true)} className="flex items-center gap-1 text-xs text-[#0C8B44] hover:text-[#0a7539] transition-colors">
-                        <Plus className="w-3 h-3" /> Add bank
-                      </button>
-                    </div>
-                    {banks.length === 0 ? (
-                      <button onClick={() => setLinkBankOpen(true)} className="w-full p-5 rounded-xl border-2 border-dashed border-[#0C8B44]/30 hover:border-[#0C8B44] hover:bg-[#0C8B44]/5 transition-all text-left group">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center shrink-0">
-                            <Banknote className="w-5 h-5 text-[#0C8B44]" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-[#E5E5E5]">Link a bank account</p>
-                            <p className="text-xs text-[#A0A0A0] mt-1">Required to fund USD deposits via ACH. Verified instantly with your bank login or in 1–2 days with micro-deposits.</p>
-                          </div>
-                        </div>
-                      </button>
-                    ) : (
-                      <div className="space-y-2">
-                        {banks.map((b) => {
-                          const checked = selectedBankId === b.id
-                          return (
-                            <label key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${checked ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}>
-                              <input
-                                type="radio"
-                                name="funding-bank"
-                                value={b.id}
-                                checked={checked}
-                                onChange={() => setSelectedBankId(b.id)}
-                                className="sr-only"
-                              />
-                              <Banknote className={`w-7 h-7 shrink-0 ${checked ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-[#E5E5E5] truncate">{b.institution}</p>
-                                <p className="text-xs text-[#737373] capitalize">{b.type} ····{b.accountMask}</p>
-                              </div>
-                              {b.status === 'verified' ? (
-                                <span className="flex items-center gap-1 text-[10px] text-[#4CAF50] uppercase tracking-wider shrink-0"><CheckCircle className="w-3 h-3" /> Verified</span>
-                              ) : b.status === 'pending' ? (
-                                <span className="flex items-center gap-1 text-[10px] text-[#F57C00] uppercase tracking-wider shrink-0"><Clock className="w-3 h-3" /> Pending</span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-[10px] text-[#f44336] uppercase tracking-wider shrink-0"><AlertCircle className="w-3 h-3" /> Failed</span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); if (confirm(`Remove ${b.institution} ····${b.accountMask}?`)) { removeBank(b.id); toast.success('Bank removed') } }}
-                                className="p-1.5 rounded-lg text-[#737373] hover:text-[#f44336] hover:bg-red-500/10 transition-colors shrink-0"
-                                aria-label="Remove bank"
-                                title="Remove bank"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </label>
-                          )
-                        })}
+                  {usdMethod === 'ach' ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm text-[#A0A0A0]">Funding source</label>
+                        <button onClick={() => setLinkBankOpen(true)} className="flex items-center gap-1 text-xs text-[#0C8B44] hover:text-[#0a7539] transition-colors">
+                          <Plus className="w-3 h-3" /> Add bank
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      {banks.length === 0 ? (
+                        <button onClick={() => setLinkBankOpen(true)} className="w-full p-5 rounded-xl border-2 border-dashed border-[#0C8B44]/30 hover:border-[#0C8B44] hover:bg-[#0C8B44]/5 transition-all text-left group">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center shrink-0">
+                              <Banknote className="w-5 h-5 text-[#0C8B44]" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-[#E5E5E5]">Link a bank account</p>
+                              <p className="text-xs text-[#A0A0A0] mt-1">Required to fund USD deposits via ACH. Verified instantly with your bank login or in 1–2 days with micro-deposits.</p>
+                            </div>
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          {banks.map((b) => {
+                            const checked = selectedBankId === b.id
+                            return (
+                              <label key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${checked ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}>
+                                <input
+                                  type="radio"
+                                  name="funding-bank"
+                                  value={b.id}
+                                  checked={checked}
+                                  onChange={() => setSelectedBankId(b.id)}
+                                  className="sr-only"
+                                />
+                                <Banknote className={`w-7 h-7 shrink-0 ${checked ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-[#E5E5E5] truncate">{b.institution}</p>
+                                  <p className="text-xs text-[#737373] capitalize">{b.type} ····{b.accountMask}</p>
+                                </div>
+                                {b.status === 'verified' ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-[#4CAF50] uppercase tracking-wider shrink-0"><CheckCircle className="w-3 h-3" /> Verified</span>
+                                ) : b.status === 'pending' ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-[#F57C00] uppercase tracking-wider shrink-0"><Clock className="w-3 h-3" /> Pending</span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-[10px] text-[#f44336] uppercase tracking-wider shrink-0"><AlertCircle className="w-3 h-3" /> Failed</span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); if (confirm(`Remove ${b.institution} ····${b.accountMask}?`)) { removeBank(b.id); toast.success('Bank removed') } }}
+                                  className="p-1.5 rounded-lg text-[#737373] hover:text-[#f44336] hover:bg-red-500/10 transition-colors shrink-0"
+                                  aria-label="Remove bank"
+                                  title="Remove bank"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <WireInstructionsPanel currency={selectedCurrency} info={wireInstructions} adminMode={adminMode} />
+                  )}
 
                   <button
                     onClick={handleDeposit}
-                    disabled={!banks.find((b) => b.id === selectedBankId && b.status === 'verified') || !amount}
+                    disabled={
+                      !amount || (
+                        usdMethod === 'ach'
+                          ? !banks.find((b) => b.id === selectedBankId && b.status === 'verified')
+                          : !wireInstructions
+                      )
+                    }
                     className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {banks.find((b) => b.id === selectedBankId && b.status === 'verified') ? `Deposit $${amount || '0'} via ACH` : 'Link a verified bank to continue'}
+                    {usdMethod === 'wire'
+                      ? wireInstructions
+                        ? `I sent $${amount || '0'} via wire`
+                        : 'Wire instructions not available'
+                      : banks.find((b) => b.id === selectedBankId && b.status === 'verified')
+                        ? `Deposit $${amount || '0'} via ACH`
+                        : 'Link a verified bank to continue'}
                   </button>
                   <p className="flex items-center justify-center gap-1.5 text-[10px] text-[#737373]">
-                    <Banknote className="w-3 h-3" /> Same-day ACH up to $25k. Standard ACH 1–3 business days. No fees.
+                    {usdMethod === 'wire'
+                      ? <><Building2 className="w-3 h-3" /> Send the wire from your bank, then click above so we can match the credit.</>
+                      : <><Banknote className="w-3 h-3" /> Same-day ACH up to $25k. Standard ACH 1–3 business days. No fees.</>}
                   </p>
                 </div>
               ) : (
@@ -722,22 +818,48 @@ export default function WalletPage() {
                     <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
                       className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
                   </div>
-                  <div className="p-6 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08] text-center">
-                    <QrCode className="w-32 h-32 mx-auto mb-4 text-[#E5E5E5]" />
-                    <p className="text-sm text-[#A0A0A0] mb-2">Your {selectedCurrency} Address</p>
-                    <div className="flex items-center gap-2 justify-center">
-                      <code className="text-xs text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg">0x71C...9A3F</code>
-                      <button type="button" aria-label="Copy address" className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"><Copy className="w-4 h-4" /></button>
+
+                  {cryptoInstructions ? (
+                    <div className="p-6 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08] text-center">
+                      <div className="inline-block p-3 rounded-xl bg-[#070C0E] border border-[#ffffff08] mb-4">
+                        <QrCode value={qrPayload(selectedCurrency, cryptoInstructions.address, amount)} size={176} />
+                      </div>
+                      <p className="text-sm text-[#A0A0A0] mb-1">Send {selectedCurrency} to this address</p>
+                      <p className="text-[11px] text-[#737373] mb-3">Network: <span className="text-[#E5E5E5]">{cryptoInstructions.network}</span></p>
+                      <div className="flex items-center gap-2 justify-center mb-2">
+                        <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg break-all max-w-[280px]">{cryptoInstructions.address}</code>
+                        <button type="button" aria-label="Copy address" onClick={() => copyToClipboard(cryptoInstructions.address, 'Address copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0"><Copy className="w-4 h-4" /></button>
+                      </div>
+                      {cryptoInstructions.memo && (
+                        <div className="flex items-center gap-2 justify-center mt-2">
+                          <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Memo</span>
+                          <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg">{cryptoInstructions.memo}</code>
+                          <button type="button" aria-label="Copy memo" onClick={() => copyToClipboard(cryptoInstructions.memo!, 'Memo copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"><Copy className="w-4 h-4" /></button>
+                        </div>
+                      )}
+                      {cryptoInstructions.notes && (
+                        <p className="text-[11px] text-[#A0A0A0] mt-3">{cryptoInstructions.notes}</p>
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-6 rounded-xl bg-[#1a1a1a]/50 border border-dashed border-[#ffffff10] text-center">
+                      <QrCodeIcon className="w-10 h-10 mx-auto mb-3 text-[#444]" />
+                      <p className="text-sm text-[#E5E5E5] mb-1">No deposit address configured</p>
+                      <p className="text-[11px] text-[#737373]">
+                        Ask an admin to add a {selectedCurrency} wallet on the
+                        {' '}<Link to="/admin/deposits" className="text-[#0C8B44] hover:text-[#0a7539]">deposit instructions</Link> page.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="p-4 rounded-xl bg-[#F57C00]/10 border border-[#F57C00]/20">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-[#F57C00] shrink-0 mt-0.5" />
-                      <div><p className="text-sm font-medium text-[#F57C00]">Important</p><p className="text-xs text-[#A0A0A0] mt-1">Only send {selectedCurrency} to this address. Other assets may be lost.</p></div>
+                      <div><p className="text-sm font-medium text-[#F57C00]">Important</p><p className="text-xs text-[#A0A0A0] mt-1">Send only {selectedCurrency}{cryptoInstructions ? ` on ${cryptoInstructions.network}` : ''} to this address. Other assets or networks may be lost.</p></div>
                     </div>
                   </div>
-                  <button onClick={handleDeposit} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
-                    Confirm Deposit
+                  <button onClick={handleDeposit} disabled={!cryptoInstructions || !amount} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    I sent {amount || '0'} {selectedCurrency}
                   </button>
                 </div>
               )}
@@ -905,6 +1027,97 @@ export default function WalletPage() {
         </div>
       </div>
       <Footer />
+    </div>
+  )
+}
+
+function copyToClipboard(value: string, message = 'Copied to clipboard') {
+  if (!value) return
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    toast.error('Clipboard not available')
+    return
+  }
+  navigator.clipboard.writeText(value).then(
+    () => toast.success(message),
+    () => toast.error('Failed to copy'),
+  )
+}
+
+function qrPayload(currency: string, address: string, amount: string): string {
+  const trimmed = amount.trim()
+  const numeric = trimmed && Number.isFinite(parseFloat(trimmed)) && parseFloat(trimmed) > 0 ? parseFloat(trimmed) : null
+  // BIP21-style URIs are widely supported by mobile wallets.
+  switch (currency.toUpperCase()) {
+    case 'BTC':
+      return numeric ? `bitcoin:${address}?amount=${numeric}` : `bitcoin:${address}`
+    case 'ETH':
+    case 'USDT':
+    case 'USDC':
+      return numeric ? `ethereum:${address}?value=${numeric}` : `ethereum:${address}`
+    case 'SOL':
+      return numeric ? `solana:${address}?amount=${numeric}` : `solana:${address}`
+    case 'DOGE':
+      return numeric ? `dogecoin:${address}?amount=${numeric}` : `dogecoin:${address}`
+    default:
+      return address
+  }
+}
+
+interface WireInstructionsPanelProps {
+  currency: string
+  info: ReturnType<typeof depositInstructions.getWire>
+  adminMode: boolean
+}
+
+function WireInstructionsPanel({ currency, info, adminMode }: WireInstructionsPanelProps) {
+  if (!info) {
+    return (
+      <div className="p-5 rounded-xl bg-[#1a1a1a]/50 border border-dashed border-[#ffffff10] text-center">
+        <Building2 className="w-8 h-8 mx-auto mb-2 text-[#444]" />
+        <p className="text-sm text-[#E5E5E5] mb-1">Wire instructions not configured</p>
+        <p className="text-[11px] text-[#737373]">
+          {adminMode ? (
+            <>Add {currency} wire details on the <Link to="/admin/deposits" className="text-[#0C8B44] hover:text-[#0a7539]">admin page</Link>.</>
+          ) : (
+            <>Please contact support to receive {currency} wire transfer instructions.</>
+          )}
+        </p>
+      </div>
+    )
+  }
+
+  const rows: Array<{ label: string; value?: string; mono?: boolean }> = [
+    { label: 'Beneficiary', value: info.beneficiaryName },
+    { label: 'Beneficiary address', value: info.beneficiaryAddress },
+    { label: 'Bank', value: info.bankName },
+    { label: 'Bank address', value: info.bankAddress },
+    { label: 'Routing / ABA', value: info.routingNumber, mono: true },
+    { label: 'SWIFT / BIC', value: info.swiftCode, mono: true },
+    { label: 'IBAN', value: info.iban, mono: true },
+    { label: 'Account number', value: info.accountNumber, mono: true },
+    { label: 'Reference / memo', value: info.reference, mono: true },
+  ]
+
+  return (
+    <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08] space-y-2">
+      <div className="flex items-center gap-2 mb-1">
+        <Building2 className="w-4 h-4 text-[#0C8B44]" />
+        <p className="text-sm font-medium text-[#E5E5E5]">{info.label || `${currency} Wire transfer`}</p>
+      </div>
+      <div className="divide-y divide-[#ffffff05]">
+        {rows.filter((r) => r.value && r.value.trim()).map((r) => (
+          <div key={r.label} className="flex items-start gap-3 py-2">
+            <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373] w-32 shrink-0 pt-1">{r.label}</span>
+            <code className={`flex-1 text-xs text-[#E5E5E5] break-all ${r.mono ? 'font-mono' : 'font-sans'}`}>{r.value}</code>
+            <button type="button" onClick={() => copyToClipboard(r.value!, `${r.label} copied`)} className="p-1 rounded text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0" aria-label={`Copy ${r.label}`}>
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      {info.notes && (
+        <p className="text-[11px] text-[#A0A0A0] pt-2 border-t border-[#ffffff05]">{info.notes}</p>
+      )}
     </div>
   )
 }

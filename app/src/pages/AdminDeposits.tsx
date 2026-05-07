@@ -1,0 +1,331 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { Toaster, toast } from 'sonner'
+import { ArrowLeft, Banknote, Coins, Shield, Trash2, Save, KeyRound } from 'lucide-react'
+import Navigation from '../components/Navigation'
+import RequireAuth from '../components/RequireAuth'
+import {
+  depositInstructions,
+  isAdmin,
+  setAdmin,
+  onDepositInstructionsChanged,
+  type WireInstruction,
+  type CryptoWallet,
+} from '../lib/depositInstructions'
+
+export default function AdminDeposits() {
+  return (
+    <RequireAuth>
+      <AdminInner />
+    </RequireAuth>
+  )
+}
+
+const FIAT_CURRENCIES = ['USD', 'EUR', 'GBP'] as const
+const CRYPTO_CURRENCIES = ['BTC', 'ETH', 'SOL', 'USDT', 'USDC', 'XRP', 'ADA', 'DOGE'] as const
+
+type FiatCurrency = (typeof FIAT_CURRENCIES)[number]
+type CryptoCurrency = (typeof CRYPTO_CURRENCIES)[number]
+
+const EMPTY_WIRE: WireInstruction = {
+  label: '',
+  beneficiaryName: '',
+  beneficiaryAddress: '',
+  bankName: '',
+  bankAddress: '',
+  routingNumber: '',
+  swiftCode: '',
+  iban: '',
+  accountNumber: '',
+  reference: '',
+  notes: '',
+}
+
+const EMPTY_CRYPTO: CryptoWallet = {
+  currency: '',
+  network: '',
+  address: '',
+  memo: '',
+  notes: '',
+}
+
+function AdminInner() {
+  const [admin, setAdminState] = useState<boolean>(() => isAdmin())
+  const [unlockKey, setUnlockKey] = useState('')
+
+  // Currency being edited
+  const [wireCurrency, setWireCurrency] = useState<FiatCurrency>('USD')
+  const [cryptoCurrency, setCryptoCurrency] = useState<CryptoCurrency>('BTC')
+
+  const [wireForm, setWireForm] = useState<WireInstruction>(EMPTY_WIRE)
+  const [cryptoForm, setCryptoForm] = useState<CryptoWallet>({ ...EMPTY_CRYPTO, currency: 'BTC', network: 'Bitcoin' })
+
+  // Refresh from store when currency changes or admin saves elsewhere
+  useEffect(() => {
+    const existing = depositInstructions.getWire(wireCurrency)
+    setWireForm(existing ?? { ...EMPTY_WIRE, label: `${wireCurrency} Wire Transfer` })
+  }, [wireCurrency])
+
+  useEffect(() => {
+    const existing = depositInstructions.getCrypto(cryptoCurrency)
+    setCryptoForm(existing ?? { ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
+  }, [cryptoCurrency])
+
+  useEffect(() => onDepositInstructionsChanged(() => setAdminState(isAdmin())), [])
+
+  function unlock(e: FormEvent) {
+    e.preventDefault()
+    // Local-only gate — the password is whatever the operator set in
+    // VITE_ADMIN_KEY. Defaults to "verdexis-admin" for local dev. This is a
+    // UI gate, NOT a security boundary — production deployments should put
+    // the admin page behind a real auth check on the server.
+    const expected = (import.meta.env.VITE_ADMIN_KEY as string | undefined) || 'verdexis-admin'
+    if (unlockKey === expected) {
+      setAdmin(true)
+      setAdminState(true)
+      setUnlockKey('')
+      toast.success('Admin mode enabled on this device')
+    } else {
+      toast.error('Invalid admin key')
+    }
+  }
+
+  function lock() {
+    setAdmin(false)
+    setAdminState(false)
+    toast.info('Admin mode disabled')
+  }
+
+  function saveWire(e: FormEvent) {
+    e.preventDefault()
+    if (!wireForm.bankName.trim() || !wireForm.accountNumber.trim() || !wireForm.beneficiaryName.trim()) {
+      toast.error('Bank name, beneficiary name, and account number are required')
+      return
+    }
+    depositInstructions.setWire(wireCurrency, wireForm)
+    toast.success(`${wireCurrency} wire instructions saved`)
+  }
+
+  function deleteWire() {
+    if (!confirm(`Delete ${wireCurrency} wire instructions?`)) return
+    depositInstructions.removeWire(wireCurrency)
+    setWireForm({ ...EMPTY_WIRE, label: `${wireCurrency} Wire Transfer` })
+    toast.success('Removed')
+  }
+
+  function saveCrypto(e: FormEvent) {
+    e.preventDefault()
+    if (!cryptoForm.address.trim() || !cryptoForm.network.trim()) {
+      toast.error('Network and address are required')
+      return
+    }
+    depositInstructions.setCrypto(cryptoCurrency, { ...cryptoForm, currency: cryptoCurrency })
+    toast.success(`${cryptoCurrency} deposit address saved`)
+  }
+
+  function deleteCrypto() {
+    if (!confirm(`Delete ${cryptoCurrency} deposit address?`)) return
+    depositInstructions.removeCrypto(cryptoCurrency)
+    setCryptoForm({ ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
+    toast.success('Removed')
+  }
+
+  return (
+    <div className="min-h-screen bg-[#070C0E]">
+      <Navigation />
+      <Toaster position="top-right" theme="dark" richColors />
+      <div className="max-w-[1100px] mx-auto px-6 py-8">
+        <Link to="/wallet" className="inline-flex items-center gap-2 text-xs text-[#A0A0A0] hover:text-[#0C8B44] mb-6">
+          <ArrowLeft className="w-4 h-4" />Back to wallet
+        </Link>
+
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-[#0C8B44]" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-light text-[#E5E5E5]">Admin · Deposit Instructions</h1>
+            <p className="text-xs text-[#737373]">Configure wire transfer details and crypto deposit addresses shown to users.</p>
+          </div>
+          {admin && (
+            <button
+              onClick={lock}
+              className="px-3 py-1.5 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors"
+            >
+              Lock admin mode
+            </button>
+          )}
+        </div>
+
+        {!admin ? (
+          <div className="max-w-md rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <KeyRound className="w-5 h-5 text-[#0C8B44]" />
+              <h2 className="text-lg font-medium text-[#E5E5E5]">Unlock admin</h2>
+            </div>
+            <p className="text-xs text-[#A0A0A0] mb-6">
+              Enter the admin key to manage deposit instructions on this device.
+              The default development key is <code className="text-[#E5E5E5] bg-[#070C0E] px-1.5 py-0.5 rounded">verdexis-admin</code>; override it with the <code className="text-[#E5E5E5] bg-[#070C0E] px-1.5 py-0.5 rounded">VITE_ADMIN_KEY</code> env var at build time.
+            </p>
+            <form onSubmit={unlock} className="space-y-3">
+              <input
+                type="password"
+                value={unlockKey}
+                onChange={(e) => setUnlockKey(e.target.value)}
+                placeholder="Admin key"
+                className="w-full px-4 py-2.5 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors"
+              >
+                Unlock
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* WIRE TRANSFER */}
+            <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <Banknote className="w-5 h-5 text-[#0C8B44]" />
+                <h2 className="text-base font-medium text-[#E5E5E5]">Wire transfer</h2>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Currency</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FIAT_CURRENCIES.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setWireCurrency(c)}
+                      className={`py-2 text-xs rounded-lg border transition-colors ${wireCurrency === c ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#0C8B44]' : 'border-[#ffffff08] bg-[#1a1a1a] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={saveWire} className="space-y-3">
+                <Field label="Display label" value={wireForm.label} onChange={(v) => setWireForm({ ...wireForm, label: v })} placeholder="USD Wire (Domestic)" />
+                <Field label="Beneficiary name *" value={wireForm.beneficiaryName} onChange={(v) => setWireForm({ ...wireForm, beneficiaryName: v })} placeholder="Verdexis Holdings LLC" />
+                <Field label="Beneficiary address" value={wireForm.beneficiaryAddress ?? ''} onChange={(v) => setWireForm({ ...wireForm, beneficiaryAddress: v })} placeholder="1 Market St, San Francisco, CA 94105" />
+                <Field label="Bank name *" value={wireForm.bankName} onChange={(v) => setWireForm({ ...wireForm, bankName: v })} placeholder="JPMorgan Chase Bank, N.A." />
+                <Field label="Bank address" value={wireForm.bankAddress ?? ''} onChange={(v) => setWireForm({ ...wireForm, bankAddress: v })} placeholder="270 Park Ave, New York, NY 10017" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Routing / ABA" value={wireForm.routingNumber ?? ''} onChange={(v) => setWireForm({ ...wireForm, routingNumber: v })} placeholder="021000021" />
+                  <Field label="SWIFT / BIC" value={wireForm.swiftCode ?? ''} onChange={(v) => setWireForm({ ...wireForm, swiftCode: v })} placeholder="CHASUS33" />
+                </div>
+                <Field label="IBAN (EU/UK)" value={wireForm.iban ?? ''} onChange={(v) => setWireForm({ ...wireForm, iban: v })} placeholder="GB82 WEST 1234 5698 7654 32" />
+                <Field label="Account number *" value={wireForm.accountNumber} onChange={(v) => setWireForm({ ...wireForm, accountNumber: v })} placeholder="000123456789" />
+                <Field label="Reference / memo" value={wireForm.reference ?? ''} onChange={(v) => setWireForm({ ...wireForm, reference: v })} placeholder="VRDX-{userId}" />
+                <Textarea label="Notes" value={wireForm.notes ?? ''} onChange={(v) => setWireForm({ ...wireForm, notes: v })} placeholder="Funds typically credit within 1 business day." />
+
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors">
+                    <Save className="w-4 h-4" />Save {wireCurrency} wire
+                  </button>
+                  <button type="button" onClick={deleteWire} aria-label="Delete wire instructions" title="Delete wire instructions" className="px-3 py-2.5 text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {/* CRYPTO */}
+            <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <Coins className="w-5 h-5 text-[#0C8B44]" />
+                <h2 className="text-base font-medium text-[#E5E5E5]">Crypto deposit address</h2>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Currency</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {CRYPTO_CURRENCIES.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCryptoCurrency(c)}
+                      className={`py-2 text-xs rounded-lg border transition-colors ${cryptoCurrency === c ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#0C8B44]' : 'border-[#ffffff08] bg-[#1a1a1a] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={saveCrypto} className="space-y-3">
+                <Field label="Network *" value={cryptoForm.network} onChange={(v) => setCryptoForm({ ...cryptoForm, network: v })} placeholder="Bitcoin / Ethereum (ERC-20) / Solana / TRON (TRC-20)" />
+                <Field label="Deposit address *" value={cryptoForm.address} onChange={(v) => setCryptoForm({ ...cryptoForm, address: v })} placeholder="bc1q... / 0x... / Tn1..." mono />
+                <Field label="Memo / destination tag" value={cryptoForm.memo ?? ''} onChange={(v) => setCryptoForm({ ...cryptoForm, memo: v })} placeholder="Required for XRP / XLM / BNB Beacon" />
+                <Textarea label="Notes" value={cryptoForm.notes ?? ''} onChange={(v) => setCryptoForm({ ...cryptoForm, notes: v })} placeholder="Credits after 3 confirmations. Send only on the indicated network." />
+
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors">
+                    <Save className="w-4 h-4" />Save {cryptoCurrency} address
+                  </button>
+                  <button type="button" onClick={deleteCrypto} aria-label="Delete deposit address" title="Delete deposit address" className="px-3 py-2.5 text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function defaultNetwork(c: CryptoCurrency): string {
+  switch (c) {
+    case 'BTC': return 'Bitcoin'
+    case 'ETH': return 'Ethereum (ERC-20)'
+    case 'SOL': return 'Solana'
+    case 'USDT': return 'Ethereum (ERC-20)'
+    case 'USDC': return 'Ethereum (ERC-20)'
+    case 'XRP': return 'XRP Ledger'
+    case 'ADA': return 'Cardano'
+    case 'DOGE': return 'Dogecoin'
+    default: return ''
+  }
+}
+
+interface FieldProps {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  mono?: boolean
+}
+
+function Field({ label, value, onChange, placeholder, mono }: FieldProps) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44] ${mono ? 'font-mono text-xs' : ''}`}
+      />
+    </label>
+  )
+}
+
+function Textarea({ label, value, onChange, placeholder }: Omit<FieldProps, 'mono'>) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={2}
+        className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44] resize-none"
+      />
+    </label>
+  )
+}
