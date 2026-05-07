@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import LinkBankModal from '../components/LinkBankModal'
+import WalletPickerModal from '../components/WalletPickerModal'
 import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { useWeb3 } from '../hooks/use-web3'
@@ -327,6 +328,14 @@ export default function WalletPage() {
       <Toaster position="top-right" theme="dark" />
       <Navigation />
       <LinkBankModal isOpen={linkBankOpen} onClose={() => setLinkBankOpen(false)} onLinked={(id) => setSelectedBankId(id)} />
+      <WalletPickerModal
+        isOpen={web3.pickerOpen}
+        onClose={() => web3.setPickerOpen(false)}
+        discovered={web3.discovered}
+        onPick={(uuid) => { void web3.connectTo(uuid) }}
+        isConnecting={web3.isConnecting}
+        selectedRdns={web3.walletInfo?.rdns}
+      />
 
       <div className="pt-24 pb-16 px-6">
         <div className="max-w-[1280px] mx-auto">
@@ -437,7 +446,7 @@ export default function WalletPage() {
                       {web3.balanceEth != null && <span className="text-[10px] text-[#737373]">{web3.balanceEth.toFixed(4)} ETH</span>}
                     </p>
                   ) : (
-                    <p className="text-xs text-[#737373]">{web3.isAvailable ? 'Connect MetaMask to deposit crypto directly from self-custody.' : 'Install MetaMask to enable on-chain deposits.'}</p>
+                    <p className="text-xs text-[#737373]">{web3.discovered.length > 0 ? `${web3.discovered.length} wallet${web3.discovered.length === 1 ? '' : 's'} detected — connect to deposit crypto from self-custody.` : 'Connect any EIP-1193 wallet (MetaMask, Coinbase, Rabby, Trust…) to deposit crypto from self-custody.'}</p>
                   )}
                   {web3.error && <p className="text-[10px] text-[#f44336] mt-0.5">{web3.error}</p>}
                 </div>
@@ -468,15 +477,13 @@ export default function WalletPage() {
                     {web3.isConnecting ? 'Connecting…' : 'Connect Wallet'}
                   </button>
                 ) : (
-                  <a
-                    href="https://metamask.io/download/"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={web3.connect}
                     className="px-4 py-2 text-xs text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors flex items-center gap-1.5"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Install MetaMask
-                  </a>
+                    <WalletIcon className="w-3.5 h-3.5" />
+                    Choose a wallet
+                  </button>
                 )}
               </div>
             </div>
