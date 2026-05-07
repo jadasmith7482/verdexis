@@ -69,7 +69,7 @@ export default function WalletPage() {
   // Auto-dismiss the success overlay; errors stay until the user clicks.
   useEffect(() => {
     if (transferStatus?.kind !== 'success') return
-    const t = setTimeout(() => setTransferStatus(null), 2400)
+    const t = setTimeout(() => setTransferStatus(null), 4500)
     return () => clearTimeout(t)
   }, [transferStatus])
   const [incomeKind, setIncomeKind] = useState<IncomeKind>('dividend')
@@ -209,61 +209,74 @@ export default function WalletPage() {
 
   const handleDeposit = () => {
     if (!amount || parseFloat(amount) <= 0) {
-      toast.error('Enter a valid amount')
+      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Enter a valid amount.' })
       return
     }
     const amt = parseFloat(amount)
     if (selectedCurrency === 'USD') {
       if (usdMethod === 'wire') {
         if (!wireInstructions) {
-          toast.error('Wire instructions are not configured yet — contact support.')
+          setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Wire instructions are not configured yet — contact support.' })
           return
         }
         const ref = wireInstructions.reference || 'Wire deposit'
         portfolioStore.addTransaction('deposit', amt, 'USD', `Wire to ${wireInstructions.bankName} · ${ref}`)
-        toast.success(
-          `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire deposit`,
-          { description: `Send from your bank to ${wireInstructions.bankName}. Funds credit on receipt (typically 1 business day).` },
-        )
+        setTransferStatus({
+          kind: 'success',
+          title: 'Wire deposit initiated',
+          message: `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire to ${wireInstructions.bankName}. Funds credit on receipt (typically 1 business day).`,
+        })
         setAmount('')
         setTransactions(portfolioStore.getTransactions())
         return
       }
       const bank = banks.find((b) => b.id === selectedBankId)
       if (!bank) {
-        toast.error('Link a bank account first')
+        setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Link a bank account first.' })
         setLinkBankOpen(true)
         return
       }
       if (bank.status !== 'verified') {
-        toast.error('That bank is still verifying — try again in a few seconds.')
+        setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'That bank is still verifying — try again in a few seconds.' })
         return
       }
       const description = `ACH from ${bank.institution} ····${bank.accountMask}`
       portfolioStore.addTransaction('deposit', amt, 'USD', description)
-      toast.success(`Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ACH deposit`, { description: `From ${bank.institution} ····${bank.accountMask} — funds typically settle in 1–3 business days.` })
+      setTransferStatus({
+        kind: 'success',
+        title: 'ACH deposit initiated',
+        message: `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${bank.institution} ····${bank.accountMask}. Funds typically settle in 1–3 business days.`,
+      })
       setAmount('')
       setTransactions(portfolioStore.getTransactions())
       return
     }
     if (!cryptoInstructions) {
-      toast.error(`No ${selectedCurrency} deposit address configured. Ask an admin to set one.`)
+      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Ask an admin to set one.` })
       return
     }
     portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`)
-    toast.success(`Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency} deposit`, { description: 'Funds will be available after on-chain confirmation.' })
+    setTransferStatus({
+      kind: 'success',
+      title: 'Deposit logged',
+      message: `Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Funds will be available after on-chain confirmation.`,
+    })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
 
   const handleWithdraw = () => {
     if (!amount || parseFloat(amount) <= 0) {
-      toast.error('Enter a valid amount')
+      setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Enter a valid amount.' })
       return
     }
     const amt = -parseFloat(amount)
     portfolioStore.addTransaction('withdraw', amt, selectedCurrency, selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`)
-    toast.success(`Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}`, { description: 'Transaction completed' })
+    setTransferStatus({
+      kind: 'success',
+      title: 'Withdrawal sent',
+      message: `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`,
+    })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
