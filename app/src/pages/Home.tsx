@@ -98,7 +98,32 @@ export default function Home() {
   }
 
   const topCryptos = cryptoData.slice(0, 5)
-  const totalValue = 2847293.5
+  // Live total market cap of the top 5 cryptos shown in the preview. This is
+  // an actual public market metric — not a fake "net worth".
+  const totalValue = topCryptos.reduce((sum, c) => sum + (c.market_cap || 0), 0)
+  // 24h weighted change across the same basket so the +/- next to the figure
+  // reflects the same underlying numbers.
+  const previousValue = topCryptos.reduce((sum, c) => {
+    const mc = c.market_cap || 0
+    const pct = c.price_change_percentage_24h || 0
+    return sum + mc / (1 + pct / 100)
+  }, 0)
+  const change24hAbs = totalValue - previousValue
+  const change24hPct = previousValue > 0 ? (change24hAbs / previousValue) * 100 : 0
+  // BTC 7-day sparkline drives the preview chart so what the user sees on the
+  // landing page is the same data the dashboard would show.
+  const heroSparkline = topCryptos.find((c) => c.id === 'bitcoin')?.sparkline_in_7d?.price
+    ?? topCryptos[0]?.sparkline_in_7d?.price
+    ?? []
+  const heroSparkSlim = heroSparkline.length > 30
+    ? heroSparkline.filter((_, i) => i % Math.ceil(heroSparkline.length / 30) === 0).slice(0, 30)
+    : heroSparkline
+  const heroMin = heroSparkSlim.length ? Math.min(...heroSparkSlim) : 0
+  const heroMax = heroSparkSlim.length ? Math.max(...heroSparkSlim) : 1
+  const heroRange = Math.max(heroMax - heroMin, 1e-9)
+  // Allocation weights = each top-3 coin's share of the top-3 market cap, so
+  // the bars next to BTC/ETH/SOL are honest market-cap percentages.
+  const top3MarketCap = topCryptos.slice(0, 3).reduce((s, c) => s + (c.market_cap || 0), 0)
 
   const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
@@ -254,17 +279,27 @@ export default function Home() {
             <div className="liquid-card col-span-1 md:col-span-2 p-8" style={{ '--fill-color': 'rgba(12,139,68,0.15)' } as React.CSSProperties}>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-sm text-[#A0A0A0] mb-1">Total Net Worth</p>
-                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">{formatUsd(totalValue)}</p>
-                  <p className="text-sm text-[#4CAF50] mt-1 flex items-center gap-1"><TrendingUp className="w-4 h-4" />+$124,532 (+4.6%)</p>
+                  <p className="text-sm text-[#A0A0A0] mb-1">Top 5 Crypto Market Cap</p>
+                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">{totalValue > 0 ? formatUsd(totalValue) : '—'}</p>
+                  {totalValue > 0 && (
+                    <p className={`text-sm mt-1 flex items-center gap-1 ${change24hAbs >= 0 ? 'text-[#4CAF50]' : 'text-[#E53935]'}`}>
+                      {change24hAbs >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                      {change24hAbs >= 0 ? '+' : ''}{formatUsd(change24hAbs)} ({change24hPct >= 0 ? '+' : ''}{change24hPct.toFixed(2)}%)
+                    </p>
+                  )}
                 </div>
                 <div className="w-16 h-16 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center"><Wallet className="w-8 h-8 text-[#0C8B44]" /></div>
               </div>
               <div className="h-24 flex items-end gap-1">
-                {Array.from({ length: 30 }, (_, i) => <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${40 + Math.sin(i * 0.5) * 30 + Math.random() * 20}%`, background: i > 25 ? 'linear-gradient(to top, #0C8B44, #00E676)' : 'rgba(12,139,68,0.3)' }} />)}
+                {heroSparkSlim.length > 0 ? heroSparkSlim.map((p, i) => {
+                  const h = ((p - heroMin) / heroRange) * 100
+                  return <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${Math.max(h, 4)}%`, background: i >= heroSparkSlim.length - 5 ? 'linear-gradient(to top, #0C8B44, #00E676)' : 'rgba(12,139,68,0.3)' }} />
+                }) : <div className="flex-1 text-xs text-[#737373] text-center self-center">Loading live BTC chart…</div>}
               </div>
               <div className="mt-6 space-y-3">
-                {topCryptos.slice(0, 3).map((c) => (
+                {topCryptos.slice(0, 3).map((c) => {
+                  const share = top3MarketCap > 0 ? ((c.market_cap || 0) / top3MarketCap) * 100 : 0
+                  return (
                   <Link to={`/asset/${c.id}`} key={c.id} className="flex items-center justify-between hover:bg-[#ffffff05] -mx-2 px-2 py-1 rounded-lg transition-colors">
                     <div className="flex items-center gap-3">
                       {getCryptoLogo(c.id) ? (
@@ -275,11 +310,12 @@ export default function Home() {
                       <span className="text-sm text-[#E5E5E5]">{c.name}</span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <div className="w-24 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#0C8B44]" style={{ width: `${Math.random() * 60 + 20}%` }} /></div>
+                      <div className="w-24 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#0C8B44]" style={{ width: `${share.toFixed(1)}%` }} /></div>
                       <span className="text-sm text-[#A0A0A0] w-20 text-right">{formatPrice(c.current_price)}</span>
                     </div>
                   </Link>
-                ))}
+                  )
+                })}
               </div>
             </div>
             {/* AI Strategy */}
@@ -304,22 +340,54 @@ export default function Home() {
               </div>
               <Link to="/ai" className="flex items-center justify-center gap-2 mt-6 py-3 rounded-xl bg-[#6A0DAD]/20 text-[#9C27B0] text-sm font-medium hover:bg-[#6A0DAD]/30 transition-colors"><Bot className="w-4 h-4" />Ask AI Analyst</Link>
             </div>
-            {/* Portfolio Breakdown */}
+            {/* Market Cap Breakdown (top 3 cryptos, real share of basket) */}
             <div className="liquid-card p-8" style={{ '--fill-color': 'rgba(0,131,143,0.15)' } as React.CSSProperties}>
-              <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Portfolio Breakdown</h3>
-              <div className="flex items-center justify-center mb-6">
-                <svg viewBox="0 0 100 100" className="w-32 h-32">
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#0C8B44" strokeWidth="20" strokeDasharray="125.6 125.6" transform="rotate(-90 50 50)" />
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#2196F3" strokeWidth="20" strokeDasharray="75.4 175.8" strokeDashoffset="-125.6" transform="rotate(-90 50 50)" />
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="#FF9800" strokeWidth="20" strokeDasharray="50.2 201" strokeDashoffset="-201" transform="rotate(-90 50 50)" />
-                  <circle cx="50" cy="50" r="25" fill="#070C0E" />
-                </svg>
-              </div>
-              <div className="space-y-2">
-                {[{ label: 'Bitcoin', value: '45%', color: '#0C8B44', logo: '/assets/logo-btc.png' }, { label: 'Ethereum', value: '27%', color: '#2196F3', logo: '/assets/logo-eth.png' }, { label: 'Solana', value: '18%', color: '#FF9800', logo: '/assets/logo-sol.png' }, { label: 'Cash', value: '10%', color: '#737373', logo: null }].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between"><div className="flex items-center gap-2">{item.logo ? <img src={item.logo} alt={item.label} className="w-5 h-5 rounded-full object-cover" /> : <div className="w-3 h-3 rounded-full" style={{ background: item.color }} />}<span className="text-sm text-[#A0A0A0]">{item.label}</span></div><span className="text-sm text-[#E5E5E5]">{item.value}</span></div>
-                ))}
-              </div>
+              <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Top 3 Market Share</h3>
+              {(() => {
+                const colors = ['#0C8B44', '#2196F3', '#FF9800']
+                const slices = topCryptos.slice(0, 3).map((c, i) => ({
+                  id: c.id,
+                  label: c.name,
+                  pct: top3MarketCap > 0 ? ((c.market_cap || 0) / top3MarketCap) * 100 : 0,
+                  color: colors[i],
+                  logo: getCryptoLogo(c.id),
+                }))
+                const C = 2 * Math.PI * 40 // circumference
+                let offset = 0
+                return (
+                  <>
+                    <div className="flex items-center justify-center mb-6">
+                      {slices.length > 0 ? (
+                        <svg viewBox="0 0 100 100" className="w-32 h-32">
+                          {slices.map((s) => {
+                            const len = (s.pct / 100) * C
+                            const dasharray = `${len} ${C - len}`
+                            const dashoffset = -offset
+                            offset += len
+                            return (
+                              <circle key={s.id} cx="50" cy="50" r="40" fill="none" stroke={s.color} strokeWidth="20" strokeDasharray={dasharray} strokeDashoffset={dashoffset} transform="rotate(-90 50 50)" />
+                            )
+                          })}
+                          <circle cx="50" cy="50" r="25" fill="#070C0E" />
+                        </svg>
+                      ) : (
+                        <div className="w-32 h-32 rounded-full border border-[#ffffff10] flex items-center justify-center text-xs text-[#737373]">Loading…</div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {slices.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {item.logo ? <img src={item.logo} alt={item.label} className="w-5 h-5 rounded-full object-cover" /> : <div className="w-3 h-3 rounded-full" style={{ background: item.color }} />}
+                            <span className="text-sm text-[#A0A0A0]">{item.label}</span>
+                          </div>
+                          <span className="text-sm text-[#E5E5E5]">{item.pct.toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
             {/* Market Pulse with REAL crypto logos */}
             <div className="liquid-card col-span-1 md:col-span-2 p-8" style={{ '--fill-color': 'rgba(12,139,68,0.1)' } as React.CSSProperties}>
