@@ -245,6 +245,17 @@ class PortfolioStoreImpl {
 
   getWallet(): WalletBalance[] { return this.wallet }
 
+  /** Latest live quote (USD per unit) for a currency / coin id. Returns
+   *  null when no live quote has been seen yet so callers can fall back
+   *  to a sensible default rather than silently using 0. */
+  getQuote(currencyOrId: string): number | null {
+    if (!currencyOrId) return null
+    const cur = currencyOrId.toUpperCase()
+    if (cur === 'USD' || cur === 'USDC' || cur === 'USDT') return 1
+    const live = this.lastQuotes[cur] ?? this.lastQuotes[currencyOrId.toLowerCase()]
+    return typeof live === 'number' && live > 0 ? live : null
+  }
+
   /** Single source of truth for the user's cash side. Sums every wallet
    *  entry converted to USD: USD/USDC/USDT count as 1:1, other currencies
    *  use the latest live quote (cached from markToMarket) and fall back to

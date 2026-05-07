@@ -23,19 +23,19 @@ export function stdev(xs: number[]): number {
   return Math.sqrt(v)
 }
 
-/** Annualised volatility from daily returns (sqrt(252) scaling). */
-export function annualisedVolatility(returns: number[]): number {
-  return stdev(returns) * Math.sqrt(252)
+/** Annualised volatility from periodic returns (default daily; pass 24*365 for hourly etc). */
+export function annualisedVolatility(returns: number[], periodsPerYear = 252): number {
+  return stdev(returns) * Math.sqrt(periodsPerYear)
 }
 
 /** Sharpe ratio assuming a risk-free rate (annualised, decimal — e.g. 0.04 = 4%). */
-export function sharpeRatio(returns: number[], riskFreeAnnual = 0.04): number {
+export function sharpeRatio(returns: number[], riskFreeAnnual = 0.04, periodsPerYear = 252): number {
   if (returns.length === 0) return 0
-  const meanDaily = mean(returns)
+  const meanPeriod = mean(returns)
   const sd = stdev(returns)
   if (sd === 0) return 0
-  const rfDaily = riskFreeAnnual / 252
-  return ((meanDaily - rfDaily) / sd) * Math.sqrt(252)
+  const rfPeriod = riskFreeAnnual / periodsPerYear
+  return ((meanPeriod - rfPeriod) / sd) * Math.sqrt(periodsPerYear)
 }
 
 /** Maximum drawdown as a positive percentage (e.g. 0.23 = -23%). */

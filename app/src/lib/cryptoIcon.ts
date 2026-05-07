@@ -64,6 +64,107 @@ export function cryptoIconFor(idOrSymbol: string | undefined | null): string | n
   return `${CDN}/${sym}.svg`
 }
 
+// ---- Stock / equity icons -------------------------------------------------
+// Maps common tickers to the company domain we feed Clearbit's free logo
+// service. Falls through to the initial-circle fallback when unknown.
+const STOCK_DOMAIN: Record<string, string> = {
+  AAPL: 'apple.com',
+  MSFT: 'microsoft.com',
+  GOOG: 'google.com',
+  GOOGL: 'google.com',
+  AMZN: 'amazon.com',
+  TSLA: 'tesla.com',
+  META: 'meta.com',
+  FB: 'meta.com',
+  NVDA: 'nvidia.com',
+  NFLX: 'netflix.com',
+  AMD: 'amd.com',
+  INTC: 'intel.com',
+  ORCL: 'oracle.com',
+  CRM: 'salesforce.com',
+  ADBE: 'adobe.com',
+  PYPL: 'paypal.com',
+  SQ: 'block.xyz',
+  BABA: 'alibaba.com',
+  DIS: 'disney.com',
+  WMT: 'walmart.com',
+  COST: 'costco.com',
+  KO: 'coca-cola.com',
+  PEP: 'pepsico.com',
+  MCD: 'mcdonalds.com',
+  SBUX: 'starbucks.com',
+  NKE: 'nike.com',
+  V: 'visa.com',
+  MA: 'mastercard.com',
+  JPM: 'jpmorganchase.com',
+  BAC: 'bankofamerica.com',
+  WFC: 'wellsfargo.com',
+  GS: 'goldmansachs.com',
+  MS: 'morganstanley.com',
+  BRK: 'berkshirehathaway.com',
+  'BRK.B': 'berkshirehathaway.com',
+  JNJ: 'jnj.com',
+  PFE: 'pfizer.com',
+  UNH: 'uhc.com',
+  XOM: 'exxonmobil.com',
+  CVX: 'chevron.com',
+  T: 'att.com',
+  VZ: 'verizon.com',
+  IBM: 'ibm.com',
+  CSCO: 'cisco.com',
+  QCOM: 'qualcomm.com',
+  TXN: 'ti.com',
+  HD: 'homedepot.com',
+  LOW: 'lowes.com',
+  TGT: 'target.com',
+  F: 'ford.com',
+  GM: 'gm.com',
+  UBER: 'uber.com',
+  LYFT: 'lyft.com',
+  ABNB: 'airbnb.com',
+  SHOP: 'shopify.com',
+  SPOT: 'spotify.com',
+  ROKU: 'roku.com',
+  ZM: 'zoom.us',
+  // Common ETFs
+  SPY: 'spdrs.com',
+  VOO: 'vanguard.com',
+  VTI: 'vanguard.com',
+  QQQ: 'invesco.com',
+  IVV: 'ishares.com',
+  ARKK: 'ark-invest.com',
+}
+
+export function stockIconFor(symbol: string | undefined | null): string | null {
+  if (!symbol) return null
+  const key = symbol.toUpperCase()
+  const domain = STOCK_DOMAIN[key]
+  if (!domain) return null
+  return `https://logo.clearbit.com/${domain}`
+}
+
+// Smart resolver. Picks crypto vs stock URL based on `type` (preferred) or
+// by checking whether the symbol/id looks like a known crypto/stock.
+export function assetIconFor(
+  idOrSymbol: string | undefined | null,
+  type?: 'crypto' | 'stock' | 'etf' | string,
+): string | null {
+  if (!idOrSymbol) return null
+  const key = String(idOrSymbol).toLowerCase()
+  const upper = String(idOrSymbol).toUpperCase()
+  // Type-driven dispatch is most reliable when caller knows.
+  if (type === 'crypto') return cryptoIconFor(idOrSymbol)
+  if (type === 'stock' || type === 'etf') return stockIconFor(idOrSymbol)
+  // Heuristics: known crypto id/symbol takes precedence.
+  if (ID_TO_SYMBOL[key] || ['btc', 'eth', 'sol', 'ada', 'xrp', 'usdt', 'usdc', 'doge', 'bnb'].includes(key)) {
+    return cryptoIconFor(idOrSymbol)
+  }
+  if (STOCK_DOMAIN[upper]) return stockIconFor(idOrSymbol)
+  // Unknown — try crypto first (matches existing behaviour), the onError
+  // fallback will substitute a coloured initial if it 404s.
+  return cryptoIconFor(idOrSymbol)
+}
+
 // React-friendly onError fallback: replace the broken icon with a coloured
 // initial. Pass as `onError` on an <img>.
 export function cryptoIconErrorFallback(initial: string) {

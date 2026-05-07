@@ -9,7 +9,8 @@ import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
 import { useWeb3 } from '../hooks/use-web3'
-import { cryptoIconFor } from '../lib/cryptoIcon'
+import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
+import { api, getToken } from '../lib/api'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
@@ -50,6 +51,15 @@ export default function WalletPage() {
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
   const [recipient, setRecipient] = useState('')
+  // Transfer-tab mode: convert USD to crypto in your own wallet, OR send funds
+  // to another Verdexis user identified by email.
+  const [transferMode, setTransferMode] = useState<'convert' | 'send'>('send')
+  const [transferRecipient, setTransferRecipient] = useState('')
+  const [transferRecipientName, setTransferRecipientName] = useState<string | null>(null)
+  const [transferRecipientStatus, setTransferRecipientStatus] = useState<'idle' | 'checking' | 'ok' | 'notfound'>('idle')
+  const [transferNote, setTransferNote] = useState('')
+  const [transferCurrency, setTransferCurrency] = useState('USD')
+  const [transferSending, setTransferSending] = useState(false)
   const [incomeKind, setIncomeKind] = useState<IncomeKind>('dividend')
   const [incomeSource, setIncomeSource] = useState('')
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
@@ -120,8 +130,8 @@ export default function WalletPage() {
 
   useEffect(() => {
     const refresh = () => {
-      setWallet(portfolioStore.getWallet())
-      setTransactions(portfolioStore.getTransactions())
+      setWallet([...portfolioStore.getWallet()])
+      setTransactions([...portfolioStore.getTransactions()])
     }
     window.addEventListener('verdexis:portfolio', refresh)
     return () => window.removeEventListener('verdexis:portfolio', refresh)
@@ -151,8 +161,12 @@ export default function WalletPage() {
   const totalBalance = portfolioStore.getWalletValueUsd()
 
   function getUsdRate(currency: string): number {
-    const rates: Record<string, number> = { USD: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
-    return rates[currency] || 1
+    // Live quote first (cached by portfolioStore.markToMarket from CoinGecko
+    // ticker). Fall back only if we have never seen a live price.
+    const live = portfolioStore.getQuote(currency)
+    if (live != null && live > 0) return live
+    const baseline: Record<string, number> = { USD: 1, USDC: 1, USDT: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
+    return baseline[currency.toUpperCase()] || 1
   }
 
   function CurrencyIcon({ currency, size = 32 }: { currency: string; size?: number }) {
@@ -167,7 +181,7 @@ export default function WalletPage() {
     }
     return (
       <img
-        src={cryptoIconFor(currency) || undefined}
+        src={assetIconFor(currency) || cryptoIconFor(currency) || undefined}
         alt={currency}
         className="rounded-full bg-[#0C8B44]/10 shrink-0 object-contain"
         style={{ width: size, height: size }}
@@ -242,19 +256,69 @@ export default function WalletPage() {
     setTransactions(portfolioStore.getTransactions())
   }
 
-  const handleTransfer = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error('Enter a valid amount')
+  const handleTransfer = async () => {
+    if (transferMode === 'send') {
+      const amt = parseFloat(amount)
+      if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return }
+      const email = transferRecipient.trim().toLowerCase()
+      if (!email || !/^.+@.+\..+$/.test(email)) { toast.error('Enter a recipient email'); return }
+      const balance = wallet.find(w => w.currency === transferCurrency)?.available ?? 0
+      if (amt > balance) { toast.error(`Insufficient ${transferCurrency} balance`); return }
+      setTransferSending(true)
+      try {
+        if (getToken()) {
+          await api.transferToUser({ recipientEmail: email, currency: transferCurrency, amount: amt, note: transferNote.trim() || undefined })
+        }
+        // Reflect locally either way (offline-friendly).
+        portfolioStore.addTransaction('transfer', -amt, transferCurrency, `Sent to ${email}${transferNote ? ' — ' + transferNote : ''}`)
+        toast.success(`Sent ${amt} ${transferCurrency} to ${transferRecipientName || email}`)
+        setAmount(''); setTransferNote(''); setTransferRecipient(''); setTransferRecipientName(null); setTransferRecipientStatus('idle')
+        setTransactions([...portfolioStore.getTransactions()])
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Transfer failed'
+        toast.error(msg)
+      } finally {
+        setTransferSending(false)
+      }
       return
     }
+    // Convert USD -> crypto inside the same wallet (legacy behaviour).
+    if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return }
     const amt = -parseFloat(amount)
-    portfolioStore.addTransaction('transfer', amt, 'USD', `Transfer to ${selectedCurrency}`)
+    const usdAvailable = wallet.find(w => w.currency === 'USD')?.available ?? 0
+    if (Math.abs(amt) > usdAvailable) { toast.error('Insufficient USD balance'); return }
+    portfolioStore.addTransaction('transfer', amt, 'USD', `Convert to ${selectedCurrency}`)
     const receiveAmt = Math.abs(amt) / getUsdRate(selectedCurrency)
-    portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Received from USD exchange`)
-    toast.success(`Transferred ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}`)
+    portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Converted from USD`)
+    toast.success(`Converted ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}`)
     setAmount('')
-    setTransactions(portfolioStore.getTransactions())
+    setTransactions([...portfolioStore.getTransactions()])
   }
+
+  // Debounced recipient lookup so the UI shows whether the email is a real
+  // Verdexis user before they hit Send.
+  useEffect(() => {
+    if (transferMode !== 'send') return
+    const email = transferRecipient.trim().toLowerCase()
+    if (!email || !/^.+@.+\..+$/.test(email)) {
+      setTransferRecipientStatus('idle')
+      setTransferRecipientName(null)
+      return
+    }
+    if (!getToken()) { setTransferRecipientStatus('idle'); return }
+    setTransferRecipientStatus('checking')
+    const timer = setTimeout(async () => {
+      try {
+        const r = await api.lookupRecipient(email)
+        setTransferRecipientName(r.user.name)
+        setTransferRecipientStatus('ok')
+      } catch {
+        setTransferRecipientName(null)
+        setTransferRecipientStatus('notfound')
+      }
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [transferRecipient, transferMode])
 
   const handleIncome = () => {
     const amt = parseFloat(amount)
@@ -923,55 +987,134 @@ export default function WalletPage() {
           {activeTab === 'transfer' && (
             <div className="glass-card p-8 max-w-lg">
               <h3 className="text-xl font-medium text-[#E5E5E5] mb-6">Transfer Funds</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-[#A0A0A0] mb-2 block">From</label>
-                  <div className="p-4 rounded-xl bg-[#0C8B44]/10 border border-[#0C8B44]/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">$</div>
-                        <div><p className="text-sm font-medium text-[#E5E5E5]">USD Wallet</p><p className="text-xs text-[#737373]">Available: $125,430.50</p></div>
+
+              {/* Mode toggle: send to another user vs convert across own wallets */}
+              <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-xl border border-[#ffffff08]">
+                <button
+                  onClick={() => setTransferMode('send')}
+                  className={`py-2.5 text-sm font-medium rounded-lg transition-all ${transferMode === 'send' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                >Send to user</button>
+                <button
+                  onClick={() => setTransferMode('convert')}
+                  className={`py-2.5 text-sm font-medium rounded-lg transition-all ${transferMode === 'convert' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                >Convert (USD ↔ Crypto)</button>
+              </div>
+
+              {transferMode === 'send' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">From wallet</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {wallet.map((w) => (
+                        <button key={w.currency} onClick={() => setTransferCurrency(w.currency)}
+                          className={`p-3 rounded-xl border transition-all ${transferCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
+                          <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={w.currency} size={28} /></div>
+                          <p className="text-xs text-[#E5E5E5]">{w.currency}</p>
+                          <p className="text-[10px] text-[#737373]">
+                            {w.symbol}{w.available.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 6 })}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-[#737373] mt-2">
+                      Available: {wallet.find(w => w.currency === transferCurrency)?.symbol ?? '$'}
+                      {(wallet.find(w => w.currency === transferCurrency)?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: transferCurrency === 'USD' ? 2 : 0, maximumFractionDigits: transferCurrency === 'USD' ? 2 : 6 })}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">Recipient (email)</label>
+                    <input type="email" value={transferRecipient} onChange={(e) => setTransferRecipient(e.target.value)}
+                      placeholder="user@example.com"
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                    {transferRecipientStatus === 'checking' && (
+                      <p className="text-[11px] text-[#737373] mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" /> Checking…</p>
+                    )}
+                    {transferRecipientStatus === 'ok' && (
+                      <p className="text-[11px] text-[#4CAF50] mt-1.5 flex items-center gap-1.5"><CheckCircle className="w-3 h-3" /> {transferRecipientName || 'Verified Verdexis user'}</p>
+                    )}
+                    {transferRecipientStatus === 'notfound' && (
+                      <p className="text-[11px] text-[#f44336] mt-1.5 flex items-center gap-1.5"><AlertCircle className="w-3 h-3" /> No Verdexis user with that email</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">{wallet.find(w => w.currency === transferCurrency)?.symbol ?? '$'}</span>
+                      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                        className="w-full pl-9 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">Note <span className="text-[#555]">(optional)</span></label>
+                    <input type="text" value={transferNote} onChange={(e) => setTransferNote(e.target.value)} maxLength={200}
+                      placeholder="What's it for?"
+                      className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                  </div>
+
+                  <button onClick={handleTransfer} disabled={transferSending || !amount || transferRecipientStatus === 'notfound' || transferRecipientStatus === 'checking'}
+                    className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    {transferSending ? 'Sending…' : `Send ${amount || '0'} ${transferCurrency}`}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">From</label>
+                    <div className="p-4 rounded-xl bg-[#0C8B44]/10 border border-[#0C8B44]/30">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">$</div>
+                          <div>
+                            <p className="text-sm font-medium text-[#E5E5E5]">USD Wallet</p>
+                            <p className="text-xs text-[#737373]">
+                              Available: ${(wallet.find(w => w.currency === 'USD')?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex justify-center">
-                  <div className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center">
-                    <ArrowLeftRight className="w-5 h-5 text-[#0C8B44]" />
+                  <div className="flex justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center">
+                      <ArrowLeftRight className="w-5 h-5 text-[#0C8B44]" />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="text-sm text-[#A0A0A0] mb-2 block">To</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {wallet.filter((w) => w.currency !== 'USD').map((w) => (
-                      <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
-                        className={`p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                        <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={w.currency} size={32} /></div>
-                        <p className="text-xs text-[#E5E5E5]">{w.currency}</p>
-                      </button>
-                    ))}
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">To (currency)</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {wallet.filter((w) => w.currency !== 'USD').map((w) => (
+                        <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
+                          className={`p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
+                          <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={w.currency} size={32} /></div>
+                          <p className="text-xs text-[#E5E5E5]">{w.currency}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">$</span>
-                    <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-                      className="w-full pl-8 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                  <div>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">$</span>
+                      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                    </div>
                   </div>
+                  <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
+                    <span className="text-sm text-[#A0A0A0]">Exchange Rate</span>
+                    <span className="text-sm text-[#E5E5E5]">1 USD = {(1 / getUsdRate(selectedCurrency)).toFixed(8)} {selectedCurrency}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
+                    <span className="text-sm text-[#A0A0A0]">You will receive</span>
+                    <span className="text-sm font-medium text-[#E5E5E5]">{amount ? (parseFloat(amount) / getUsdRate(selectedCurrency)).toFixed(8) : '0.00'} {selectedCurrency}</span>
+                  </div>
+                  <button onClick={handleTransfer} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
+                    Convert Now
+                  </button>
                 </div>
-                <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
-                  <span className="text-sm text-[#A0A0A0]">Exchange Rate</span>
-                  <span className="text-sm text-[#E5E5E5]">1 USD = {(1 / getUsdRate(selectedCurrency)).toFixed(8)} {selectedCurrency}</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
-                  <span className="text-sm text-[#A0A0A0]">You will receive</span>
-                  <span className="text-sm font-medium text-[#E5E5E5]">{amount ? (parseFloat(amount) / getUsdRate(selectedCurrency)).toFixed(8) : '0.00'} {selectedCurrency}</span>
-                </div>
-                <button onClick={handleTransfer} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
-                  Transfer Now
-                </button>
-              </div>
+              )}
             </div>
           )}
 

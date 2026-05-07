@@ -9,6 +9,7 @@ import { dailyReturns, sharpeRatio, maxDrawdown, valueAtRisk, annualisedVolatili
 export default function RiskMetricsCard() {
   const [metrics, setMetrics] = useState({ sharpe: 0, mdd: 0, var95: 0, vol: 0, n: 0 })
   const [loading, setLoading] = useState(true)
+  const [empty, setEmpty] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -26,21 +27,26 @@ export default function RiskMetricsCard() {
           const w = (h.quantity * c.current_price) / total
           weighted.push(c.sparkline_in_7d.price.map(p => p * w))
         }
+        let isEmpty = false
         if (weighted.length === 0) {
-          // Fallback to BTC sparkline so the card still tells a story for empty portfolios.
-          const btc = list.find(c => c.id === 'bitcoin')
-          if (btc?.sparkline_in_7d?.price) series.push(...btc.sparkline_in_7d.price)
+          // No sparkline data for any holding (e.g. cash-only or stocks-only).
+          // Don't fake it with BTC — show an empty state instead.
+          isEmpty = true
         } else {
           const len = Math.min(...weighted.map(w => w.length))
           for (let i = 0; i < len; i++) series.push(weighted.reduce((s, w) => s + w[i], 0))
         }
         const rets = dailyReturns(series)
+        // CoinGecko 7-day sparkline is hourly (≈168 points). Annualise with
+        // 24 * 365 instead of 252 daily-trading days for accuracy.
+        const periodsPerYear = 24 * 365
         if (!cancelled) {
+          setEmpty(isEmpty)
           setMetrics({
-            sharpe: sharpeRatio(rets),
+            sharpe: sharpeRatio(rets, 0.04, periodsPerYear),
             mdd: maxDrawdown(series),
             var95: valueAtRisk(rets, 0.95),
-            vol: annualisedVolatility(rets),
+            vol: annualisedVolatility(rets, periodsPerYear),
             n: series.length,
           })
           setLoading(false)
@@ -78,8 +84,8 @@ export default function RiskMetricsCard() {
                 <Icon className="w-3 h-3" />
                 {it.label}
               </div>
-              <p className="text-lg font-semibold mt-1.5" style={{ color: it.color }}>{loading ? '—' : it.value}</p>
-              <p className="text-[11px] text-[#737373] mt-0.5">{it.hint}</p>
+              <p className="text-lg font-semibold mt-1.5" style={{ color: it.color }}>{loading ? '—' : empty ? 'N/A' : it.value}</p>
+              <p className="text-[11px] text-[#737373] mt-0.5">{empty ? 'No price history yet' : it.hint}</p>
             </div>
           )
         })}

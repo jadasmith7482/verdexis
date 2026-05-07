@@ -130,6 +130,10 @@ export const api = {
   getWallet: () => request<{ balances: unknown[]; transactions: unknown[] }>('/api/wallet'),
   postTransaction: (tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; symbol?: string; amount: number; reference?: string }) =>
     request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx) }),
+  transferToUser: (payload: { recipientEmail: string; currency: string; amount: number; note?: string }) =>
+    request<{ recipient: { email: string; name: string | null } }>('/api/wallet/transfer', { method: 'POST', body: JSON.stringify(payload) }),
+  lookupRecipient: (email: string) =>
+    request<{ user: { email: string; name: string | null } }>(`/api/wallet/lookup-recipient?email=${encodeURIComponent(email)}`),
 
   // Trades
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),

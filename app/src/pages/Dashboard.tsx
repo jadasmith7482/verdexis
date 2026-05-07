@@ -23,7 +23,7 @@ import { marketData, type CryptoQuote } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, type WalletTransaction } from '../lib/portfolioStore'
-import { cryptoIconFor } from '../lib/cryptoIcon'
+import { assetIconFor } from '../lib/cryptoIcon'
 import { useCurrency } from '../lib/currencyContext'
 import { dashboardLayout, DASHBOARD_LAYOUT_EVENT } from '../lib/dashboardLayout'
 import { dcaStore, nextRunMs } from '../lib/dcaStore'
@@ -31,11 +31,11 @@ import { Toaster, toast } from 'sonner'
 import {
   TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight,
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
-  PieChart, Activity, ChevronRight, Lock,
+  PieChart, Activity, Lock,
   ArrowRight, CircleDollarSign, Gem, Layers,
 } from 'lucide-react'
 
-const getCryptoLogo = (id: string) => cryptoIconFor(id)
+const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
   if (!prices || prices.length === 0) return ''
@@ -96,9 +96,9 @@ export default function Dashboard() {
       portfolioStore.markToMarket(quotes)
     }
 
-    setHoldings(portfolioStore.getHoldings())
+    setHoldings([...portfolioStore.getHoldings()])
     setTrades(portfolioStore.getTrades().slice(0, 5))
-    setWallet(portfolioStore.getWallet())
+    setWallet([...portfolioStore.getWallet()])
     setTransactions(portfolioStore.getTransactions().slice(0, 5))
     setLastUpdated(new Date())
     if (!silent) setLoading(false)
@@ -108,17 +108,18 @@ export default function Dashboard() {
     fetchData()
     // Slow market data fetch (CoinGecko ratelimit-friendly)
     const marketInterval = setInterval(() => fetchData(true), 30000)
-    // Fast tick: re-read local portfolio + bump 'last updated' every second
+    // Fast tick: re-read local portfolio + bump 'last updated' every second.
+    // Spread arrays so React sees a new reference and re-renders prices.
     const fastTick = setInterval(() => {
-      setHoldings(portfolioStore.getHoldings())
-      setWallet(portfolioStore.getWallet())
+      setHoldings([...portfolioStore.getHoldings()])
+      setWallet([...portfolioStore.getWallet()])
       setTransactions(portfolioStore.getTransactions().slice(0, 5))
       setLastUpdated(new Date())
     }, 1000)
     const refresh = () => {
-      setHoldings(portfolioStore.getHoldings())
+      setHoldings([...portfolioStore.getHoldings()])
       setTrades(portfolioStore.getTrades().slice(0, 5))
-      setWallet(portfolioStore.getWallet())
+      setWallet([...portfolioStore.getWallet()])
       setTransactions(portfolioStore.getTransactions().slice(0, 5))
     }
     window.addEventListener('verdexis:portfolio', refresh)
@@ -205,40 +206,65 @@ export default function Dashboard() {
   const rangeBuckets: Record<ChartRange, number> = { '1D': 24, '1W': 168, '1M': 168, '1Y': 365, 'ALL': 365 }
   const HISTORY_POINTS = rangeBuckets[chartRange]
   const portfolioHistory: number[] = (() => {
-    if (!holdings.length) return []
     const series = new Array(HISTORY_POINTS).fill(0)
-    let haveAny = false
+    let haveSparkline = false
     for (const h of holdings) {
       const q = quoteById[h.id] || quoteById[h.symbol?.toLowerCase?.() || '']
       const sp = q?.sparkline_in_7d?.price
       if (sp && sp.length >= 2) {
-        haveAny = true
-        // For 1D, only use the most recent ~24 hourly points (last day of the
-        // 7-day sparkline). For 1W use full sparkline. For 1M / 1Y / ALL we\n        // don't have historical data older than 7 days from CoinGecko\u2019s\n        // simple endpoint, so we synthesise the early portion by anchoring\n        // the start of the window at avg-buy-price-equivalent quantity-value\n        // and linearly interpolating to the recent sparkline window.\n        let window = sp\n        if (chartRange === '1D') window = sp.slice(-24)\n        for (let i = 0; i < HISTORY_POINTS; i++) {\n          if (chartRange === '1M' || chartRange === '1Y' || chartRange === 'ALL') {\n            // Synthetic: blend from h.avgBuyPrice (start) to current sparkline (end)\n            const recentPortion = 0.7 // last 30% of the chart uses real sparkline\n            const recentStart = Math.floor(HISTORY_POINTS * recentPortion)\n            if (i < recentStart) {\n              const t = recentStart > 0 ? i / recentStart : 1\n              const startVal = h.quantity * h.avgBuyPrice\n              const endVal = h.quantity * sp[0]\n              series[i] += startVal + (endVal - startVal) * t\n            } else {\n              const t = HISTORY_POINTS > recentStart ? (i - recentStart) / (HISTORY_POINTS - recentStart) : 0\n              const idx = Math.min(sp.length - 1, Math.round(t * (sp.length - 1)))\n              series[i] += h.quantity * sp[idx]\n            }\n          } else {\n            const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))\n            series[i] += h.quantity * window[idx]\n          }\n        }\n      } else {
-        // Flat contribution (cash, stablecoin, or missing sparkline)
+        haveSparkline = true
+        // For 1D use last ~24 points; 1W use the full sparkline (~168 hourly).
+        // 1M/1Y/ALL: no historical data beyond 7d, so anchor the start of the
+        // window at the holding's avg-buy quantity-value and interpolate to
+        // the most recent sparkline window.
+        const window = chartRange === '1D' ? sp.slice(-24) : sp
+        for (let i = 0; i < HISTORY_POINTS; i++) {
+          if (chartRange === '1M' || chartRange === '1Y' || chartRange === 'ALL') {
+            const recentStart = Math.floor(HISTORY_POINTS * 0.7)
+            if (i < recentStart) {
+              const t = recentStart > 0 ? i / recentStart : 1
+              const startVal = h.quantity * h.avgBuyPrice
+              const endVal = h.quantity * window[0]
+              series[i] += startVal + (endVal - startVal) * t
+            } else {
+              const span = HISTORY_POINTS - recentStart
+              const t = span > 0 ? (i - recentStart) / span : 0
+              const idx = Math.min(window.length - 1, Math.round(t * (window.length - 1)))
+              series[i] += h.quantity * window[idx]
+            }
+          } else {
+            const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))
+            series[i] += h.quantity * window[idx]
+          }
+        }
+      } else {
+        // Flat contribution (cash, stablecoin, or sparkline not yet loaded).
         const flat = h.value || h.quantity * h.currentPrice
         for (let i = 0; i < HISTORY_POINTS; i++) series[i] += flat
       }
     }
-    if (!haveAny) return []
-    // Anchor the most recent point to the current positions value so the
-    // chart (which is reconstructed from holding sparklines only) visually
-    // agrees with the positions side of the headline. The cash side of
-    // net worth is added back as a flat baseline below so the chart's
-    // top number still equals Total Net Worth.
+    // Fall-through for cash-only or fully-empty portfolios — show a flat
+    // baseline at current net worth instead of a blank canvas.
+    if (!haveSparkline && positionsValue === 0 && walletValueUsd > 0) {
+      for (let i = 0; i < HISTORY_POINTS; i++) series[i] = walletValueUsd
+      return series
+    }
+    if (!haveSparkline && totalValue > 0) {
+      for (let i = 0; i < HISTORY_POINTS; i++) series[i] = totalValue
+      return series
+    }
+    if (!haveSparkline) return []
+    // Anchor the most recent point so the chart scale agrees with positions.
     const last = series[series.length - 1]
     if (last > 0 && positionsValue > 0) {
       const scale = positionsValue / last
       for (let i = 0; i < series.length; i++) series[i] *= scale
     }
-    // Add wallet cash as a flat lift across the whole window — it doesn't
-    // move with crypto sparklines but it IS part of net worth, so the chart
-    // bottoms out at walletValueUsd instead of zero.
+    // Add wallet cash as a flat lift across the whole window.
     if (walletValueUsd > 0) {
       for (let i = 0; i < series.length; i++) series[i] += walletValueUsd
     }
-    // Light moving-average smoothing (window = 5) to remove hourly noise
-    // while preserving real shape & endpoints.
+    // Light moving-average smoothing (window = 5) to remove hourly noise.
     const W = 5
     const smoothed = series.map((_, i) => {
       const lo = Math.max(0, i - Math.floor(W / 2))
@@ -247,7 +273,6 @@ export default function Dashboard() {
       for (let j = lo; j <= hi; j++) sum += series[j]
       return sum / (hi - lo + 1)
     })
-    // Preserve exact start and end so % change stays accurate
     smoothed[0] = series[0]
     smoothed[smoothed.length - 1] = series[series.length - 1]
     return smoothed
@@ -528,23 +553,26 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <div className="liquid-card p-6" style={{ '--fill-color': 'rgba(0,131,143,0.15)' } as React.CSSProperties}>
               <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Quick Actions</h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 {[
                   { label: 'Deposit', icon: ArrowDownRight, path: '/wallet?action=deposit', color: '#0C8B44', desc: 'Add funds' },
                   { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet?action=withdraw', color: '#f44336', desc: 'Cash out' },
-                  { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy/Sell' },
+                  { label: 'Transfer', icon: ArrowRight, path: '/wallet?action=transfer', color: '#00838F', desc: 'Send funds' },
+                  { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy / Sell' },
                   { label: 'AI Insights', icon: BrainCircuit, path: '/ai', color: '#6A0DAD', desc: 'Ask AI' },
+                  { label: 'Set Alert', icon: AlertTriangle, path: '/alerts', color: '#F57C00', desc: 'Price alerts' },
+                  { label: 'Goals', icon: Gem, path: '/goals', color: '#4CAF50', desc: 'Track goals' },
+                  { label: 'News', icon: Layers, path: '/news', color: '#2196F3', desc: 'Markets' },
                 ].map((action) => (
                   <Link key={action.label} to={action.path}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all group">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${action.color}15` }}>
-                      <action.icon className="w-5 h-5" style={{ color: action.color }} />
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all group">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${action.color}15` }}>
+                      <action.icon className="w-4 h-4" style={{ color: action.color }} />
                     </div>
-                    <div className="text-left flex-1">
-                      <p className="text-sm font-medium text-[#E5E5E5]">{action.label}</p>
-                      <p className="text-xs text-[#737373]">{action.desc}</p>
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#E5E5E5] truncate">{action.label}</p>
+                      <p className="text-[10px] text-[#737373] truncate">{action.desc}</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-[#737373] group-hover:text-[#0C8B44] transition-colors" />
                   </Link>
                 ))}
               </div>
@@ -607,8 +635,8 @@ export default function Dashboard() {
                     {holdings.map((h) => (
                       <Link to={`/asset/${h.id}`} key={h.id} className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
                         <div className="flex items-center gap-3">
-                          {getCryptoLogo(h.id) ? (
-                            <img src={getCryptoLogo(h.id)!} alt={h.name} className="w-9 h-9 rounded-full object-cover" />
+                          {getCryptoLogo(h.symbol || h.id) ? (
+                            <img src={getCryptoLogo(h.symbol || h.id)!} alt={h.name} className="w-9 h-9 rounded-full object-cover" />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">
                               {h.symbol[0]}

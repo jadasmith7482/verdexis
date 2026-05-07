@@ -161,4 +161,135 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
   res.status(201).json(result)
 })
 
+// --- User-to-user transfer ---------------------------------------------
+// Lets a regular user send funds from one of their balances to another
+// user identified by email. Subject to the same hold / IP / cap gates as a
+// withdraw or transfer transaction. Atomic: either both sides update or
+// neither does.
+const userTransferSchema = z.object({
+  recipientEmail: z.string().email(),
+  currency: z.string().min(1).max(20),
+  amount: z.number().positive(),
+  note: z.string().max(200).optional(),
+})
+
+router.post('/transfer', requireAuth, moneyLimiter, async (req: AuthedRequest, res) => {
+  const parsed = userTransferSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input' })
+    return
+  }
+  const { recipientEmail, currency, amount, note } = parsed.data
+
+  const recipient = await prisma.user.findUnique({
+    where: { email: recipientEmail.toLowerCase() },
+    select: { id: true, email: true, name: true },
+  })
+  if (!recipient) {
+    res.status(404).json({ error: 'No Verdexis user with that email' })
+    return
+  }
+  if (recipient.id === req.userId) {
+    res.status(400).json({ error: "You can't send to yourself" })
+    return
+  }
+
+  // Same gating as a transfer transaction.
+  const sender = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    select: {
+      email: true, name: true,
+      holdActive: true, holdType: true, holdReason: true, holdNote: true,
+      ipAllowlist: true,
+      dailyTransferLimit: true, monthlyTransferLimit: true,
+    },
+  })
+  if (sender?.holdActive && (sender.holdType === 'all' || sender.holdType === 'transfer')) {
+    res.status(423).json({ error: 'Account on hold', reason: sender.holdReason, note: sender.holdNote, scope: sender.holdType })
+    return
+  }
+  if (sender?.ipAllowlist && sender.ipAllowlist.trim()) {
+    const allowed = sender.ipAllowlist.split(',').map((s) => s.trim()).filter(Boolean)
+    const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || ''
+    if (!allowed.some((entry) => ip === entry || ip.startsWith(entry))) {
+      res.status(403).json({ error: 'Source IP not in allowlist for this account', ip })
+      return
+    }
+  }
+  if (sender?.dailyTransferLimit || sender?.monthlyTransferLimit) {
+    const now = Date.now()
+    const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
+    const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000)
+    const recent = await prisma.transaction.findMany({
+      where: { userId: req.userId!, kind: 'transfer', status: 'completed', createdAt: { gte: monthAgo } },
+      select: { amount: true, createdAt: true },
+    })
+    const monthSum = recent.reduce((s, t) => s + t.amount, 0)
+    const daySum = recent.filter((t) => t.createdAt >= dayAgo).reduce((s, t) => s + t.amount, 0)
+    if (sender.dailyTransferLimit && daySum + amount > sender.dailyTransferLimit) {
+      res.status(429).json({ error: 'Daily transfer cap exceeded', limit: sender.dailyTransferLimit, used: daySum, attempted: amount })
+      return
+    }
+    if (sender.monthlyTransferLimit && monthSum + amount > sender.monthlyTransferLimit) {
+      res.status(429).json({ error: 'Monthly transfer cap exceeded', limit: sender.monthlyTransferLimit, used: monthSum, attempted: amount })
+      return
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const senderBal = await tx.walletBalance.findUnique({
+      where: { userId_currency: { userId: req.userId!, currency } },
+    })
+    if (!senderBal || senderBal.available < amount) {
+      throw Object.assign(new Error('Insufficient funds'), { status: 400 })
+    }
+    const symbol = senderBal.symbol
+
+    await tx.walletBalance.update({
+      where: { userId_currency: { userId: req.userId!, currency } },
+      data: { balance: senderBal.balance - amount, available: senderBal.available - amount },
+    })
+    await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: recipient.id, currency } },
+      create: { userId: recipient.id, currency, symbol, balance: amount, available: amount },
+      update: { balance: { increment: amount }, available: { increment: amount } },
+    })
+
+    const ref = `Sent to ${recipient.email}${note ? ' — ' + note : ''}`
+    const incomingRef = `Received from ${sender?.email ?? 'user'}${note ? ' — ' + note : ''}`
+    const out = await tx.transaction.create({
+      data: { userId: req.userId!, kind: 'transfer', currency, amount, reference: ref, status: 'completed' },
+    })
+    const incoming = await tx.transaction.create({
+      data: { userId: recipient.id, kind: 'deposit', currency, amount, reference: incomingRef, status: 'completed', subType: 'user_transfer' },
+    })
+    await tx.notification.create({
+      data: {
+        userId: recipient.id,
+        kind: 'transfer',
+        title: `You received ${amount} ${currency}`,
+        body: `${sender?.email ?? 'A user'} sent you ${amount} ${currency}${note ? ' — ' + note : ''}.`,
+      },
+    })
+    return { out, incoming, recipient: { email: recipient.email, name: recipient.name } }
+  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
+
+  if ('error' in result) {
+    res.status(result.status || 500).json({ error: result.error })
+    return
+  }
+  res.status(201).json(result)
+})
+
+// Lightweight recipient lookup so the client can confirm the email is valid
+// before showing the confirm step. Returns minimal info; does not leak whether
+// the user exists for unauth callers (requireAuth required).
+router.get('/lookup-recipient', requireAuth, async (req: AuthedRequest, res) => {
+  const email = String(req.query.email ?? '').toLowerCase().trim()
+  if (!email) { res.status(400).json({ error: 'email required' }); return }
+  const u = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true, name: true } })
+  if (!u || u.id === req.userId) { res.status(404).json({ error: 'Not found' }); return }
+  res.json({ user: { email: u.email, name: u.name } })
+})
+
 export default router
