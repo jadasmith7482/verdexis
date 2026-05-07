@@ -16,6 +16,13 @@ const schema = z.object({
   // admin "deposit + invest as <stock>" flow. Crypto prices come from the
   // free CoinGecko endpoints and don't need a key.
   ALPHA_VANTAGE_KEY: z.string().optional(),
+  // Optional CoinGecko API key. Free "Demo" keys use header
+  // `x-cg-demo-api-key` against api.coingecko.com; Pro keys use
+  // `x-cg-pro-api-key` against pro-api.coingecko.com. Strongly recommended
+  // when deploying to a cloud host (Render/Railway/Fly) since CoinGecko
+  // aggressively rate-limits/blocks shared cloud egress IPs.
+  COINGECKO_API_KEY: z.string().optional(),
+  COINGECKO_API_TIER: z.enum(['demo', 'pro']).default('demo'),
 })
 
 const parsed = schema.safeParse(process.env)

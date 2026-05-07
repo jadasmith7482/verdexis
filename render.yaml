@@ -34,6 +34,8 @@ services:
         sync: false
       - key: COINGECKO_API_KEY
         sync: false
+      - key: COINGECKO_API_TIER
+        value: demo
       - key: OPENAI_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY

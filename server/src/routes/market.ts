@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import https from 'node:https'
+import { env } from '../env.js'
 
 // Server-side market data proxy. The browser is often blocked (firewall, CORS)
 // from talking directly to exchange APIs / WebSockets, so we proxy through
@@ -47,7 +48,7 @@ const inflight = new Map<string, Promise<number | null>>()
 // tsx-watch process on Windows even after `dns.setDefaultResultOrder('ipv4first')`.
 // A fresh https.request per call (no keep-alive) is rock-solid here, and we
 // cache aggressively so it's not a perf concern.
-function httpsGetJson(url: string, timeoutMs: number): Promise<unknown> {
+function httpsGetJson(url: string, timeoutMs: number, extraHeaders: Record<string, string> = {}): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const req = https.request(
       url,
@@ -57,6 +58,7 @@ function httpsGetJson(url: string, timeoutMs: number): Promise<unknown> {
           accept: 'application/json',
           'user-agent': 'verdexis/0.1 (+https://verdexis.local)',
           connection: 'close',
+          ...extraHeaders,
         },
         family: 4,
       },
@@ -213,18 +215,29 @@ router.get('/recent-trades', async (req, res) => {
 // regions/networks. We proxy a small whitelist of read-only endpoints with
 // short server-side caching so the client always has reliable data.
 
-const CG_BASE = 'https://api.coingecko.com/api/v3'
+const CG_BASE = env.COINGECKO_API_KEY && env.COINGECKO_API_TIER === 'pro'
+  ? 'https://pro-api.coingecko.com/api/v3'
+  : 'https://api.coingecko.com/api/v3'
+const CG_HEADERS: Record<string, string> = env.COINGECKO_API_KEY
+  ? env.COINGECKO_API_TIER === 'pro'
+    ? { 'x-cg-pro-api-key': env.COINGECKO_API_KEY }
+    : { 'x-cg-demo-api-key': env.COINGECKO_API_KEY }
+  : {}
+// Without an API key, raise the cache TTL floor so we don't hammer the
+// public endpoint and trip rate-limits on shared cloud egress IPs.
+const CG_TTL_FLOOR_MS = env.COINGECKO_API_KEY ? 0 : 60_000
 const cgCache = new Map<string, { data: unknown; ts: number }>()
 const cgInflight = new Map<string, Promise<unknown>>()
 
 async function cgFetch(pathAndQuery: string, ttlMs: number, timeoutMs = 6000): Promise<unknown> {
+  const effectiveTtl = Math.max(ttlMs, CG_TTL_FLOOR_MS)
   const cached = cgCache.get(pathAndQuery)
-  if (cached && Date.now() - cached.ts < ttlMs) return cached.data
+  if (cached && Date.now() - cached.ts < effectiveTtl) return cached.data
   const existing = cgInflight.get(pathAndQuery)
   if (existing) return existing
   const promise = (async () => {
     try {
-      const data = await httpsGetJson(`${CG_BASE}${pathAndQuery}`, timeoutMs)
+      const data = await httpsGetJson(`${CG_BASE}${pathAndQuery}`, timeoutMs, CG_HEADERS)
       cgCache.set(pathAndQuery, { data, ts: Date.now() })
       return data
     } catch (err) {
