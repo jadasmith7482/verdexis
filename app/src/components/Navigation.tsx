@@ -97,33 +97,33 @@ export default function Navigation() {
   return (
     <>
       <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${scrolled ? 'nav-glass' : 'bg-transparent'}`}>
-        <div className="w-full max-w-[1280px] mx-auto px-6 flex items-center justify-between">
+        <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
             <img src="/assets/logo-icon-transparent.png" alt="Verdexis" className="logo-knockout" />
-            <span className="text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
+            <span className="text-lg sm:text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-6 xl:gap-8">
             {navLinks.map((link) => (
               <Link key={link.path} to={link.path}
-                className={`text-sm font-light tracking-[0.08em] uppercase transition-colors hover:text-[#0C8B44] ${location.pathname === link.path ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`}>
+                className={`text-sm font-light tracking-[0.08em] uppercase whitespace-nowrap transition-colors hover:text-[#0C8B44] ${location.pathname === link.path ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`}>
                 {link.label}
               </Link>
             ))}
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
             {!isAuthenticated ? (
               <>
-                <button onClick={openLogin} className="px-5 py-2.5 text-[#A0A0A0] text-sm font-light tracking-[0.04em] uppercase hover:text-[#E5E5E5] transition-colors">Log In</button>
-                <button onClick={openSignup} className="px-6 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Sign Up</button>
+                <button onClick={openLogin} className="px-4 py-2.5 text-[#A0A0A0] text-sm font-light tracking-[0.04em] uppercase whitespace-nowrap hover:text-[#E5E5E5] transition-colors">Log In</button>
+                <button onClick={openSignup} className="px-5 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase whitespace-nowrap rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Sign Up</button>
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-xs text-[#737373] hidden lg:inline">{userName}</span>
+                <span className="text-xs text-[#737373] hidden xl:inline">{userName}</span>
                 <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
                   {avatar ? (
@@ -142,15 +142,22 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <button className="md:hidden text-[#E5E5E5]" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile/tablet: notification bell + hamburger */}
+          <div className="flex lg:hidden items-center gap-2 shrink-0">
+            {isAuthenticated && <NotificationBell />}
+            <button
+              className="text-[#E5E5E5] p-2 -mr-2"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="absolute top-16 left-0 right-0 nav-glass py-4 px-6 md:hidden">
+          <div className="absolute top-16 left-0 right-0 nav-glass py-4 px-6 lg:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto">
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <Link key={link.path} to={link.path}
