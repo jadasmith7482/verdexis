@@ -474,22 +474,23 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            {/* Real certification badges (official trademarked logos) */}
+            {/* Real certification badges (official trademarked logos, transparent PNGs) */}
             <div className="flex flex-col items-center justify-center gap-6">
-              <div className="flex flex-wrap items-center justify-center gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-10">
                 {[
-                  { src: '/assets/badge-soc2.png', alt: 'AICPA SOC 2 Type II Certified' },
-                  { src: '/assets/9_Iso_27001_Certified_Logo_PNG_Images.png', alt: 'ISO 27001 Certified' },
-                  { src: '/assets/badge-pci.png', alt: 'PCI DSS Compliant' },
-                  { src: '/assets/badge-gdpr.png', alt: 'EU GDPR Compliant' },
+                  { src: '/assets/7_SOC_2_Type_II_91APP.png', alt: 'AICPA SOC 2 Type II Certified', invert: false },
+                  { src: '/assets/badge-iso27001-clear.png', alt: 'ISO 27001 Certified', invert: true },
+                  { src: '/assets/badge-pci-clear.png', alt: 'PCI DSS Compliant', invert: false },
+                  { src: '/assets/badge-gdpr-clear.png', alt: 'EU GDPR Compliant', invert: false },
                 ].map((b) => (
-                  <div
+                  <img
                     key={b.alt}
-                    className="w-28 h-28 rounded-2xl bg-white flex items-center justify-center p-3 ring-1 ring-[#ffffff10] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:ring-[#0C8B44]/40 transition"
+                    src={b.src}
+                    alt={b.alt}
                     title={b.alt}
-                  >
-                    <img src={b.src} alt={b.alt} className="max-h-full max-w-full object-contain" />
-                  </div>
+                    className="h-24 w-auto object-contain opacity-95 hover:opacity-100 transition-opacity"
+                    style={b.invert ? { filter: 'invert(1) brightness(1.6)' } : undefined}
+                  />
                 ))}
               </div>
               <div className="flex items-center gap-3 text-xs text-[#737373]">
