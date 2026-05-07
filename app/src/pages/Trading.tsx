@@ -12,12 +12,16 @@ import {
 } from 'lucide-react'
 import { cryptoIconFor } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
+import { api, getToken } from '../lib/api'
 
 const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
 type OrderType = 'market' | 'limit' | 'stop'
 type OrderSide = 'buy' | 'sell'
 type TimeRange = '1H' | '1D' | '1W' | '1M' | '1Y'
+
+interface Level { price: number; size: number }
+interface PublicTrade { id: number; time: string; price: number; size: number; side: 'buy' | 'sell' }
 
 export default function Trading() {
   const [cryptoData, setCryptoData] = useState<CryptoQuote[]>([])
@@ -31,9 +35,12 @@ export default function Trading() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [orderBookTab, setOrderBookTab] = useState<'orderbook' | 'trades' | 'depth'>('orderbook')
-  const [recentTrades, setRecentTrades] = useState(portfolioStore.getTrades().slice(0, 10))
+  const [recentTrades, setRecentTrades] = useState<PublicTrade[]>([])
+  const [bookBids, setBookBids] = useState<Level[]>([])
+  const [bookAsks, setBookAsks] = useState<Level[]>([])
   const [livePrice, setLivePrice] = useState<number | null>(null)
-  const isAuthenticated = !!localStorage.getItem('verdexis_holdings')
+  const [submitting, setSubmitting] = useState(false)
+  const isAuthenticated = !!getToken()
 
   // Subscribe to sub-second Binance ticker for the currently selected coin so
   // the header price + chart + trade preview all tick smoothly.
@@ -70,9 +77,32 @@ export default function Trading() {
         return fresh ?? prev
       })
     }
-    setRecentTrades(portfolioStore.getTrades().slice(0, 10))
+    setRecentTrades(portfolioStore.getTrades().slice(0, 10) as unknown as PublicTrade[])
     setLoading(false)
   }
+
+  // Fetch real order book + last public trades from Coinbase via our proxy.
+  useEffect(() => {
+    if (!selectedCrypto) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const [book, trades] = await Promise.all([
+          api.marketOrderbook(selectedCrypto.id).catch(() => null),
+          api.marketRecentTrades(selectedCrypto.id).catch(() => null),
+        ])
+        if (cancelled) return
+        if (book) {
+          setBookAsks(book.asks.slice(0, 12).reverse())
+          setBookBids(book.bids.slice(0, 12))
+        }
+        if (trades) setRecentTrades(trades.trades.slice(0, 25))
+      } catch { /* ignore — keep last good snapshot */ }
+    }
+    load()
+    const id = setInterval(load, 4000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [selectedCrypto?.id])
 
   const filteredCryptos = cryptoData.filter(
     (c) =>
@@ -84,7 +114,7 @@ export default function Trading() {
     setWatchlist((prev) => (prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]))
   }
 
-  const handleTrade = () => {
+  const handleTrade = async () => {
     if (!isAuthenticated) {
       toast.error('Please log in to trade')
       return
@@ -93,59 +123,90 @@ export default function Trading() {
       toast.error('Please enter a valid amount')
       return
     }
-
-    const qty = parseFloat(amount)
-    const tradePrice = orderType === 'market' ? selectedCrypto.current_price : parseFloat(price || '0')
-
     if (orderType !== 'market' && (!price || parseFloat(price) <= 0)) {
       toast.error('Please enter a valid price')
       return
     }
+    const qty = parseFloat(amount)
+    const tradePrice = orderType === 'market'
+      ? (livePrice ?? selectedCrypto.current_price)
+      : parseFloat(price || '0')
 
-    portfolioStore.executeTrade(
-      selectedCrypto.symbol.toUpperCase(),
-      selectedCrypto.name,
-      orderSide,
-      tradePrice,
-      qty,
-      orderType
-    )
+    // Limit/stop orders need to wait for the market to cross the trigger.
+    // For now we treat them as 'good for the next tick': if the market is
+    // already past the trigger we fill at the limit price; otherwise we
+    // refuse and tell the user to use a market order or wait.
+    if (orderType === 'limit' || orderType === 'stop') {
+      const last = livePrice ?? selectedCrypto.current_price
+      const triggered = orderSide === 'buy' ? last <= tradePrice : last >= tradePrice
+      if (!triggered) {
+        toast.error(`${orderType} order not eligible yet`, {
+          description: `Market is at $${last.toFixed(2)} · trigger $${tradePrice.toFixed(2)}. Try a market order or wait for the price.`,
+        })
+        return
+      }
+    }
 
-    toast.success(
-      `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${qty} ${selectedCrypto.symbol.toUpperCase()} at $${tradePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      { description: `Total: $${(tradePrice * qty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
-    )
-
-    setAmount('')
-    setPrice('')
-    setRecentTrades(portfolioStore.getTrades().slice(0, 10))
+    setSubmitting(true)
+    try {
+      const result = await api.postTrade({
+        symbol: selectedCrypto.symbol.toUpperCase(),
+        name: selectedCrypto.name,
+        side: orderSide,
+        amount: qty,
+        price: tradePrice,
+        type: 'crypto',
+      })
+      // Use the server's filled values (Alpaca / DB-confirmed) so the toast
+      // matches the actual books, not the optimistic client estimate.
+      const fillQty = result.trade.amount
+      const fillPrice = result.trade.price
+      toast.success(
+        `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${fillQty} ${selectedCrypto.symbol.toUpperCase()} at $${fillPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        {
+          description: `Total: $${(fillPrice * fillQty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${result.broker ? ` · ${result.broker.venue}` : ''}`,
+        },
+      )
+      // Pull fresh holdings + balances + trades so every panel agrees with
+      // what the server just persisted (no drift on hard refresh).
+      await portfolioStore.hydrate(true)
+      setAmount('')
+      setPrice('')
+    } catch (e) {
+      const err = e as { error?: string; status?: number }
+      toast.error('Trade rejected', { description: err.error || 'Server error' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  // Deterministic order book derived from the current symbol+price so it doesn't
-  // re-roll on every render. Re-derives only when the price ticks.
+  // Real Coinbase order book on top, computed depth bars below. We bucket
+  // bid/ask sizes into 20 bins each side relative to the mid price.
   const orderBook = useMemo(() => {
-    const currentPrice = selectedCrypto?.current_price || 50000
-    const seedSrc = `${selectedCrypto?.id ?? 'x'}_${currentPrice.toFixed(2)}`
-    let rng = [...seedSrc].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 11) || 1
-    const rand = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 0xffffffff }
-    const asks = Array.from({ length: 10 }, (_, i) => ({
-      price: currentPrice + (10 - i) * (currentPrice * 0.0005),
-      size: rand() * 10 + 0.1,
-    })).reverse()
-    const bids = Array.from({ length: 10 }, (_, i) => ({
-      price: currentPrice - (i + 1) * (currentPrice * 0.0005),
-      size: rand() * 10 + 0.1,
-    }))
-    // Deterministic depth bars (40 buckets) seeded by the same price so they
-    // match the order book and don't flicker on every render.
-    const depthBars = Array.from({ length: 40 }, (_, i) => {
-      const isAsk = i > 20
-      const lean = isAsk ? (i - 20) / 20 : (20 - i) / 20
-      const h = rand() * 80 * lean
-      return { isAsk, height: Math.max(5, h) }
-    })
+    const asks = bookAsks
+    const bids = bookBids
+    const mid = asks.length && bids.length
+      ? (asks[asks.length - 1].price + bids[0].price) / 2
+      : (selectedCrypto?.current_price ?? 0)
+    // 40 buckets across ±1% of mid for a depth-style histogram.
+    const buckets = Array.from({ length: 40 }, (_, i) => ({ isAsk: i > 20, height: 0 }))
+    const range = mid * 0.01
+    const fill = (levels: Level[], side: 'bid' | 'ask') => {
+      for (const lvl of levels) {
+        const offset = (lvl.price - mid) / range // -1..+1
+        const bucketIdx = Math.round(offset * 20) + 20
+        if (bucketIdx < 0 || bucketIdx >= 40) continue
+        if (side === 'ask' && bucketIdx <= 20) continue
+        if (side === 'bid' && bucketIdx >= 20) continue
+        buckets[bucketIdx].height += lvl.size * lvl.price
+      }
+    }
+    fill(asks, 'ask')
+    fill(bids, 'bid')
+    const max = Math.max(1, ...buckets.map((b) => b.height))
+    const depthBars = buckets.map((b) => ({ isAsk: b.isAsk, height: Math.max(2, (b.height / max) * 100) }))
     return { asks, bids, depthBars }
-  }, [selectedCrypto?.id, selectedCrypto?.current_price])
+  }, [bookAsks, bookBids, selectedCrypto?.current_price])
 
   return (
     <div className="min-h-screen bg-[#070C0E]">
@@ -314,13 +375,15 @@ export default function Trading() {
                 {orderBookTab === 'trades' && (
                   <div className="p-4">
                     <div className="grid grid-cols-4 text-xs text-[#737373] mb-2">
-                      <span>Time</span><span>Symbol</span><span>Amount</span><span>Side</span>
+                      <span>Time</span><span>Price</span><span>Size</span><span>Side</span>
                     </div>
-                    {recentTrades.map((trade) => (
+                    {recentTrades.length === 0 ? (
+                      <p className="text-xs text-[#737373] py-6 text-center">Loading recent trades…</p>
+                    ) : recentTrades.map((trade) => (
                       <div key={trade.id} className="grid grid-cols-4 text-xs py-1">
-                        <span className="text-[#A0A0A0]">{new Date(trade.timestamp).toLocaleTimeString()}</span>
-                        <span className="text-[#E5E5E5]">{trade.symbol}</span>
-                        <span className="text-[#A0A0A0]">{trade.quantity.toFixed(4)}</span>
+                        <span className="text-[#A0A0A0]">{new Date(trade.time).toLocaleTimeString()}</span>
+                        <span className="text-[#E5E5E5] tabular-nums">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-[#A0A0A0] tabular-nums">{trade.size.toFixed(4)}</span>
                         <span className={trade.side === 'buy' ? 'text-[#4CAF50]' : 'text-[#f44336]'}>{trade.side.toUpperCase()}</span>
                       </div>
                     ))}
@@ -376,9 +439,9 @@ export default function Trading() {
                 </span>
               </div>
 
-              <button onClick={handleTrade}
-                className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors ${orderSide === 'buy' ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#f44336] text-white hover:bg-[#d32f2f]'}`}>
-                {orderSide === 'buy' ? 'Buy' : 'Sell'} {selectedCrypto?.symbol.toUpperCase() || 'BTC'}
+              <button onClick={handleTrade} disabled={submitting}
+                className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderSide === 'buy' ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#f44336] text-white hover:bg-[#d32f2f]'}`}>
+                {submitting ? 'Submitting…' : `${orderSide === 'buy' ? 'Buy' : 'Sell'} ${selectedCrypto?.symbol.toUpperCase() || 'BTC'}`}
               </button>
 
               <Link to="/alerts" className="mt-2 block text-center text-[11px] text-[#737373] hover:text-[#0C8B44] transition-colors">

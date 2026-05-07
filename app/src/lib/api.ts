@@ -138,7 +138,14 @@ export const api = {
   // Trades
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),
   postTrade: (t: { symbol: string; name?: string; side: 'buy' | 'sell'; amount: number; price: number; type?: 'crypto' | 'stock' | 'etf' }) =>
-    request('/api/trades', { method: 'POST', body: JSON.stringify(t) }),
+    request<{ trade: { id: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }; broker: { id: string; venue: string } | null }>(
+      '/api/trades',
+      { method: 'POST', body: JSON.stringify(t) },
+    ),
+
+  // Market data (server-side proxy)
+  marketOrderbook: (id: string) => request<{ product: string; bids: { price: number; size: number }[]; asks: { price: number; size: number }[] }>(`/api/market/orderbook?id=${encodeURIComponent(id)}`),
+  marketRecentTrades: (id: string) => request<{ product: string; trades: { id: number; time: string; price: number; size: number; side: 'buy' | 'sell' }[] }>(`/api/market/recent-trades?id=${encodeURIComponent(id)}`),
 
   // Watchlist
   listWatchlist: () => request<{ watchlist: { id: string; symbol: string; name: string; type: string }[] }>('/api/watchlist'),

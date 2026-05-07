@@ -133,6 +133,80 @@ router.get('/supported-ids', (_req, res) => {
 })
 
 // ---------------------------------------------------------------------------
+// Real order book + recent trades from Coinbase Exchange (public, no key).
+// ---------------------------------------------------------------------------
+
+const obCache = new Map<string, { data: unknown; ts: number }>()
+const trCache = new Map<string, { data: unknown; ts: number }>()
+const OB_TTL_MS = 1500
+const TR_TTL_MS = 3000
+
+// GET /api/market/orderbook?id=bitcoin&level=2
+// Returns a normalized { bids:[{price,size}], asks:[...] } structure with
+// up to 25 levels per side, sourced from Coinbase's public order book.
+router.get('/orderbook', async (req, res) => {
+  const id = ((req.query.id as string | undefined) || '').trim().toLowerCase()
+  const product = COIN_TO_COINBASE[id]
+  if (!product) { res.status(400).json({ error: 'unsupported_id' }); return }
+  const cached = obCache.get(product)
+  if (cached && Date.now() - cached.ts < OB_TTL_MS) {
+    res.set('Cache-Control', 'public, max-age=1')
+    res.json(cached.data)
+    return
+  }
+  try {
+    const raw = await httpsGetJson(
+      `https://api.exchange.coinbase.com/products/${product}/book?level=2`,
+      4000,
+    ) as { bids?: [string, string, number][]; asks?: [string, string, number][] }
+    const bids = (raw.bids || []).slice(0, 25).map(([p, s]) => ({ price: parseFloat(p), size: parseFloat(s) }))
+    const asks = (raw.asks || []).slice(0, 25).map(([p, s]) => ({ price: parseFloat(p), size: parseFloat(s) }))
+    const out = { product, bids, asks }
+    obCache.set(product, { data: out, ts: Date.now() })
+    res.set('Cache-Control', 'public, max-age=1')
+    res.json(out)
+  } catch (err) {
+    if (cached) { res.json(cached.data); return }
+    res.status(502).json({ error: 'orderbook_unavailable', detail: (err as Error).message })
+  }
+})
+
+// GET /api/market/recent-trades?id=bitcoin
+// Returns Coinbase's last ~50 public trades for the product.
+router.get('/recent-trades', async (req, res) => {
+  const id = ((req.query.id as string | undefined) || '').trim().toLowerCase()
+  const product = COIN_TO_COINBASE[id]
+  if (!product) { res.status(400).json({ error: 'unsupported_id' }); return }
+  const cached = trCache.get(product)
+  if (cached && Date.now() - cached.ts < TR_TTL_MS) {
+    res.set('Cache-Control', 'public, max-age=2')
+    res.json(cached.data)
+    return
+  }
+  try {
+    const raw = await httpsGetJson(
+      `https://api.exchange.coinbase.com/products/${product}/trades?limit=50`,
+      4000,
+    ) as { time: string; trade_id: number; price: string; size: string; side: 'buy' | 'sell' }[]
+    const trades = raw.map((t) => ({
+      id: t.trade_id,
+      time: t.time,
+      price: parseFloat(t.price),
+      size: parseFloat(t.size),
+      // Coinbase's `side` is the taker side: 'buy' means an ask was lifted.
+      side: t.side,
+    }))
+    const out = { product, trades }
+    trCache.set(product, { data: out, ts: Date.now() })
+    res.set('Cache-Control', 'public, max-age=2')
+    res.json(out)
+  } catch (err) {
+    if (cached) { res.json(cached.data); return }
+    res.status(502).json({ error: 'trades_unavailable', detail: (err as Error).message })
+  }
+})
+
+// ---------------------------------------------------------------------------
 // CoinGecko proxy
 // ---------------------------------------------------------------------------
 // CoinGecko's public API is blocked by CORS for browser clients in many
