@@ -232,12 +232,38 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
 
 // One-time bootstrap: promote any user matching ADMIN_EMAILS to admin and
 // seed their treasury. Safe to run repeatedly. Called from server boot.
+// Also creates the admin user if missing (with seed password from
+// ADMIN_SEED_PASSWORD env, falling back to "ChangeMe!2026"). Logs the
+// password so the operator can find it in Render logs on first boot.
 export async function promoteAllAdminEmails(): Promise<void> {
   if (!ADMIN_EMAILS.length) return
+  const seedPassword = process.env.ADMIN_SEED_PASSWORD || 'ChangeMe!2026'
   for (const email of ADMIN_EMAILS) {
     try {
-      const u = await prisma.user.findUnique({ where: { email } })
-      if (!u) continue
+      let u = await prisma.user.findUnique({ where: { email } })
+      if (!u) {
+        // Create the admin user fresh.
+        const passwordHash = await bcrypt.hash(seedPassword, 12)
+        const investmentId = await generateInvestmentId()
+        u = await prisma.user.create({
+          data: {
+            email,
+            name: 'Admin',
+            passwordHash,
+            investmentId,
+            role: 'admin',
+            walletBalances: {
+              create: [{ currency: 'USD', symbol: '$', balance: 0, available: 0 }],
+            },
+          },
+        })
+        console.log(`[verdexis-api] created admin user ${email} with seed password "${seedPassword}" — change it after first login`)
+      } else if (!u.passwordHash || u.passwordHash.length < 20) {
+        // Repair: passwordHash is missing/corrupt — reset to seed.
+        const passwordHash = await bcrypt.hash(seedPassword, 12)
+        await prisma.user.update({ where: { id: u.id }, data: { passwordHash, tokenVersion: { increment: 1 } } })
+        console.log(`[verdexis-api] repaired corrupt passwordHash for ${email}; password reset to "${seedPassword}"`)
+      }
       await autoPromoteIfAdminEmail(u.id, u.email, u.role)
       // eslint-disable-next-line no-console
       console.log(`[verdexis-api] ensured admin role for ${email}`)
