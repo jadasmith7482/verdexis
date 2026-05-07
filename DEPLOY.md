@@ -1,20 +1,41 @@
 # Deploying Verdexis
 
-The repo is configured to deploy as a **single container** to
-[Railway](https://railway.com) (or any Docker host). The container builds the
-Vite frontend and the Express/Prisma API, then runs a single Node process
-that serves the SPA at `/` and the API at `/api/*` — no CORS, no second
-service, no extra DNS to configure.
+The repo is configured to deploy as a **single container** to either
+[Render](https://render.com) or [Railway](https://railway.com) (or any
+Docker host). The container builds the Vite frontend and the
+Express/Prisma API, then runs a single Node process that serves the SPA
+at `/` and the API at `/api/*` — no CORS, no second service, no extra DNS
+to configure.
 
 ## What's in the box
 
 - `Dockerfile` (repo root) — multi-stage build for `app/` + `server/`.
+- `render.yaml` — Render Blueprint (web service + Postgres + healthcheck).
 - `railway.json` — Railway build config (Dockerfile + `/api/health` healthcheck).
 - `.dockerignore` — keeps the build context lean.
 - `server/prisma/schema.prisma` — `provider = "postgresql"`.
 - `server/src/index.ts` — serves `./public` (the built SPA) in production.
 
-## One-time Railway setup
+## Deploying to Render (recommended)
+
+1. Go to <https://dashboard.render.com/blueprints> → **New Blueprint
+   Instance** → connect GitHub → pick `Phillipjr9/verdexis`.
+2. Render reads `render.yaml`, provisions a free Postgres + a Docker web
+   service, and auto-fills `DATABASE_URL` and `JWT_SECRET`.
+3. Fill the optional `sync: false` env vars in the dashboard if you have
+   them (`FINNHUB_API_KEY`, `ALPHA_VANTAGE_KEY`, `COINGECKO_API_KEY`,
+   `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `APP_BASE_URL`,
+   `ADMIN_EMAILS`).
+4. First build takes ~5–8 min (multi-stage Docker). On boot the
+   container runs `prisma db push` against Postgres, then starts Express.
+5. Healthcheck hits `/api/health`. Once green, the public URL appears at
+   the top of the service page.
+
+Subsequent `git push origin main` → auto-deploy. Free-tier note: the web
+service spins down after 15 min of inactivity and cold-starts on the
+next request.
+
+## Deploying to Railway (alternative)
 
 1. **Create a project** at <https://railway.com/new> → **Deploy from GitHub
    repo** → pick `Phillipjr9/verdexis`.

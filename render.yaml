@@ -1,0 +1,40 @@
+databases:
+  - name: verdexis-db
+    plan: free
+    databaseName: verdexis
+    postgresMajorVersion: 16
+
+services:
+  - type: web
+    name: verdexis
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: verdexis-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_KEY
+        sync: false
+      - key: COINGECKO_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
