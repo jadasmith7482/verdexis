@@ -78,7 +78,7 @@ export default function WalletPage() {
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
   const [transactions, setTransactions] = useState(() => portfolioStore.getTransactions())
   const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
-  const [selectedBankId, setSelectedBankId] = useState<string>(() => listBanks()[0]?.id ?? '')
+  const [selectedBankId, setSelectedBankId] = useState<string>('')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
   const [usdMethod, setUsdMethod] = useState<UsdMethod>('ach')
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
@@ -322,14 +322,33 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Enter a valid amount.' })
       return
     }
+    let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
+    if (selectedCurrency === 'USD') {
+      const bank = banks.find(b => b.id === selectedBankId)
+      if (!bank) {
+        setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Select a destination bank account, or link one first.' })
+        return
+      }
+      if (bank.status !== 'verified') {
+        setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `${bank.institution} ····${bank.accountMask} is not verified yet.` })
+        return
+      }
+      reference = `ACH to ${bank.institution} ····${bank.accountMask}`
+    } else if (!recipient.trim()) {
+      setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Enter a ${selectedCurrency} destination address.` })
+      return
+    } else {
+      reference = `${selectedCurrency} withdrawal to ${recipient.trim().slice(0, 12)}…`
+    }
     const amt = -parseFloat(amount)
-    portfolioStore.addTransaction('withdraw', amt, selectedCurrency, selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`)
+    portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference)
     setTransferStatus({
       kind: 'success',
       title: 'Withdrawal sent',
       message: `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`,
     })
     setAmount('')
+    setRecipient('')
     setTransactions(portfolioStore.getTransactions())
   }
 
@@ -1153,11 +1172,49 @@ export default function WalletPage() {
                 )}
                 {selectedCurrency === 'USD' && (
                   <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08]">
-                    <p className="text-xs text-[#737373] mb-2">Destination Account</p>
-                    <div className="flex items-center gap-3">
-                      <Banknote className="w-8 h-8 text-[#0C8B44]" />
-                      <div><p className="text-sm text-[#E5E5E5]">**** **** **** 4532</p><p className="text-xs text-[#737373]">Chase Bank - Checking</p></div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-[#737373]">Destination Account</p>
+                      <button type="button" onClick={() => setLinkBankOpen(true)} className="text-[11px] text-[#0C8B44] hover:text-[#0a7539]">+ Link new bank</button>
                     </div>
+                    {banks.length === 0 ? (
+                      <div className="flex items-center gap-3">
+                        <Banknote className="w-8 h-8 text-[#737373]" />
+                        <div>
+                          <p className="text-sm text-[#E5E5E5]">No bank accounts linked</p>
+                          <p className="text-xs text-[#737373]">Link a checking or savings account to receive ACH withdrawals.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <label htmlFor="withdraw-bank" className="sr-only">Destination bank account</label>
+                        <select
+                          id="withdraw-bank"
+                          value={selectedBankId}
+                          onChange={(e) => setSelectedBankId(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                        >
+                          <option value="">Choose a linked bank account…</option>
+                          {banks.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.institution} · {b.type} ····{b.accountMask}{b.status !== 'verified' ? ` (${b.status})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const sel = banks.find(b => b.id === selectedBankId)
+                          if (!sel) return null
+                          return (
+                            <div className="flex items-center gap-3 mt-3">
+                              <Banknote className="w-8 h-8 text-[#0C8B44]" />
+                              <div>
+                                <p className="text-sm text-[#E5E5E5]">{sel.accountHolder}</p>
+                                <p className="text-xs text-[#737373]">{sel.institution} — {sel.type} ····{sel.accountMask}</p>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </>
+                    )}
                   </div>
                 )}
                 <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">

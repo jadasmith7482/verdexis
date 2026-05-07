@@ -48,11 +48,20 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }))
 app.use(compression())
+// Build the set of allowed origins. We always allow the server's own public
+// hostname (so the bundled SPA can call its own API without operators
+// having to remember to set CORS_ORIGIN) plus anything explicitly listed.
+const SELF_ORIGINS = [process.env.RENDER_EXTERNAL_URL, process.env.PUBLIC_URL]
+  .filter((s): s is string => !!s)
+  .map((s) => s.replace(/\/+$/, ''))
+const ALLOWED_ORIGINS = new Set([...CORS_ORIGIN, ...SELF_ORIGINS])
 app.use(
   cors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true) // curl, server-to-server
-      if (CORS_ORIGIN.includes(origin)) return cb(null, true)
+      if (ALLOWED_ORIGINS.has(origin)) return cb(null, true)
+      // Always allow *.onrender.com for the SPA served from the same service.
+      if (/^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin)) return cb(null, true)
       if (!IS_PROD && LAN_ORIGIN_RE.test(origin)) return cb(null, true)
       cb(new Error(`CORS blocked: ${origin}`))
     },
