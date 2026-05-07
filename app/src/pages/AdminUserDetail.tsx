@@ -10,8 +10,9 @@ import {
 import {
   ArrowLeft, ShieldCheck, Ban, KeyRound, LogOut, Trash2,
   Save, Plus, AlertTriangle, User as UserIcon, Wallet, Briefcase,
-  ArrowLeftRight, BarChart3, Eye, Bell, Mail,
+  ArrowLeftRight, BarChart3, Eye, Bell, Mail, Download,
 } from 'lucide-react'
+import { toCsv, downloadFile } from '../lib/csvExport'
 
 type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'danger'
 
@@ -307,10 +308,18 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
     if (!confirm('Delete this transaction?')) return
     await adminApi.deleteTransaction(id); toast.success('Removed'); onChange()
   }
+  function exportCsv() {
+    if (!txs.length) { toast.error('Nothing to export'); return }
+    const rows = txs.map((t) => ({ id: t.id, createdAt: t.createdAt, kind: t.kind, currency: t.currency, amount: t.amount, status: t.status, reference: t.reference || '' }))
+    downloadFile(`transactions-${userId}.csv`, toCsv(rows))
+  }
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
-        <h2 className="text-sm font-medium text-[#E5E5E5]">Inject transaction</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-[#E5E5E5]">Inject transaction</h2>
+          <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1 text-[11px] text-[#A0A0A0] hover:text-[#0C8B44]"><Download className="w-3 h-3" />CSV</button>
+        </div>
         <Select label="Kind" value={kind} onChange={(v) => setKind(v as typeof kind)} options={[{ value: 'deposit', label: 'Deposit' }, { value: 'withdraw', label: 'Withdraw' }, { value: 'transfer', label: 'Transfer' }, { value: 'dividend', label: 'Dividend' }, { value: 'interest', label: 'Interest' }]} />
         <Input label="Currency" value={currency} onChange={(v) => setCurrency(v.toUpperCase())} />
         <Input label="Amount" value={amount} onChange={setAmount} type="number" />
@@ -363,10 +372,18 @@ function TradesTab({ userId, trades, onChange }: { userId: string; trades: Admin
     if (!confirm('Delete this trade?')) return
     await adminApi.deleteTrade(id); toast.success('Removed'); onChange()
   }
+  function exportCsv() {
+    if (!trades.length) { toast.error('Nothing to export'); return }
+    const rows = trades.map((t) => ({ id: t.id, createdAt: t.createdAt, symbol: t.symbol, side: t.side, amount: t.amount, price: t.price, total: t.total }))
+    downloadFile(`trades-${userId}.csv`, toCsv(rows))
+  }
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
-        <h2 className="text-sm font-medium text-[#E5E5E5]">Inject trade</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-[#E5E5E5]">Inject trade</h2>
+          <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1 text-[11px] text-[#A0A0A0] hover:text-[#0C8B44]"><Download className="w-3 h-3" />CSV</button>
+        </div>
         <Input label="Symbol" value={symbol} onChange={(v) => setSymbol(v.toUpperCase())} />
         <Select label="Side" value={side} onChange={(v) => setSide(v as 'buy' | 'sell')} options={[{ value: 'buy', label: 'Buy' }, { value: 'sell', label: 'Sell' }]} />
         <Input label="Amount" value={amount} onChange={setAmount} type="number" />

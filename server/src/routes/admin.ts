@@ -160,6 +160,10 @@ router.patch('/users/:id', async (req: AuthedRequest, res) => {
     const otherAdmins = await prisma.user.count({ where: { role: 'admin', NOT: { id } } })
     if (otherAdmins === 0) { res.status(400).json({ error: 'Cannot demote the last admin' }); return }
   }
+  // Don't let admin suspend their own account either.
+  if (parsed.data.suspended === true && id === req.userId!) {
+    res.status(400).json({ error: 'Cannot suspend your own account' }); return
+  }
   // Suspending a user revokes their sessions.
   if (parsed.data.suspended === true) (data as { tokenVersion?: number }).tokenVersion = { increment: 1 } as never
   try {
