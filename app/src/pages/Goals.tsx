@@ -6,6 +6,7 @@ import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { goalsStore, progressFor, GOALS_EVENT, type Goal } from '../lib/goalsStore'
 import { portfolioStore } from '../lib/portfolioStore'
+import { formatUsd } from '@/lib/utils'
 
 export default function Goals() { return <RequireAuth><GoalsInner /></RequireAuth> }
 
@@ -71,7 +72,7 @@ function GoalsInner() {
             </div>
             <div className="ml-auto text-right">
               <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Portfolio value</p>
-              <p className="text-lg font-light text-[#E5E5E5]">${portfolioValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+              <p className="text-lg font-light text-[#E5E5E5]">{formatUsd(portfolioValue)}</p>
             </div>
           </div>
 
@@ -129,8 +130,8 @@ function GoalsInner() {
                       </button>
                     </div>
                     <div className="flex items-baseline gap-3 mb-2">
-                      <p className="text-2xl font-light text-[#E5E5E5]">${Math.round(portfolioValue).toLocaleString()}</p>
-                      <p className="text-xs text-[#737373]">/ ${g.target.toLocaleString()}</p>
+                      <p className="text-2xl font-light text-[#E5E5E5]">{formatUsd(portfolioValue)}</p>
+                      <p className="text-xs text-[#737373]">/ {formatUsd(g.target)}</p>
                       <span className={`ml-auto text-[11px] inline-flex items-center gap-1 ${p.onTrack ? 'text-[#0C8B44]' : 'text-amber-400'}`}>
                         {p.onTrack ? <CheckCircle className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                         {p.onTrack ? 'On track' : 'Behind pace'}
@@ -142,7 +143,7 @@ function GoalsInner() {
                     </div>
                     <div className="flex justify-between mt-2 text-[10px] text-[#737373]">
                       <span><TrendingUp className="w-2.5 h-2.5 inline mr-1" />{p.pct.toFixed(1)}% complete</span>
-                      <span>${p.remaining.toLocaleString()} to go</span>
+                      <span>{formatUsd(p.remaining)} to go</span>
                     </div>
                   </div>
                 )

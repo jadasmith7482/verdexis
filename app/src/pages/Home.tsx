@@ -6,6 +6,7 @@ import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { marketData, type CryptoQuote } from '../lib/marketData'
+import { formatPrice, formatUsd } from '@/lib/utils'
 import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
   Zap, BarChart3, PieChart, Activity, Bot,
@@ -157,7 +158,7 @@ export default function Home() {
                   <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 text-[10px] font-bold text-[#0C8B44] flex items-center justify-center">{c.symbol.toUpperCase()[0]}</div>
                 )}
                 <span className="text-[#E5E5E5] font-medium">{c.symbol.toUpperCase()}</span>
-                <span className="text-[#A0A0A0]">${c.current_price.toLocaleString()}</span>
+                <span className="text-[#A0A0A0]">{formatPrice(c.current_price)}</span>
                 <span className={c.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}>
                   {c.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(c.price_change_percentage_24h).toFixed(2)}%
                 </span>
@@ -254,7 +255,7 @@ export default function Home() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-[#A0A0A0] mb-1">Total Net Worth</p>
-                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">${totalValue.toLocaleString()}</p>
+                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">{formatUsd(totalValue)}</p>
                   <p className="text-sm text-[#4CAF50] mt-1 flex items-center gap-1"><TrendingUp className="w-4 h-4" />+$124,532 (+4.6%)</p>
                 </div>
                 <div className="w-16 h-16 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center"><Wallet className="w-8 h-8 text-[#0C8B44]" /></div>
@@ -275,7 +276,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="w-24 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#0C8B44]" style={{ width: `${Math.random() * 60 + 20}%` }} /></div>
-                      <span className="text-sm text-[#A0A0A0] w-20 text-right">${c.current_price.toLocaleString()}</span>
+                      <span className="text-sm text-[#A0A0A0] w-20 text-right">{formatPrice(c.current_price)}</span>
                     </div>
                   </Link>
                 ))}
@@ -340,7 +341,7 @@ export default function Home() {
                       </div>
                       {c.price_change_percentage_24h >= 0 ? <TrendingUp className="w-4 h-4 text-[#4CAF50]" /> : <TrendingDown className="w-4 h-4 text-[#f44336]" />}
                     </div>
-                    <p className="text-2xl font-light text-[#E5E5E5]">${c.current_price.toLocaleString()}</p>
+                    <p className="text-2xl font-light text-[#E5E5E5]">{formatPrice(c.current_price)}</p>
                     <p className={`text-xs mt-1 ${c.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{c.price_change_percentage_24h >= 0 ? '+' : ''}{c.price_change_percentage_24h.toFixed(2)}%</p>
                     <div className="flex items-end gap-0.5 mt-3 h-8">
                       {c.sparkline_in_7d?.price.slice(-20).map((price, i, arr) => {

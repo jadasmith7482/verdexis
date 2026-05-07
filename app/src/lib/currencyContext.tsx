@@ -100,9 +100,12 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         const abs = Math.abs(converted)
         const isCrypto = currency === 'BTC' || currency === 'ETH'
         const decimals = opts.decimals ?? (isCrypto ? (abs < 1 ? 6 : 4) : 2)
-        const useCompact = opts.compact && abs >= 100_000 && !isCrypto
+        // Only switch to compact notation for very large fiat values (≥1M),
+        // and even then keep 2 fractional digits so cents aren't dropped
+        // for things like $1,234,567.89 -> '$1.23M'.
+        const useCompact = opts.compact && abs >= 1_000_000 && !isCrypto
         const formatted = useCompact
-          ? abs.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 })
+          ? abs.toLocaleString(undefined, { notation: 'compact', minimumFractionDigits: 2, maximumFractionDigits: 2 })
           : abs.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
         const sign = opts.sign ? (converted >= 0 ? '+' : '-') : (converted < 0 ? '-' : '')
         return `${sign}${opt.symbol}${formatted}`

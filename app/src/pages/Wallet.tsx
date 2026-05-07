@@ -171,13 +171,13 @@ export default function WalletPage() {
       }
       const description = `ACH from ${bank.institution} ····${bank.accountMask}`
       portfolioStore.addTransaction('deposit', amt, 'USD', description)
-      toast.success(`Initiated $${amt.toLocaleString()} ACH deposit`, { description: `From ${bank.institution} ····${bank.accountMask} — funds typically settle in 1–3 business days.` })
+      toast.success(`Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ACH deposit`, { description: `From ${bank.institution} ····${bank.accountMask} — funds typically settle in 1–3 business days.` })
       setAmount('')
       setTransactions(portfolioStore.getTransactions())
       return
     }
     portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency})`)
-    toast.success(`Deposited ${amt.toLocaleString()} ${selectedCurrency}`, { description: 'Funds will be available shortly' })
+    toast.success(`Deposited ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}`, { description: 'Funds will be available shortly' })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
@@ -189,7 +189,7 @@ export default function WalletPage() {
     }
     const amt = -parseFloat(amount)
     portfolioStore.addTransaction('withdraw', amt, selectedCurrency, selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`)
-    toast.success(`Withdrew ${Math.abs(amt).toLocaleString()} ${selectedCurrency}`, { description: 'Transaction completed' })
+    toast.success(`Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}`, { description: 'Transaction completed' })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
@@ -203,7 +203,7 @@ export default function WalletPage() {
     portfolioStore.addTransaction('transfer', amt, 'USD', `Transfer to ${selectedCurrency}`)
     const receiveAmt = Math.abs(amt) / getUsdRate(selectedCurrency)
     portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Received from USD exchange`)
-    toast.success(`Transferred ${Math.abs(amt).toLocaleString()} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}`)
+    toast.success(`Transferred ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD to ${receiveAmt.toFixed(6)} ${selectedCurrency}`)
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
   }
@@ -213,7 +213,7 @@ export default function WalletPage() {
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return }
     const source = incomeSource.trim() || (incomeKind === 'dividend' ? 'Dividend payment' : 'Interest income')
     portfolioStore.addTransaction(incomeKind, amt, selectedCurrency, source)
-    toast.success(`Logged ${amt.toLocaleString()} ${selectedCurrency} ${incomeKind}`)
+    toast.success(`Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency} ${incomeKind}`)
     setAmount('')
     setIncomeSource('')
     setTransactions(portfolioStore.getTransactions())
@@ -357,7 +357,9 @@ export default function WalletPage() {
               <div>
                 <p className="text-sm text-[#A0A0A0] mb-2">Total Balance</p>
                 <p className="text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5]">
-                  {showBalance ? `$${totalBalance.toLocaleString()}` : '****'}
+                  {showBalance
+                    ? `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : '****'}
                 </p>
                 <p className="text-sm text-[#4CAF50] mt-2 flex items-center gap-1">
                   <ArrowDownRight className="w-4 h-4" /> +5.2% this month
@@ -594,7 +596,10 @@ export default function WalletPage() {
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-medium ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
-                        {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()} {tx.currency}
+                        {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, {
+                          minimumFractionDigits: tx.currency === 'USD' ? 2 : 0,
+                          maximumFractionDigits: tx.currency === 'USD' ? 2 : 8,
+                        })} {tx.currency}
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}
@@ -633,7 +638,7 @@ export default function WalletPage() {
                     </div>
                     <div className="flex gap-2 mt-2">
                       {[100, 500, 1000, 5000].map((v) => (
-                        <button key={v} onClick={() => setAmount(String(v))} className="flex-1 py-1.5 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff08] rounded-lg hover:text-[#0C8B44] hover:border-[#0C8B44]/40 transition-colors">${v.toLocaleString()}</button>
+                        <button key={v} onClick={() => setAmount(String(v))} className="flex-1 py-1.5 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff08] rounded-lg hover:text-[#0C8B44] hover:border-[#0C8B44]/40 transition-colors">${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</button>
                       ))}
                     </div>
                   </div>

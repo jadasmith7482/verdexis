@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ArrowRight } from 'lucide-react'
 import { marketData, type CryptoQuote } from '../lib/marketData'
+import { formatPrice } from '@/lib/utils'
 
 interface Item {
   label: string
@@ -56,7 +57,7 @@ export default function CommandPalette() {
     const q = query.toLowerCase().trim()
     const coinItems: Item[] = coins.map((c) => ({
       label: `${c.name} (${c.symbol.toUpperCase()})`,
-      hint: `$${c.current_price.toLocaleString()}`,
+      hint: formatPrice(c.current_price),
       to: '/trading',
       group: 'Markets',
     }))

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, ChevronRight } from 'lucide-react'
 import { api, getToken } from '../../lib/api'
+import { formatPrice } from '@/lib/utils'
 
 interface Alert {
   id: string
@@ -59,7 +60,7 @@ export default function AlertsSummaryCard() {
           {upcoming.map((a) => (
             <div key={a.id} className="flex items-center justify-between text-[11px] text-[#A0A0A0]">
               <span>{a.symbol}</span>
-              <span>{a.direction === 'above' ? '↑' : '↓'} ${a.target.toLocaleString()}</span>
+              <span>{a.direction === 'above' ? '↑' : '↓'} {formatPrice(a.target)}</span>
             </div>
           ))}
         </div>

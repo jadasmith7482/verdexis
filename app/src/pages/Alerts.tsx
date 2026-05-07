@@ -6,6 +6,7 @@ import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { api, getToken } from '../lib/api'
 import { marketData, type CryptoQuote } from '../lib/marketData'
+import { formatPrice } from '@/lib/utils'
 
 interface Alert {
   id: string
@@ -136,7 +137,7 @@ function AlertsInner() {
                         </div>
                         <div>
                           <p className="text-sm text-[#E5E5E5]">{a.name} <span className="text-[#737373]">({a.symbol})</span></p>
-                          <p className="text-[11px] text-[#A0A0A0]">When price goes {a.direction} <span className="text-[#E5E5E5]">${a.target.toLocaleString()}</span></p>
+                          <p className="text-[11px] text-[#A0A0A0]">When price goes {a.direction} <span className="text-[#E5E5E5]">{formatPrice(a.target)}</span></p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

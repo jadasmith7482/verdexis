@@ -287,8 +287,8 @@ export default function Dashboard() {
           {isAuthenticated && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
-                { label: 'Total Net Worth', value: fmtMoney(totalValue, { compact: true }), change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
-                { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true, compact: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp },
+                { label: 'Total Net Worth', value: fmtMoney(totalValue), change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
+                { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp },
                 { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
                 { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
               ].map((stat) => (
@@ -344,7 +344,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-[10px] uppercase text-[#737373] mb-1">Realized P&L</p>
-                    <p className={`text-xl font-light ${realizedPnl >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{realizedPnl >= 0 ? '+' : ''}${Math.abs(realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                    <p className={`text-xl font-light ${realizedPnl >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{realizedPnl >= 0 ? '+' : ''}${Math.abs(realizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase text-[#737373] mb-1">Win Rate</p>
@@ -475,7 +475,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                              {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()} {tx.currency}
+                              {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USD' ? 2 : 0, maximumFractionDigits: tx.currency === 'USD' ? 2 : 8 })} {tx.currency}
                             </span>
                           </div>
                         ))}
@@ -676,7 +676,7 @@ export default function Dashboard() {
                           </div>
                           <span className="text-sm text-[#E5E5E5]">{t.symbol}</span>
                         </div>
-                        <span className="text-xs text-[#A0A0A0]">{t.quantity.toFixed(4)} @ ${t.price.toLocaleString()}</span>
+                        <span className="text-xs text-[#A0A0A0]">{t.quantity.toFixed(4)} @ ${t.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         <span className={`text-xs ${t.side === 'buy' ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{t.side.toUpperCase()}</span>
                       </div>
                     ))}
@@ -788,7 +788,7 @@ export default function Dashboard() {
                           </div>
                           {isUp ? <TrendingUp className="w-3 h-3 text-[#4CAF50] shrink-0" /> : <TrendingDown className="w-3 h-3 text-[#f44336] shrink-0" />}
                         </div>
-                        <p className="text-base font-light text-[#E5E5E5] truncate">${crypto.current_price.toLocaleString()}</p>
+                        <p className="text-base font-light text-[#E5E5E5] truncate">{fmtMoney(crypto.current_price)}</p>
                         <p className={`text-[11px] mt-0.5 truncate ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                           {isUp ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
                         </p>

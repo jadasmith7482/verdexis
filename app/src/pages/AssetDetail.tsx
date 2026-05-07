@@ -7,6 +7,7 @@ import { marketData, type CryptoQuote, type OhlcRange } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { portfolioStore, type PortfolioHolding, type Trade } from '../lib/portfolioStore'
 import { cryptoIconFor } from '../lib/cryptoIcon'
+import { formatPrice } from '@/lib/utils'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowLeft, Star, TrendingUp, TrendingDown,
@@ -27,7 +28,7 @@ const fmtBig = (n: number) => {
   if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  return `$${n.toLocaleString()}`
+  return formatPrice(n)
 }
 
 export default function AssetDetail() {

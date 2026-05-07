@@ -11,6 +11,7 @@ import {
   Search, Star, BarChart3, Clock, Layers,
 } from 'lucide-react'
 import { cryptoIconFor } from '../lib/cryptoIcon'
+import { formatPrice } from '@/lib/utils'
 
 const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
@@ -111,8 +112,8 @@ export default function Trading() {
     )
 
     toast.success(
-      `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${qty} ${selectedCrypto.symbol.toUpperCase()} at $${tradePrice.toLocaleString()}`,
-      { description: `Total: $${(tradePrice * qty).toLocaleString()}` }
+      `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${qty} ${selectedCrypto.symbol.toUpperCase()} at $${tradePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      { description: `Total: $${(tradePrice * qty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
     )
 
     setAmount('')
@@ -234,7 +235,7 @@ export default function Trading() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-[#E5E5E5]">${crypto.current_price.toLocaleString()}</p>
+                      <p className="text-sm text-[#E5E5E5]">{formatPrice(crypto.current_price)}</p>
                       <p className={`text-xs ${crypto.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                         {crypto.price_change_percentage_24h >= 0 ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
                       </p>

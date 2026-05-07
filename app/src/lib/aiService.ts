@@ -55,7 +55,7 @@ class AIService {
         insights.push({
           type: 'recommendation',
           title: 'BTC Momentum Alert',
-          description: `Bitcoin is up ${btc.price_change_percentage_24h.toFixed(2)}% in 24h. Consider taking partial profits above $${(btc.current_price * 1.05).toFixed(0)} resistance.`,
+          description: `Bitcoin is up ${btc.price_change_percentage_24h.toFixed(2)}% in 24h. Consider taking partial profits above $${(btc.current_price * 1.05).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} resistance.`,
           confidence: 78,
           timestamp: new Date(),
         })
@@ -67,7 +67,7 @@ class AIService {
         insights.push({
           type: 'alert',
           title: 'ETH Dip Opportunity',
-          description: `Ethereum has dropped ${Math.abs(eth.price_change_percentage_24h).toFixed(2)}%. This could be a buying opportunity if support holds at $${(eth.current_price * 0.95).toFixed(0)}.`,
+          description: `Ethereum has dropped ${Math.abs(eth.price_change_percentage_24h).toFixed(2)}%. This could be a buying opportunity if support holds at $${(eth.current_price * 0.95).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
           confidence: 65,
           timestamp: new Date(),
         })
@@ -175,8 +175,8 @@ class AIService {
         const direction = totalPnl >= 0 ? 'up' : 'down'
         const top = holdings.slice().sort((a, b) => b.value - a.value)[0]
         const lines = [
-          `Your portfolio is currently worth $${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} ($${positions.toLocaleString(undefined, { maximumFractionDigits: 0 })} in positions, $${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })} cash).`,
-          `Unrealized P&L is ${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })} (${direction} ${Math.abs(pnlPct).toFixed(2)}%) across ${holdings.length} holding${holdings.length === 1 ? '' : 's'}.`,
+          `Your portfolio is currently worth $${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ($${positions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in positions, $${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} cash).`,
+          `Unrealized P&L is ${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${direction} ${Math.abs(pnlPct).toFixed(2)}%) across ${holdings.length} holding${holdings.length === 1 ? '' : 's'}.`,
         ]
         if (top) lines.push(`Largest position: ${top.name} (${top.symbol}) at ${top.allocation}% of portfolio.`)
         return lines.join(' ')
@@ -187,7 +187,7 @@ class AIService {
         const cryptoData = await marketData.getCryptoList()
         const btc = cryptoData.find((c) => c.id === 'bitcoin')
         if (btc) {
-          return `Bitcoin is currently trading at $${btc.current_price.toLocaleString()}. It's ${btc.price_change_24h >= 0 ? 'up' : 'down'} ${Math.abs(btc.price_change_percentage_24h).toFixed(2)}% in the last 24 hours. The 24h range is $${btc.low_24h.toLocaleString()} - $${btc.high_24h.toLocaleString()}.`
+          return `Bitcoin is currently trading at $${btc.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. It's ${btc.price_change_24h >= 0 ? 'up' : 'down'} ${Math.abs(btc.price_change_percentage_24h).toFixed(2)}% in the last 24 hours. The 24h range is $${btc.low_24h.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - $${btc.high_24h.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
         }
       }
 
@@ -195,7 +195,7 @@ class AIService {
         const cryptoData = await marketData.getCryptoList()
         const eth = cryptoData.find((c) => c.id === 'ethereum')
         if (eth) {
-          return `Ethereum is currently at $${eth.current_price.toLocaleString()}. 24h change: ${eth.price_change_percentage_24h >= 0 ? '+' : ''}${eth.price_change_percentage_24h.toFixed(2)}%. Volume: $${(eth.total_volume / 1e9).toFixed(2)}B.`
+          return `Ethereum is currently at $${eth.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. 24h change: ${eth.price_change_percentage_24h >= 0 ? '+' : ''}${eth.price_change_percentage_24h.toFixed(2)}%. Volume: $${(eth.total_volume / 1e9).toFixed(2)}B.`
         }
       }
 
