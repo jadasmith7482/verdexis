@@ -267,8 +267,8 @@ export default function Trading() {
                   <div className="h-80 flex items-center justify-center text-xs text-[#737373]">Select a market to view chart</div>
                 )}
                 <div className="flex justify-between mt-2 text-xs text-[#737373]">
-                  <span>24h Low: ${selectedCrypto?.low_24h?.toLocaleString() ?? '—'}</span>
-                  <span>24h High: ${selectedCrypto?.high_24h?.toLocaleString() ?? '—'}</span>
+                  <span>24h Low: ${selectedCrypto?.low_24h?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span>
+                  <span>24h High: ${selectedCrypto?.high_24h?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span>
                   <span>Vol: ${selectedCrypto ? (selectedCrypto.total_volume / 1_000_000).toFixed(1) + 'M' : '—'}</span>
                 </div>
               </div>
@@ -372,7 +372,7 @@ export default function Trading() {
               <div className="flex items-center justify-between py-3 border-t border-[#ffffff08] mb-4">
                 <span className="text-sm text-[#A0A0A0]">Total</span>
                 <span className="text-lg font-medium text-[#E5E5E5]">
-                  ${amount ? (parseFloat(amount) * (orderType === 'market' ? (selectedCrypto?.current_price || 0) : parseFloat(price || '0'))).toLocaleString() : '0.00'}
+                  ${amount ? (parseFloat(amount) * (orderType === 'market' ? (selectedCrypto?.current_price || 0) : parseFloat(price || '0'))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                 </span>
               </div>
 
@@ -388,7 +388,7 @@ export default function Trading() {
               {isAuthenticated ? (
                 <div className="mt-4 p-4 rounded-xl bg-[#1a1a1a]/50">
                   <p className="text-xs text-[#737373] mb-1">Available Balance</p>
-                  <p className="text-sm text-[#E5E5E5]">${portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance.toLocaleString() || '0.00'} USD</p>
+                  <p className="text-sm text-[#E5E5E5]">${(portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</p>
                   <p className="text-xs text-[#737373] mt-1">{selectedCrypto?.symbol.toUpperCase() || 'BTC'}: {portfolioStore.getWallet().find(w => w.currency === selectedCrypto?.symbol.toUpperCase())?.balance.toFixed(4) || '0.0000'}</p>
                 </div>
               ) : (

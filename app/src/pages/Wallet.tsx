@@ -642,7 +642,7 @@ export default function WalletPage() {
                     <Coins className="w-4 h-4 text-[#0C8B44]" />
                     <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Income YTD</p>
                   </div>
-                  <p className="text-2xl font-light text-[#E5E5E5]">${ytdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${ytdUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-xs text-[#737373] mt-1">{incomeTxs.length} payments</p>
                 </div>
                 <div className="glass-card p-5">
@@ -650,14 +650,14 @@ export default function WalletPage() {
                     <Coins className="w-4 h-4 text-[#0C8B44]" />
                     <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Dividends YTD</p>
                   </div>
-                  <p className="text-2xl font-light text-[#E5E5E5]">${dividends.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${dividends.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
                 <div className="glass-card p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Percent className="w-4 h-4 text-[#0C8B44]" />
                     <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Interest YTD</p>
                   </div>
-                  <p className="text-2xl font-light text-[#E5E5E5]">${interest.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl font-light text-[#E5E5E5]">${interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
             )
@@ -673,8 +673,8 @@ export default function WalletPage() {
                     <span className="text-sm font-medium text-[#E5E5E5] truncate">{w.currency}</span>
                   </div>
                   {w.currency !== 'USD' && <span className="text-xs text-[#737373] shrink-0">${(w.balance * getUsdRate(w.currency)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}
-                </div>                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })}</> : '****'}</p>
-                <p className="text-xs text-[#737373] mt-1 truncate">Available: {w.symbol}{w.available.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                </div>                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</> : '****'}</p>
+                <p className="text-xs text-[#737373] mt-1 truncate">Available: {w.symbol}{w.available.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</p>
               </div>
             ))}
           </div>
@@ -1127,7 +1127,7 @@ export default function WalletPage() {
                     <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
                       className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
                       <CurrencyIcon currency={w.currency} size={32} />
-                      <div><span className="text-sm text-[#E5E5E5]">{w.currency}</span><p className="text-xs text-[#737373]">Avail: {w.symbol}{w.available.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p></div>
+                      <div><span className="text-sm text-[#E5E5E5]">{w.currency}</span><p className="text-xs text-[#737373]">Avail: {w.symbol}{w.available.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</p></div>
                     </button>
                   ))}
                 </div>

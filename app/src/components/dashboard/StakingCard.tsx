@@ -40,7 +40,7 @@ export default function StakingCard() {
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase text-[#737373]">Pending</p>
-          <p className="text-sm text-[#4CAF50]">+${totalPendingUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+          <p className="text-sm text-[#4CAF50]">+${totalPendingUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
       {positions.length === 0 ? (

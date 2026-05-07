@@ -306,7 +306,7 @@ function HoldingsTab({ userId, holdings, onChange }: { userId: string; holdings:
                 <td className="px-4 py-3"><p className="text-[#E5E5E5]">{h.symbol}</p><p className="text-[11px] text-[#737373]">{h.name}</p></td>
                 <td className="px-4 py-3 text-[11px] text-[#A0A0A0] capitalize">{h.type}</td>
                 <td className="px-4 py-3 text-right text-[#A0A0A0]">{h.amount.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">${h.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">${h.avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3 text-right"><IconButton onClick={() => del(h.id)} aria-label="Delete holding"><Trash2 className="w-4 h-4" /></IconButton></td>
               </tr>
             ))}
@@ -448,8 +448,8 @@ function TradesTab({ userId, trades, onChange }: { userId: string; trades: Admin
                 <td className="px-4 py-3 text-[#E5E5E5]">{t.symbol}</td>
                 <td className={`px-4 py-3 capitalize ${t.side === 'buy' ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{t.side}</td>
                 <td className="px-4 py-3 text-right text-[#A0A0A0]">{t.amount.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">${t.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">${t.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">${t.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">${t.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3 text-right"><IconButton onClick={() => del(t.id)} aria-label="Delete trade"><Trash2 className="w-4 h-4" /></IconButton></td>
               </tr>
             ))}
@@ -522,7 +522,7 @@ function AlertsTab({ userId, alerts, onChange }: { userId: string; alerts: Admin
               <tr key={a.id} className="border-t border-[#ffffff05]">
                 <td className="px-4 py-3"><p className="text-[#E5E5E5]">{a.symbol}</p><p className="text-[11px] text-[#737373]">{a.name}</p></td>
                 <td className="px-4 py-3 capitalize text-[#A0A0A0]">{a.direction}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">${a.target.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">${a.target.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3 text-[11px]">{a.triggered ? <span className="text-[#F57C00]">triggered</span> : a.active ? <span className="text-[#4CAF50]">active</span> : <span className="text-[#737373]">inactive</span>}</td>
                 <td className="px-4 py-3 text-right"><IconButton onClick={() => del(a.id)} aria-label="Delete alert"><Trash2 className="w-4 h-4" /></IconButton></td>
               </tr>

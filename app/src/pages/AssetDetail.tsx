@@ -265,11 +265,11 @@ export default function AssetDetail() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Stat label="Holdings" value={`${holding.quantity.toLocaleString()} ${symbol}`} />
-                    <Stat label="Value" value={`$${(holding.quantity * price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                    <Stat label="Value" value={`$${(holding.quantity * price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                     <Stat label="Avg Buy" value={`$${fmtPrice(holding.avgBuyPrice)}`} />
                     <Stat
                       label="Unrealised P&L"
-                      value={`${holding.pnl >= 0 ? '+' : ''}$${Math.abs(holding.pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                      value={`${holding.pnl >= 0 ? '+' : ''}$${Math.abs(holding.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       tone={holding.pnl >= 0 ? 'pos' : 'neg'}
                     />
                   </div>
@@ -384,7 +384,7 @@ export default function AssetDetail() {
                     <span className="text-[#E5E5E5] tabular-nums">
                       {tab === 'swap'
                         ? `≈ ${(total).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${swapTo}`
-                        : `$${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                        : `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     </span>
                   </div>
                   <div className="flex justify-between">
