@@ -1,5 +1,5 @@
-import { X, ExternalLink, Check } from 'lucide-react'
-import { WALLET_INSTALL_OPTIONS } from '../lib/walletProviders'
+import { X, ExternalLink, Check, Smartphone, Download } from 'lucide-react'
+import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile } from '../lib/walletProviders'
 import type { DiscoveredProvider } from '../lib/walletProviders'
 
 interface WalletPickerModalProps {
@@ -24,6 +24,7 @@ export default function WalletPickerModal({
   // Hide install options for any wallet that's already detected.
   const detectedRdns = new Set(discovered.map((d) => d.info.rdns))
   const installOptions = WALLET_INSTALL_OPTIONS.filter((w) => !detectedRdns.has(w.rdns))
+  const onMobile = isMobile()
 
   return (
     <div
@@ -97,30 +98,49 @@ export default function WalletPickerModal({
           {installOptions.length > 0 && (
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
-                {discovered.length > 0 ? 'Or install another' : 'Recommended wallets'}
+                {discovered.length > 0
+                  ? (onMobile ? 'Or open in another wallet' : 'Or install another')
+                  : (onMobile ? 'Open in your mobile wallet' : 'Recommended wallets')}
               </p>
+              {onMobile && discovered.length === 0 && (
+                <p className="text-[11px] text-[#A0A0A0] mb-3">
+                  Tap any wallet below to open Verdexis inside its in-app browser — you can connect from there in one tap.
+                </p>
+              )}
               <div className="space-y-2">
-                {installOptions.map((w) => (
-                  <a
-                    key={w.rdns}
-                    href={w.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#ffffff03] border border-[#ffffff08] hover:border-[#ffffff20] transition-colors"
-                  >
-                    <img
-                      src={w.icon}
-                      alt={`${w.name} icon`}
-                      className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white/5 p-1"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#E5E5E5] truncate">{w.name}</p>
-                      <p className="text-[10px] text-[#737373] truncate">{w.tagline}</p>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-[#737373]" />
-                  </a>
-                ))}
+                {installOptions.map((w) => {
+                  const { url, mode } = resolveWalletActionUrl(w)
+                  return (
+                    <a
+                      key={w.rdns}
+                      href={url}
+                      target={mode === 'install' ? '_blank' : '_self'}
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#ffffff03] border border-[#ffffff08] hover:border-[#0C8B44]/30 hover:bg-[#0C8B44]/5 transition-colors"
+                    >
+                      <img
+                        src={w.icon}
+                        alt={`${w.name} icon`}
+                        className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white/5 p-1"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#E5E5E5] truncate">{w.name}</p>
+                        <p className="text-[10px] text-[#737373] truncate">{w.tagline}</p>
+                      </div>
+                      {mode === 'open' ? (
+                        <span className="flex items-center gap-1 text-[10px] text-[#0C8B44] uppercase tracking-wider whitespace-nowrap">
+                          <Smartphone className="w-3 h-3" /> Open
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] text-[#737373] uppercase tracking-wider whitespace-nowrap">
+                          <Download className="w-3 h-3" /> Install
+                          <ExternalLink className="w-3 h-3 ml-0.5" />
+                        </span>
+                      )}
+                    </a>
+                  )
+                })}
               </div>
             </>
           )}

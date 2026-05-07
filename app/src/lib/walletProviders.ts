@@ -112,12 +112,22 @@ export function discoverWallets(timeoutMs = 350): Promise<DiscoveredProvider[]> 
 // Persist the user's choice so we can auto-rehydrate the same wallet on next visit.
 export const WALLET_RDNS_STORAGE = 'verdexis_wallet_rdns'
 
-// Always-available "install" suggestions for users with zero injected wallets.
+// Detect mobile so we can prefer wallet deep-links over desktop extension installs.
+export function isMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
+// Always-available wallet options. On mobile we use deep-links that open the
+// wallet app directly with the current dapp URL (per each wallet's docs);
+// on desktop we fall back to the extension download page.
 export interface WalletInstallOption {
   name: string
   rdns: string
   icon: string
-  url: string
+  installUrl: string
+  /** Build a URL that opens the wallet's in-app browser pointing at this dapp. */
+  deepLink?: (dappUrl: string) => string
   tagline: string
 }
 
@@ -126,28 +136,51 @@ export const WALLET_INSTALL_OPTIONS: WalletInstallOption[] = [
     name: 'MetaMask',
     rdns: 'io.metamask',
     icon: 'https://cdn.jsdelivr.net/gh/MetaMask/brand-resources@9b96c91/SVG/SVG_MetaMask_Icon_Color.svg',
-    url: 'https://metamask.io/download/',
+    installUrl: 'https://metamask.io/download/',
+    // https://docs.metamask.io/wallet/how-to/use-mobile/#use-deep-linking
+    deepLink: (url) => `https://metamask.app.link/dapp/${url.replace(/^https?:\/\//, '')}`,
     tagline: 'Most popular EVM wallet',
   },
   {
     name: 'Coinbase Wallet',
     rdns: 'com.coinbase.wallet',
     icon: 'https://www.coinbase.com/assets/sub-brands/wallet/wallet-square-512.png',
-    url: 'https://www.coinbase.com/wallet/downloads',
+    installUrl: 'https://www.coinbase.com/wallet/downloads',
+    // https://docs.cloud.coinbase.com/wallet-sdk/docs/dapp-browser
+    deepLink: (url) => `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}`,
     tagline: 'Self-custody by Coinbase',
   },
   {
     name: 'Rabby',
     rdns: 'io.rabby',
     icon: 'https://rabby.io/assets/images/logo-128.png',
-    url: 'https://rabby.io/',
+    installUrl: 'https://rabby.io/',
     tagline: 'Multi-chain power user wallet',
   },
   {
     name: 'Trust Wallet',
     rdns: 'com.trustwallet.app',
     icon: 'https://trustwallet.com/assets/images/media/assets/trust_platform.svg',
-    url: 'https://trustwallet.com/download',
+    installUrl: 'https://trustwallet.com/download',
+    // https://developer.trustwallet.com/developer/develop-for-trust/deeplinking#open-url
+    deepLink: (url) => `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(url)}`,
     tagline: 'Mobile + browser, 100+ chains',
   },
+  {
+    name: 'Rainbow',
+    rdns: 'me.rainbow',
+    icon: 'https://rainbow.me/static/images/wallet/rainbow-icon.png',
+    installUrl: 'https://rainbow.me/download',
+    deepLink: (url) => `https://rnbwapp.com/dapp?url=${encodeURIComponent(url)}`,
+    tagline: 'Beautiful Ethereum wallet',
+  },
 ]
+
+/** Resolve the right URL for a wallet option based on the user's device. */
+export function resolveWalletActionUrl(opt: WalletInstallOption): { url: string; mode: 'open' | 'install' } {
+  if (typeof window === 'undefined') return { url: opt.installUrl, mode: 'install' }
+  if (isMobile() && opt.deepLink) {
+    return { url: opt.deepLink(window.location.href), mode: 'open' }
+  }
+  return { url: opt.installUrl, mode: 'install' }
+}
