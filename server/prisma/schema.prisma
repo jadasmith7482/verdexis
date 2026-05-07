@@ -27,6 +27,18 @@ model User {
   holdReason   String?  // canonical short code (see admin reasons list)
   holdNote     String?  // optional free-form note from the admin who placed it
   holdAt       DateTime?
+  // KYC review queue
+  kycStatus    String   @default("none")  // 'none' | 'pending' | 'approved' | 'rejected'
+  kycNotes     String?
+  kycReviewedAt DateTime?
+  kycReviewedBy String?
+  // Per-user money-movement caps (USD-equivalent). 0 / null = unlimited.
+  dailyWithdrawLimit  Float?
+  monthlyWithdrawLimit Float?
+  dailyTransferLimit  Float?
+  monthlyTransferLimit Float?
+  // Comma-separated CIDR / IP list. Empty / null = no allowlist enforced.
+  ipAllowlist  String?
   tokenVersion Int      @default(0)        // bump to invalidate outstanding JWTs
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -89,14 +101,19 @@ model Transaction {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind        String   // 'deposit' | 'withdraw' | 'transfer'
+  kind        String   // 'deposit' | 'withdraw' | 'transfer' | 'fee' | 'reversal'
   currency    String
   amount      Float
   status      String   @default("completed")
   reference   String?  // address / counterparty
+  // Optional pointer back to a transaction this one reverses (for /reverse).
+  reversedFromId String?
+  // Optional sub-classification (e.g. fee type: 'wire' | 'inactivity' | 'custody').
+  subType     String?
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([reversedFromId])
 }
 
 model Trade {

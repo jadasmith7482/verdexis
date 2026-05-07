@@ -1,23 +1,30 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
-import { adminApi, type AdminUserSummary } from '../lib/adminApi'
-import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight, UserPlus, X } from 'lucide-react'
+import { adminApi, HOLD_TYPES, type AdminUserSummary } from '../lib/adminApi'
+import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight, UserPlus, X, Lock, LockOpen, KeyRound, Trash2, AlertTriangle } from 'lucide-react'
 
 const PAGE_SIZE = 25
 
 export default function AdminUsers() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [users, setUsers] = useState<AdminUserSummary[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
-  const [role, setRole] = useState<'user' | 'admin' | 'all'>('all')
-  const [suspended, setSuspended] = useState<'true' | 'false' | 'all'>('all')
+  const [role, setRole] = useState<'user' | 'admin' | 'all'>(() => (searchParams.get('role') as 'user' | 'admin') || 'all')
+  const [suspended, setSuspended] = useState<'true' | 'false' | 'all'>(() => (searchParams.get('suspended') as 'true' | 'false') || 'all')
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<'' | 'hold' | 'release' | 'suspend' | 'unsuspend' | 'delete' | 'revoke'>('')
+  const [bulkReason, setBulkReason] = useState('')
+  const [bulkHoldType, setBulkHoldType] = useState<'all' | 'withdraw' | 'transfer'>('all')
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const allChecked = useMemo(() => users.length > 0 && users.every((u) => selected.has(u.id)), [users, selected])
 
   function load() {
     setLoading(true)
@@ -28,6 +35,40 @@ export default function AdminUsers() {
   }
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [page, role, suspended])
+  useEffect(() => {
+    // Persist filters in URL so dashboard click-throughs land on the right view.
+    const sp = new URLSearchParams(searchParams)
+    if (role !== 'all') sp.set('role', role); else sp.delete('role')
+    if (suspended !== 'all') sp.set('suspended', suspended); else sp.delete('suspended')
+    setSearchParams(sp, { replace: true })
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [role, suspended])
+
+  function toggle(id: string) {
+    setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  }
+  function toggleAll() {
+    if (allChecked) setSelected(new Set())
+    else setSelected(new Set(users.map((u) => u.id)))
+  }
+  async function runBulk() {
+    if (!bulkAction || !selected.size) return
+    if (bulkAction === 'delete' && !window.confirm(`Permanently delete ${selected.size} user(s)? This cannot be undone.`)) return
+    setBulkBusy(true)
+    try {
+      const r = await adminApi.bulkUsers({
+        ids: Array.from(selected),
+        action: bulkAction,
+        reason: bulkReason || undefined,
+        holdType: bulkAction === 'hold' ? bulkHoldType : undefined,
+      })
+      toast.success(`${r.count} user(s) updated`)
+      setSelected(new Set()); setBulkAction(''); setBulkReason('')
+      load()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Bulk action failed')
+    } finally { setBulkBusy(false) }
+  }
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -76,12 +117,41 @@ export default function AdminUsers() {
           <button type="submit" className="px-4 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] transition-colors">Search</button>
         </form>
 
+        {selected.size > 0 && (
+          <div className="mb-4 p-4 rounded-2xl bg-[#0C8B44]/10 border border-[#0C8B44]/30 flex flex-wrap gap-3 items-center">
+            <span className="text-sm text-[#E5E5E5]">{selected.size} selected</span>
+            <select aria-label="Bulk action" value={bulkAction} onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)} className="px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]">
+              <option value="">Choose action…</option>
+              <option value="hold">Place hold</option>
+              <option value="release">Release hold</option>
+              <option value="suspend">Suspend</option>
+              <option value="unsuspend">Unsuspend</option>
+              <option value="revoke">Revoke sessions</option>
+              <option value="delete">Delete (irreversible)</option>
+            </select>
+            {bulkAction === 'hold' && (
+              <select aria-label="Hold scope" value={bulkHoldType} onChange={(e) => setBulkHoldType(e.target.value as typeof bulkHoldType)} className="px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]">
+                {HOLD_TYPES.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+              </select>
+            )}
+            {(bulkAction === 'hold' || bulkAction === 'suspend' || bulkAction === 'release') && (
+              <input value={bulkReason} onChange={(e) => setBulkReason(e.target.value)} placeholder="Reason / note (optional)" className="flex-1 min-w-[200px] px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" />
+            )}
+            <button onClick={runBulk} disabled={!bulkAction || bulkBusy} className="inline-flex items-center gap-2 px-4 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50">
+              {iconForAction(bulkAction)}{bulkBusy ? 'Running…' : 'Apply'}
+            </button>
+            <button onClick={() => setSelected(new Set())} className="inline-flex items-center gap-1 px-3 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#A0A0A0] rounded-lg hover:border-[#ffffff20]"><X className="w-3 h-3" />Clear</button>
+            <p className="basis-full text-[11px] text-[#F57C00] inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Your own account is automatically excluded from bulk actions.</p>
+          </div>
+        )}
+
         {/* Table */}
         <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-[#1a1a1a]/40 text-[10px] uppercase tracking-[0.05em] text-[#737373]">
                 <tr>
+                  <th className="text-left px-3 py-3 font-normal w-8"><input type="checkbox" aria-label="Select all on page" checked={allChecked} onChange={toggleAll} className="accent-[#0C8B44]" /></th>
                   <th className="text-left px-4 py-3 font-normal">User</th>
                   <th className="text-left px-4 py-3 font-normal">Role</th>
                   <th className="text-left px-4 py-3 font-normal">Status</th>
@@ -94,11 +164,12 @@ export default function AdminUsers() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8} className="text-center py-12 text-[#737373]">Loading…</td></tr>
+                  <tr><td colSpan={9} className="text-center py-12 text-[#737373]">Loading…</td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-12 text-[#737373]">No users found.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-12 text-[#737373]">No users found.</td></tr>
                 ) : users.map((u) => (
                   <tr key={u.id} className="border-t border-[#ffffff05] hover:bg-[#0C8B44]/5 transition-colors">
+                    <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${u.email}`} checked={selected.has(u.id)} onChange={() => toggle(u.id)} className="accent-[#0C8B44]" /></td>
                     <td className="px-4 py-3">
                       <p className="text-[#E5E5E5]">{u.name}</p>
                       <p className="text-[11px] text-[#737373]">{u.email}</p>
@@ -219,4 +290,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   )
+}
+
+function iconForAction(a: string): React.ReactNode {
+  switch (a) {
+    case 'hold': return <Lock className="w-4 h-4" />
+    case 'release': return <LockOpen className="w-4 h-4" />
+    case 'suspend': return <Ban className="w-4 h-4" />
+    case 'unsuspend': return <ShieldCheck className="w-4 h-4" />
+    case 'revoke': return <KeyRound className="w-4 h-4" />
+    case 'delete': return <Trash2 className="w-4 h-4" />
+    default: return null
+  }
 }

@@ -48,6 +48,15 @@ export interface AdminUserFull {
   holdReason: string | null
   holdNote: string | null
   holdAt: string | null
+  kycStatus: 'none' | 'pending' | 'approved' | 'rejected'
+  kycNotes: string | null
+  kycReviewedAt: string | null
+  kycReviewedBy: string | null
+  dailyWithdrawLimit: number | null
+  monthlyWithdrawLimit: number | null
+  dailyTransferLimit: number | null
+  monthlyTransferLimit: number | null
+  ipAllowlist: string | null
   tokenVersion: number
   createdAt: string
   updatedAt: string
@@ -97,9 +106,57 @@ export const HOLD_TYPES: Array<{ value: 'all' | 'withdraw' | 'transfer'; label: 
   { value: 'transfer', label: 'Transfers only', description: 'User can still withdraw to bank/crypto' },
 ]
 
+export const HOLDING_REASONS: Array<{ value: string; label: string }> = [
+  { value: 'admin_correction', label: 'Admin correction' },
+  { value: 'manual_purchase', label: 'Manual purchase' },
+  { value: 'manual_sale', label: 'Manual sale' },
+  { value: 'gift', label: 'Gift' },
+  { value: 'airdrop', label: 'Airdrop' },
+  { value: 'compensation', label: 'Compensation' },
+  { value: 'court_order', label: 'Court order' },
+  { value: 'other', label: 'Other (see note)' },
+]
+export const TRANSFER_REASONS: Array<{ value: string; label: string }> = [
+  { value: 'court_order', label: 'Court order' },
+  { value: 'dispute_resolution', label: 'Dispute resolution' },
+  { value: 'fraud_recovery', label: 'Fraud recovery' },
+  { value: 'gift', label: 'Gift / family transfer' },
+  { value: 'family_transfer', label: 'Family / household transfer' },
+  { value: 'compliance_directive', label: 'Compliance directive' },
+  { value: 'merger_consolidation', label: 'Merger / consolidation' },
+  { value: 'manual_correction', label: 'Manual correction' },
+  { value: 'other', label: 'Other (see note)' },
+]
+export const FEE_TYPES: Array<{ value: string; label: string }> = [
+  { value: 'wire', label: 'Wire fee' },
+  { value: 'inactivity', label: 'Inactivity fee' },
+  { value: 'custody', label: 'Custody fee' },
+  { value: 'maintenance', label: 'Maintenance fee' },
+  { value: 'late_payment', label: 'Late payment fee' },
+  { value: 'currency_conversion', label: 'Currency conversion fee' },
+  { value: 'withdrawal', label: 'Withdrawal fee' },
+  { value: 'admin_fee', label: 'Administrative fee' },
+  { value: 'other', label: 'Other (see note)' },
+]
+export const KYC_STATUSES: Array<{ value: 'none' | 'pending' | 'approved' | 'rejected'; label: string; tone: string }> = [
+  { value: 'none', label: 'Not started', tone: 'gray' },
+  { value: 'pending', label: 'Pending review', tone: 'orange' },
+  { value: 'approved', label: 'Approved', tone: 'green' },
+  { value: 'rejected', label: 'Rejected', tone: 'red' },
+]
+export const EMAIL_TEMPLATES: Array<{ value: string; label: string; subject: string; body: string }> = [
+  { value: 'none', label: 'Blank', subject: '', body: '' },
+  { value: 'welcome', label: 'Welcome', subject: 'Welcome to Verdexis', body: 'Hi,\n\nThanks for joining Verdexis. Reply to this message if you need help getting started.\n\n— The Verdexis team' },
+  { value: 'verification_required', label: 'Verification required', subject: 'Account verification required', body: 'Hi,\n\nWe need a few additional details to keep your account in good standing. Please log in and complete the verification flow at your convenience.\n\n— Compliance, Verdexis' },
+  { value: 'kyc_request', label: 'KYC document request', subject: 'Please send KYC documents', body: 'Hi,\n\nAs part of our regulatory obligations we need a copy of a government-issued photo ID and a proof of address dated within the last 90 days.\n\n— Compliance, Verdexis' },
+  { value: 'password_reset_offer', label: 'Password reset offer', subject: 'Reset your password', body: 'Hi,\n\nWe noticed unusual sign-in activity on your account. As a precaution we recommend resetting your password from the Settings page.\n\n— Security, Verdexis' },
+  { value: 'security_alert', label: 'Security alert', subject: 'Security alert on your Verdexis account', body: 'Hi,\n\nWe blocked a suspicious action on your account. No further action is required at this time, but please contact us if you didn\u2019t initiate it.\n\n— Security, Verdexis' },
+  { value: 'custom', label: 'Custom', subject: '', body: '' },
+]
+
 export interface AdminHolding { id: string; userId: string; symbol: string; name: string; amount: number; avgPrice: number; type: string; createdAt: string; updatedAt: string }
 export interface AdminWalletBalance { id: string; userId: string; currency: string; symbol: string; balance: number; available: number; updatedAt: string }
-export interface AdminTransaction { id: string; userId: string; kind: string; currency: string; amount: number; status: string; reference: string | null; createdAt: string }
+export interface AdminTransaction { id: string; userId: string; kind: string; currency: string; amount: number; status: string; reference: string | null; reversedFromId?: string | null; subType?: string | null; createdAt: string }
 export interface AdminTrade { id: string; userId: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }
 export interface AdminWatchItem { id: string; userId: string; symbol: string; name: string; type: string; createdAt: string }
 export interface AdminPriceAlert { id: string; userId: string; symbol: string; name: string; direction: 'above' | 'below'; target: number; active: boolean; triggered: boolean; createdAt: string }
@@ -126,7 +183,11 @@ export interface AdminStats {
     alerts: number
     deposits24h: number
     signups24h: number
+    holds: number
+    kycPending: number
+    withdraws24h: number
   }
+  lastBroadcast: { at: string; by: string | null; payload: string | null } | null
   recentSignups: Array<Pick<AdminUserSummary, 'id' | 'email' | 'name' | 'createdAt' | 'role' | 'suspended'>>
   recentTx: Array<AdminTransaction & { user: { id: string; email: string; name: string } }>
 }
@@ -233,5 +294,55 @@ export const adminApi = {
     request<{ ok: boolean; count: number }>(`/api/admin/broadcast`, { method: 'POST', body: JSON.stringify(n) }),
 
   // Audit
-  audit: (limit = 100) => request<{ audit: AdminAuditLog[] }>(`/api/admin/audit?limit=${limit}`),
+  audit: (params: { limit?: number; actorId?: string; targetUserId?: string; action?: string; since?: string; until?: string; q?: string } = {}) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)) })
+    return request<{ audit: AdminAuditLog[] }>(`/api/admin/audit?${qs.toString()}`)
+  },
+  auditCsvUrl: (params: { limit?: number; actorId?: string; targetUserId?: string; action?: string; since?: string; until?: string; q?: string } = {}) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') qs.set(k, String(v)) })
+    return `${BASE}/api/admin/audit.csv?${qs.toString()}`
+  },
+  userAudit: (id: string, limit = 200) => request<{ audit: AdminAuditLog[] }>(`/api/admin/users/${id}/audit?limit=${limit}`),
+
+  // Bulk
+  bulkUsers: (input: { ids: string[]; action: 'hold' | 'release' | 'suspend' | 'unsuspend' | 'delete' | 'revoke'; reason?: string; holdType?: 'all' | 'withdraw' | 'transfer'; notify?: boolean }) =>
+    request<{ ok: boolean; count: number }>(`/api/admin/users/bulk`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // Impersonate
+  impersonate: (id: string) =>
+    request<{ token: string; user: { id: string; email: string; name: string; role: string }; expiresInSec: number }>(`/api/admin/users/${id}/impersonate`, { method: 'POST' }),
+
+  // Holdings adjust
+  adjustHolding: (userId: string, input: { symbol: string; name?: string; type?: 'crypto' | 'stock' | 'etf'; side: 'buy' | 'sell'; amount: number; price: number; reason?: string; note?: string; notify?: boolean }) =>
+    request<{ holding: AdminHolding | null; trade: AdminTrade }>(`/api/admin/users/${userId}/holdings/adjust`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // Reverse
+  reverseTransaction: (id: string, input: { reason?: string; notify?: boolean } = {}) =>
+    request<{ balance: AdminWalletBalance; reversal: AdminTransaction }>(`/api/admin/transactions/${id}/reverse`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // Admin transfer
+  adminTransfer: (input: { fromUserId: string; toUserId: string; currency: string; amount: number; reason?: string; note?: string; allowNegative?: boolean; notify?: boolean }) =>
+    request<{ fromBalance: AdminWalletBalance; toBalance: AdminWalletBalance; fromTx: AdminTransaction; toTx: AdminTransaction }>(`/api/admin/transfer`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // Fee
+  chargeFee: (userId: string, input: { currency: string; amount: number; feeType: string; note?: string; allowNegative?: boolean; notify?: boolean }) =>
+    request<{ balance: AdminWalletBalance; transaction: AdminTransaction }>(`/api/admin/users/${userId}/fee`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // KYC
+  setKyc: (userId: string, input: { status: 'none' | 'pending' | 'approved' | 'rejected'; notes?: string; notify?: boolean }) =>
+    request<{ user: AdminUserFull }>(`/api/admin/users/${userId}/kyc`, { method: 'POST', body: JSON.stringify(input) }),
+
+  // Limits
+  setLimits: (userId: string, input: { dailyWithdrawLimit?: number | null; monthlyWithdrawLimit?: number | null; dailyTransferLimit?: number | null; monthlyTransferLimit?: number | null }) =>
+    request<{ user: AdminUserFull }>(`/api/admin/users/${userId}/limits`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+  // IP allowlist
+  setIpAllowlist: (userId: string, ipAllowlist: string | null) =>
+    request<{ user: AdminUserFull }>(`/api/admin/users/${userId}/ip-allowlist`, { method: 'PATCH', body: JSON.stringify({ ipAllowlist }) }),
+
+  // Email
+  emailUser: (userId: string, input: { subject: string; body: string; template?: string }) =>
+    request<{ notification: AdminNotification; deliveredVia: string }>(`/api/admin/users/${userId}/email`, { method: 'POST', body: JSON.stringify(input) }),
 }

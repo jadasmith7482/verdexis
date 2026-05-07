@@ -5,18 +5,20 @@ import Navigation from '../components/Navigation'
 import {
   adminApi, type AdminUserDetailResponse, type AdminHolding,
   type AdminWalletBalance, type AdminTransaction, type AdminTrade,
-  type AdminPriceAlert, type AdminWatchItem, type AdminNotification,
+  type AdminPriceAlert, type AdminWatchItem, type AdminNotification, type AdminAuditLog,
   DEPOSIT_REASONS, DEDUCT_REASONS, HOLD_REASONS, HOLD_TYPES,
+  HOLDING_REASONS, FEE_TYPES, KYC_STATUSES, EMAIL_TEMPLATES,
 } from '../lib/adminApi'
+import { setToken } from '../lib/api'
 import {
   ArrowLeft, ShieldCheck, Ban, KeyRound, LogOut, Trash2,
   Save, Plus, AlertTriangle, User as UserIcon, Wallet, Briefcase,
   ArrowLeftRight, BarChart3, Eye, Bell, Mail, Download,
-  ArrowDownToLine, ArrowUpFromLine, Lock, Unlock,
+  ArrowDownToLine, ArrowUpFromLine, Lock, Unlock, FileCheck2, Activity, UserCog, Wifi, RotateCcw, DollarSign,
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
 
-type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'danger'
+type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'audit' | 'danger'
 
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>()
@@ -54,8 +56,19 @@ export default function AdminUserDetail() {
     { key: 'watchlist', label: 'Watchlist', icon: <Eye className="w-4 h-4" />, count: data.watchlist.length },
     { key: 'alerts', label: 'Alerts', icon: <Bell className="w-4 h-4" />, count: data.alerts.length },
     { key: 'notifications', label: 'Notifications', icon: <Mail className="w-4 h-4" />, count: data.notifications.length },
+    { key: 'audit', label: 'Audit', icon: <Activity className="w-4 h-4" /> },
     { key: 'danger', label: 'Danger zone', icon: <AlertTriangle className="w-4 h-4" /> },
   ]
+
+  async function impersonate() {
+    if (!confirm(`Impersonate ${u.email}? You will be logged in as them for 15 minutes.`)) return
+    try {
+      const r = await adminApi.impersonate(u.id)
+      setToken(r.token)
+      toast.success(`Now viewing as ${r.user.email} (15 min)`)
+      window.location.assign('/dashboard')
+    } catch (err) { toast.error((err as { error?: string }).error || 'Impersonation failed') }
+  }
 
   return (
     <div className="min-h-screen bg-[#070C0E]">
@@ -69,6 +82,9 @@ export default function AdminUserDetail() {
           {u.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded"><ShieldCheck className="w-3 h-3" />Admin</span>}
           {u.suspended && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>}
           {u.holdActive && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded"><Lock className="w-3 h-3" />Hold: {u.holdType}</span>}
+          {u.kycStatus && u.kycStatus !== 'none' && <KycBadge status={u.kycStatus} />}
+          <div className="flex-1" />
+          <button onClick={impersonate} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#0C8B44] rounded-lg hover:border-[#0C8B44]/40"><UserCog className="w-3.5 h-3.5" />Impersonate (15m)</button>
         </div>
         <p className="text-xs text-[#737373] mb-6">{u.email} · ID {u.id} · joined {new Date(u.createdAt).toLocaleDateString()}</p>
 
@@ -95,6 +111,7 @@ export default function AdminUserDetail() {
         {tab === 'watchlist' && <WatchlistTab items={data.watchlist} onChange={reload} />}
         {tab === 'alerts' && <AlertsTab userId={u.id} alerts={data.alerts} onChange={reload} />}
         {tab === 'notifications' && <NotificationsTab userId={u.id} notifications={data.notifications} onChange={reload} />}
+        {tab === 'audit' && <AuditTab userId={u.id} />}
         {tab === 'danger' && <DangerTab userId={u.id} onDeleted={() => navigate('/admin/users')} />}
       </div>
     </div>
@@ -166,6 +183,9 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
 
       <div className="space-y-6">
         <HoldPanel user={u} onChange={onChange} />
+        <KycPanel user={u} onChange={onChange} />
+        <LimitsPanel user={u} onChange={onChange} />
+        <IpAllowlistPanel user={u} onChange={onChange} />
         <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
           <h2 className="text-sm font-medium text-[#E5E5E5] mb-4 flex items-center gap-2"><KeyRound className="w-4 h-4 text-[#0C8B44]" />Reset password</h2>
           <p className="text-xs text-[#A0A0A0] mb-3">Set a new password for this user. All existing sessions will be revoked.</p>
@@ -204,6 +224,7 @@ function WalletTab({ userId, balances, onChange }: { userId: string; balances: A
   }
   return (
     <div className="space-y-6">
+      <FeePanel userId={userId} balances={balances} onChange={onChange} />
       <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
       <div className="grid lg:grid-cols-3 gap-6">
         <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
@@ -261,7 +282,9 @@ function HoldingsTab({ userId, holdings, onChange }: { userId: string; holdings:
     await adminApi.deleteHolding(id); toast.success('Removed'); onChange()
   }
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      <AdjustHoldingPanel userId={userId} onChange={onChange} />
+      <div className="grid lg:grid-cols-3 gap-6">
       <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
         <h2 className="text-sm font-medium text-[#E5E5E5]">Add / upsert holding</h2>
         <Input label="Symbol" value={symbol} onChange={(v) => setSymbol(v.toUpperCase())} />
@@ -290,6 +313,7 @@ function HoldingsTab({ userId, holdings, onChange }: { userId: string; holdings:
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   )
 }
@@ -315,6 +339,14 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
   async function del(id: string) {
     if (!confirm('Delete this transaction?')) return
     await adminApi.deleteTransaction(id); toast.success('Removed'); onChange()
+  }
+  async function reverse(t: AdminTransaction) {
+    const reason = prompt('Reason for reversal (optional)') ?? undefined
+    if (reason === null) return
+    try {
+      await adminApi.reverseTransaction(t.id, { reason: reason || undefined, notify: true })
+      toast.success('Transaction reversed'); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Reverse failed') }
   }
   function exportCsv() {
     if (!txs.length) { toast.error('Nothing to export'); return }
@@ -345,7 +377,7 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
             {txs.map((t) => (
               <tr key={t.id} className="border-t border-[#ffffff05]">
                 <td className="px-4 py-3 text-[11px] text-[#737373]">{new Date(t.createdAt).toLocaleString()}</td>
-                <td className="px-4 py-3 text-[#E5E5E5] capitalize">{t.kind}</td>
+                <td className="px-4 py-3 text-[#E5E5E5] capitalize">{t.kind}{t.reversedFromId && <span className="ml-2 text-[9px] text-[#F57C00] uppercase">(reversal)</span>}{t.subType && <span className="ml-2 text-[9px] text-[#737373] uppercase">[{t.subType}]</span>}</td>
                 <td className="px-4 py-3 text-right text-[#A0A0A0]">{t.amount.toLocaleString()} {t.currency}</td>
                 <td className="px-4 py-3">
                   <select value={t.status} onChange={(e) => changeStatus(t.id, e.target.value)} aria-label="Change status" className="bg-[#0a0f11] border border-[#ffffff10] rounded px-2 py-1 text-[11px] text-[#E5E5E5]">
@@ -353,7 +385,12 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
                   </select>
                 </td>
                 <td className="px-4 py-3 text-[11px] text-[#A0A0A0] truncate max-w-[160px]">{t.reference || '—'}</td>
-                <td className="px-4 py-3 text-right"><IconButton onClick={() => del(t.id)} aria-label="Delete transaction"><Trash2 className="w-4 h-4" /></IconButton></td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {t.status !== 'reversed' && t.kind !== 'reversal' && (
+                    <IconButton onClick={() => reverse(t)} aria-label="Reverse transaction"><RotateCcw className="w-4 h-4" /></IconButton>
+                  )}
+                  <IconButton onClick={() => del(t.id)} aria-label="Delete transaction"><Trash2 className="w-4 h-4" /></IconButton>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -515,7 +552,9 @@ function NotificationsTab({ userId, notifications, onChange }: { userId: string;
     await adminApi.deleteNotification(id); toast.success('Removed'); onChange()
   }
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      <EmailUserPanel userId={userId} onSent={onChange} />
+      <div className="grid lg:grid-cols-3 gap-6">
       <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
         <h2 className="text-sm font-medium text-[#E5E5E5]">Push notification</h2>
         <Select label="Kind" value={kind} onChange={(v) => setKind(v as typeof kind)} options={[{ value: 'system', label: 'System' }, { value: 'alert', label: 'Alert' }, { value: 'trade', label: 'Trade' }, { value: 'deposit', label: 'Deposit' }]} />
@@ -539,6 +578,7 @@ function NotificationsTab({ userId, notifications, onChange }: { userId: string;
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   )
@@ -739,5 +779,257 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 function IconButton({ children, onClick, ...rest }: { children: React.ReactNode; onClick: () => void } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" onClick={onClick} className="p-1.5 rounded text-[#737373] hover:text-[#f44336] hover:bg-[#f44336]/10 transition-colors" {...rest}>{children}</button>
+  )
+}
+
+// ---------- KYC panel (Profile tab) ----------
+function KycBadge({ status }: { status: string }) {
+  const meta = KYC_STATUSES.find((k) => k.value === status)
+  const tone = meta?.tone === 'green' ? 'text-[#4CAF50] bg-[#4CAF50]/10' : meta?.tone === 'orange' ? 'text-[#F57C00] bg-[#F57C00]/10' : meta?.tone === 'red' ? 'text-[#f44336] bg-[#f44336]/10' : 'text-[#A0A0A0] bg-[#1a1a1a]'
+  return <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${tone}`}><FileCheck2 className="w-3 h-3" />KYC: {meta?.label ?? status}</span>
+}
+
+function KycPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; onChange: () => void }) {
+  const [status, setStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>(user.kycStatus)
+  const [notes, setNotes] = useState(user.kycNotes ?? '')
+  const [notify, setNotify] = useState(true)
+  const [busy, setBusy] = useState(false)
+  async function save() {
+    setBusy(true)
+    try {
+      await adminApi.setKyc(user.id, { status, notes: notes || undefined, notify })
+      toast.success(`KYC set to ${status}`)
+      onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-2 flex items-center gap-2"><FileCheck2 className="w-4 h-4 text-[#0C8B44]" />KYC review</h2>
+      <p className="text-xs text-[#A0A0A0] mb-3">Last reviewed: {user.kycReviewedAt ? new Date(user.kycReviewedAt).toLocaleString() : 'never'}</p>
+      <Select label="Status" value={status} onChange={(v) => setStatus(v as typeof status)} options={KYC_STATUSES.map((k) => ({ value: k.value, label: k.label }))} />
+      <Textarea label="Reviewer notes (visible to user when notified)" value={notes} onChange={setNotes} rows={3} />
+      <label className="flex items-center gap-2 text-xs text-[#A0A0A0] mt-2"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#0C8B44]" />Notify user</label>
+      <button type="button" onClick={save} disabled={busy} className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><Save className="w-4 h-4" />{busy ? 'Saving…' : 'Save KYC'}</button>
+    </section>
+  )
+}
+
+// ---------- Limits panel (Profile tab) ----------
+function LimitsPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; onChange: () => void }) {
+  const [dw, setDw] = useState(user.dailyWithdrawLimit?.toString() ?? '')
+  const [mw, setMw] = useState(user.monthlyWithdrawLimit?.toString() ?? '')
+  const [dt, setDt] = useState(user.dailyTransferLimit?.toString() ?? '')
+  const [mt, setMt] = useState(user.monthlyTransferLimit?.toString() ?? '')
+  const [busy, setBusy] = useState(false)
+  function parse(v: string): number | null { if (!v.trim()) return null; const n = parseFloat(v); return isFinite(n) && n >= 0 ? n : null }
+  async function save() {
+    setBusy(true)
+    try {
+      await adminApi.setLimits(user.id, {
+        dailyWithdrawLimit: parse(dw),
+        monthlyWithdrawLimit: parse(mw),
+        dailyTransferLimit: parse(dt),
+        monthlyTransferLimit: parse(mt),
+      })
+      toast.success('Limits updated'); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-[#0C8B44]" />Money-movement caps (USD)</h2>
+      <p className="text-xs text-[#A0A0A0] mb-3">Leave blank to apply no cap. Caps are enforced server-side at request time.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Daily withdrawal" value={dw} onChange={setDw} type="number" placeholder="No cap" />
+        <Input label="Monthly withdrawal" value={mw} onChange={setMw} type="number" placeholder="No cap" />
+        <Input label="Daily transfer" value={dt} onChange={setDt} type="number" placeholder="No cap" />
+        <Input label="Monthly transfer" value={mt} onChange={setMt} type="number" placeholder="No cap" />
+      </div>
+      <button type="button" onClick={save} disabled={busy} className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><Save className="w-4 h-4" />Save limits</button>
+    </section>
+  )
+}
+
+// ---------- IP allowlist panel (Profile tab) ----------
+function IpAllowlistPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; onChange: () => void }) {
+  const [ips, setIps] = useState(user.ipAllowlist ?? '')
+  const [busy, setBusy] = useState(false)
+  async function save() {
+    setBusy(true)
+    try {
+      await adminApi.setIpAllowlist(user.id, ips.trim() || null)
+      toast.success('Allowlist saved'); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-2 flex items-center gap-2"><Wifi className="w-4 h-4 text-[#0C8B44]" />IP allowlist</h2>
+      <p className="text-xs text-[#A0A0A0] mb-3">Comma-separated IP addresses or prefixes (e.g. <code className="text-[#0C8B44]">203.0.113.7, 198.51.100.</code>). When set, money-movement requests from other IPs are blocked. Leave blank to disable.</p>
+      <Textarea label="Allowlist" value={ips} onChange={setIps} rows={2} mono />
+      <button type="button" onClick={save} disabled={busy} className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><Save className="w-4 h-4" />Save allowlist</button>
+    </section>
+  )
+}
+
+// ---------- Fee panel (Wallet tab) ----------
+function FeePanel({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
+  const [currency, setCurrency] = useState('USD')
+  const [amount, setAmount] = useState('')
+  const [feeType, setFeeType] = useState('admin_fee')
+  const [note, setNote] = useState('')
+  const [allowNegative, setAllowNegative] = useState(false)
+  const [notify, setNotify] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const currencyOptions = balances.length
+    ? balances.map((b) => ({ value: b.currency, label: `${b.symbol} ${b.currency}` }))
+    : [{ value: 'USD', label: '$ USD' }]
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(amount)
+    if (!isFinite(amt) || amt <= 0) { toast.error('Amount must be > 0'); return }
+    setBusy(true)
+    try {
+      await adminApi.chargeFee(userId, { currency, amount: amt, feeType, note: note || undefined, allowNegative, notify })
+      toast.success(`${amt} ${currency} fee charged`); setAmount(''); setNote(''); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#F57C00]/5 border border-[#F57C00]/20 p-6">
+      <h2 className="text-sm font-medium text-[#F57C00] mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4" />Charge fee</h2>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Select label="Currency" value={currency} onChange={setCurrency} options={currencyOptions} />
+        <Input label="Amount" value={amount} onChange={setAmount} type="number" placeholder="0.00" />
+        <Select label="Fee type" value={feeType} onChange={setFeeType} options={FEE_TYPES} />
+        <Input label="Note (shown to user)" value={note} onChange={setNote} />
+        <div className="md:col-span-2 flex flex-wrap items-center gap-4 text-xs text-[#A0A0A0]">
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#F57C00]" />Notify user</label>
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={allowNegative} onChange={(e) => setAllowNegative(e.target.checked)} className="accent-[#F57C00]" />Allow negative balance</label>
+        </div>
+        <div className="md:col-span-2"><button type="submit" disabled={busy} className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#F57C00] text-white text-sm rounded-lg hover:bg-[#e36e00] disabled:opacity-50"><DollarSign className="w-4 h-4" />{busy ? 'Charging…' : 'Charge fee'}</button></div>
+      </form>
+    </section>
+  )
+}
+
+// ---------- Adjust holdings panel (Holdings tab) ----------
+function AdjustHoldingPanel({ userId, onChange }: { userId: string; onChange: () => void }) {
+  const [side, setSide] = useState<'buy' | 'sell'>('buy')
+  const [symbol, setSymbol] = useState('BTC')
+  const [name, setName] = useState('')
+  const [type, setType] = useState<'crypto' | 'stock' | 'etf'>('crypto')
+  const [amount, setAmount] = useState('')
+  const [price, setPrice] = useState('')
+  const [reason, setReason] = useState('admin_correction')
+  const [note, setNote] = useState('')
+  const [notify, setNotify] = useState(true)
+  const [busy, setBusy] = useState(false)
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(amount); const px = parseFloat(price)
+    if (!isFinite(amt) || amt <= 0) { toast.error('Amount must be > 0'); return }
+    if (!isFinite(px) || px < 0) { toast.error('Price must be >= 0'); return }
+    setBusy(true)
+    try {
+      await adminApi.adjustHolding(userId, { symbol, name: name || undefined, type, side, amount: amt, price: px, reason, note: note || undefined, notify })
+      toast.success(`Recorded ${side} of ${amt} ${symbol}`); setAmount(''); setNote(''); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><Briefcase className="w-4 h-4 text-[#0C8B44]" />Adjust holding (recorded as a trade)</h2>
+        <div className="flex rounded-lg bg-[#0a0f11] border border-[#ffffff10] p-0.5 text-xs">
+          <button type="button" onClick={() => setSide('buy')} className={`px-3 py-1.5 rounded ${side === 'buy' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0]'}`}>Buy</button>
+          <button type="button" onClick={() => setSide('sell')} className={`px-3 py-1.5 rounded ${side === 'sell' ? 'bg-[#f44336] text-white' : 'text-[#A0A0A0]'}`}>Sell</button>
+        </div>
+      </div>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Input label="Symbol" value={symbol} onChange={(v) => setSymbol(v.toUpperCase())} />
+        <Input label="Name (optional)" value={name} onChange={setName} />
+        <Select label="Type" value={type} onChange={(v) => setType(v as typeof type)} options={[{ value: 'crypto', label: 'Crypto' }, { value: 'stock', label: 'Stock' }, { value: 'etf', label: 'ETF' }]} />
+        <Input label="Amount" value={amount} onChange={setAmount} type="number" />
+        <Input label="Price" value={price} onChange={setPrice} type="number" />
+        <Select label="Reason" value={reason} onChange={setReason} options={HOLDING_REASONS} />
+        <div className="md:col-span-3"><Input label="Note (free-form)" value={note} onChange={setNote} /></div>
+        <div className="md:col-span-3 flex items-center justify-between">
+          <label className="inline-flex items-center gap-2 text-xs text-[#A0A0A0]"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#0C8B44]" />Notify user</label>
+          <button type="submit" disabled={busy} className={`inline-flex items-center justify-center gap-2 px-6 py-2 text-white text-sm rounded-lg disabled:opacity-50 ${side === 'buy' ? 'bg-[#0C8B44] hover:bg-[#0a7539]' : 'bg-[#f44336] hover:bg-[#d32f2f]'}`}>{busy ? 'Working…' : `Record ${side}`}</button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
+// ---------- Email user (Notifications tab) ----------
+function EmailUserPanel({ userId, onSent }: { userId: string; onSent: () => void }) {
+  const [template, setTemplate] = useState('none')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  function applyTemplate(value: string) {
+    setTemplate(value)
+    const t = EMAIL_TEMPLATES.find((x) => x.value === value)
+    if (t) { setSubject(t.subject); setBody(t.body) }
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!subject.trim() || !body.trim()) { toast.error('Subject and body required'); return }
+    setBusy(true)
+    try {
+      await adminApi.emailUser(userId, { subject, body, template })
+      toast.success('Email queued (delivered as in-app notification)')
+      setSubject(''); setBody(''); setTemplate('none'); onSent()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-3 flex items-center gap-2"><Mail className="w-4 h-4 text-[#0C8B44]" />Email user</h2>
+      <p className="text-xs text-[#A0A0A0] mb-3">Choose a template or compose freely. Delivered in-app today; SMTP integration is a one-line swap on the server.</p>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Select label="Template" value={template} onChange={applyTemplate} options={EMAIL_TEMPLATES.map((t) => ({ value: t.value, label: t.label }))} />
+        <div className="md:col-span-2"><Input label="Subject" value={subject} onChange={setSubject} /></div>
+        <div className="md:col-span-3"><Textarea label="Body" value={body} onChange={setBody} rows={8} /></div>
+        <div className="md:col-span-3"><button type="submit" disabled={busy} className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><Mail className="w-4 h-4" />{busy ? 'Sending…' : 'Send email'}</button></div>
+      </form>
+    </section>
+  )
+}
+
+// ---------- Audit tab (per-user timeline) ----------
+function AuditTab({ userId }: { userId: string }) {
+  const [logs, setLogs] = useState<AdminAuditLog[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    setLoading(true)
+    adminApi.userAudit(userId, 500)
+      .then((r) => setLogs(r.audit))
+      .catch((e: { error?: string }) => toast.error(e.error || 'Failed to load audit'))
+      .finally(() => setLoading(false))
+  }, [userId])
+  return (
+    <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[#1a1a1a]/40 text-[10px] uppercase tracking-[0.05em] text-[#737373]">
+          <tr><th className="text-left px-4 py-3 font-normal">When</th><th className="text-left px-4 py-3 font-normal">Action</th><th className="text-left px-4 py-3 font-normal">Actor</th><th className="text-left px-4 py-3 font-normal">Payload</th></tr>
+        </thead>
+        <tbody>
+          {loading && <tr><td colSpan={4} className="text-center py-8 text-[#737373]">Loading…</td></tr>}
+          {!loading && logs.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-[#737373]">No audit entries.</td></tr>}
+          {logs.map((l) => (
+            <tr key={l.id} className="border-t border-[#ffffff05] align-top">
+              <td className="px-4 py-3 text-[11px] text-[#737373] whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</td>
+              <td className="px-4 py-3 text-[#E5E5E5] whitespace-nowrap">{l.action}</td>
+              <td className="px-4 py-3 text-[11px] text-[#A0A0A0] whitespace-nowrap">{l.actor?.email ?? '—'}</td>
+              <td className="px-4 py-3 text-[11px] text-[#737373] font-mono whitespace-pre-wrap break-all max-w-[480px]">{l.payload || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

@@ -282,6 +282,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                   Forgot password?
                 </button>
               )}
+              {mode === 'signup' && form.password.length > 0 && <PasswordStrength password={form.password} />}
             </div>
             )}
 
@@ -353,6 +354,33 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function PasswordStrength({ password }: { password: string }) {
+  const checks = [password.length >= 8, /[a-z]/.test(password), /[A-Z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)]
+  const score = checks.filter(Boolean).length
+  const labels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent']
+  const colors = ['#f44336', '#f44336', '#F57C00', '#FFC107', '#9CCC65', '#0C8B44']
+  const tone = colors[score]
+  const tips: string[] = []
+  if (!checks[0]) tips.push('8+ characters')
+  if (!checks[1]) tips.push('lowercase')
+  if (!checks[2]) tips.push('UPPERCASE')
+  if (!checks[3]) tips.push('a digit')
+  if (!checks[4]) tips.push('a symbol')
+  return (
+    <div className="mt-2">
+      <div className="flex gap-1">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-1 flex-1 rounded-full transition-colors" style={{ background: i < score ? tone : '#1a1a1a' }} />
+        ))}
+      </div>
+      <p className="mt-1.5 text-[11px]" style={{ color: tone }}>
+        {labels[score]}
+        {tips.length > 0 && <span className="text-[#737373]"> — add {tips.join(', ')}</span>}
+      </p>
     </div>
   )
 }

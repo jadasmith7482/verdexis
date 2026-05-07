@@ -3,22 +3,43 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
 import { adminApi, type AdminAuditLog } from '../lib/adminApi'
-import { ArrowLeft, RefreshCw, Search, Activity } from 'lucide-react'
+import { getToken } from '../lib/api'
+import { ArrowLeft, RefreshCw, Search, Activity, Download } from 'lucide-react'
 
 export default function AdminAudit() {
   const [logs, setLogs] = useState<AdminAuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [limit, setLimit] = useState(100)
   const [q, setQ] = useState('')
+  const [action, setAction] = useState('')
+  const [actorId, setActorId] = useState('')
+  const [targetUserId, setTargetUserId] = useState('')
+  const [since, setSince] = useState('')
+  const [until, setUntil] = useState('')
 
   function load() {
     setLoading(true)
-    adminApi.audit(limit)
+    adminApi.audit({ limit, action: action || undefined, actorId: actorId || undefined, targetUserId: targetUserId || undefined, since: since || undefined, until: until || undefined })
       .then((r) => setLogs(r.audit))
       .catch((e: { error?: string }) => toast.error(e.error || 'Failed to load audit log'))
       .finally(() => setLoading(false))
   }
-  useEffect(load, [limit])
+  useEffect(load, [limit, action, actorId, targetUserId, since, until])
+
+  async function downloadCsv() {
+    const url = adminApi.auditCsvUrl({ limit: Math.max(limit, 500), action: action || undefined, actorId: actorId || undefined, targetUserId: targetUserId || undefined, since: since || undefined, until: until || undefined })
+    try {
+      const token = getToken()
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch { toast.error('Export failed') }
+  }
 
   const filtered = useMemo(() => {
     if (!q.trim()) return logs
@@ -51,11 +72,23 @@ export default function AdminAudit() {
               <option value={100}>Last 100</option>
               <option value={250}>Last 250</option>
               <option value={500}>Last 500</option>
+              <option value={2000}>Last 2000</option>
             </select>
+            <button onClick={downloadCsv} className="inline-flex items-center gap-2 px-3 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#A0A0A0] rounded-lg hover:border-[#0C8B44]/40">
+              <Download className="w-4 h-4" />Export CSV
+            </button>
             <button onClick={load} className="inline-flex items-center gap-2 px-3 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
             </button>
           </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
+          <input placeholder="Action contains…" value={action} onChange={(e) => setAction(e.target.value)} className="px-3 py-2 bg-[#0f1619] border border-[#ffffff10] rounded-lg text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" />
+          <input placeholder="Actor user id" value={actorId} onChange={(e) => setActorId(e.target.value)} className="px-3 py-2 bg-[#0f1619] border border-[#ffffff10] rounded-lg text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" />
+          <input placeholder="Target user id" value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="px-3 py-2 bg-[#0f1619] border border-[#ffffff10] rounded-lg text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" />
+          <input type="datetime-local" aria-label="Since" value={since} onChange={(e) => setSince(e.target.value)} className="px-3 py-2 bg-[#0f1619] border border-[#ffffff10] rounded-lg text-xs text-[#A0A0A0] focus:outline-none focus:border-[#0C8B44]" />
+          <input type="datetime-local" aria-label="Until" value={until} onChange={(e) => setUntil(e.target.value)} className="px-3 py-2 bg-[#0f1619] border border-[#ffffff10] rounded-lg text-xs text-[#A0A0A0] focus:outline-none focus:border-[#0C8B44]" />
         </div>
 
         <div className="relative mb-4 max-w-md">

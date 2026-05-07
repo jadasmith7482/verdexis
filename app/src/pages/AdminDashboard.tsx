@@ -5,7 +5,7 @@ import Navigation from '../components/Navigation'
 import { adminApi, type AdminStats } from '../lib/adminApi'
 import {
   Users, ShieldCheck, Ban, Briefcase, ArrowLeftRight, Bell,
-  Banknote, UserPlus, MegaphoneIcon, Settings as Cog, Activity,
+  Banknote, UserPlus, MegaphoneIcon, Settings as Cog, Activity, FileCheck2, Lock, ArrowDownToLine, Clock,
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -34,8 +34,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           <QuickLink to="/admin/users" icon={<Users className="w-5 h-5" />} label="Users" />
+          <QuickLink to="/admin/transfer" icon={<ArrowLeftRight className="w-5 h-5" />} label="A→B transfer" />
           <QuickLink to="/admin/deposits" icon={<Banknote className="w-5 h-5" />} label="Deposit settings" />
           <QuickLink to="/admin/broadcast" icon={<MegaphoneIcon className="w-5 h-5" />} label="Broadcast" />
           <QuickLink to="/admin/audit" icon={<Activity className="w-5 h-5" />} label="Audit log" />
@@ -46,15 +47,23 @@ export default function AdminDashboard() {
           <div className="text-center py-12 text-[#737373] text-sm">Loading…</div>
         ) : data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Stat icon={<Users className="w-4 h-4" />} label="Total users" value={data.stats.users} />
-              <Stat icon={<ShieldCheck className="w-4 h-4" />} label="Admins" value={data.stats.admins} />
-              <Stat icon={<Ban className="w-4 h-4" />} label="Suspended" value={data.stats.suspended} accent="red" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <Stat icon={<Users className="w-4 h-4" />} label="Total users" value={data.stats.users} to="/admin/users" />
+              <Stat icon={<ShieldCheck className="w-4 h-4" />} label="Admins" value={data.stats.admins} to="/admin/users?role=admin" />
+              <Stat icon={<Ban className="w-4 h-4" />} label="Suspended" value={data.stats.suspended} accent="red" to="/admin/users?suspended=true" />
               <Stat icon={<UserPlus className="w-4 h-4" />} label="Signups (24h)" value={data.stats.signups24h} accent="green" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <Stat icon={<Briefcase className="w-4 h-4" />} label="Holdings" value={data.stats.holdings} />
               <Stat icon={<ArrowLeftRight className="w-4 h-4" />} label="Trades" value={data.stats.trades} />
               <Stat icon={<Bell className="w-4 h-4" />} label="Active alerts" value={data.stats.alerts} />
               <Stat icon={<Banknote className="w-4 h-4" />} label="Deposits (24h)" value={data.stats.deposits24h} accent="green" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <Stat icon={<FileCheck2 className="w-4 h-4" />} label="KYC pending" value={data.stats.kycPending} accent="orange" to="/admin/users?kyc=pending" />
+              <Stat icon={<Lock className="w-4 h-4" />} label="Accounts on hold" value={data.stats.holds} accent="orange" to="/admin/users?hold=true" />
+              <Stat icon={<ArrowDownToLine className="w-4 h-4" />} label="Withdrawals (24h)" value={data.stats.withdraws24h} />
+              <BroadcastCard last={data.lastBroadcast} />
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6">
@@ -117,13 +126,31 @@ function QuickLink({ to, icon, label }: { to: string; icon: React.ReactNode; lab
   )
 }
 
-function Stat({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent?: 'green' | 'red' }) {
-  const color = accent === 'red' ? 'text-[#f44336]' : accent === 'green' ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'
-  return (
-    <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-4">
+function Stat({ icon, label, value, accent, to }: { icon: React.ReactNode; label: string; value: number; accent?: 'green' | 'red' | 'orange'; to?: string }) {
+  const color = accent === 'red' ? 'text-[#f44336]' : accent === 'green' ? 'text-[#4CAF50]' : accent === 'orange' ? 'text-[#F57C00]' : 'text-[#E5E5E5]'
+  const inner = (
+    <>
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">{icon}<span>{label}</span></div>
       <p className={`text-2xl font-light ${color}`}>{value.toLocaleString()}</p>
-    </div>
+    </>
+  )
+  if (to) return <Link to={to} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-4 hover:border-[#0C8B44]/40 transition-colors block">{inner}</Link>
+  return <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-4">{inner}</div>
+}
+
+function BroadcastCard({ last }: { last: AdminStats['lastBroadcast'] }) {
+  return (
+    <Link to="/admin/broadcast" className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-4 hover:border-[#0C8B44]/40 transition-colors block">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2"><Clock className="w-4 h-4" /><span>Last broadcast</span></div>
+      {last ? (
+        <>
+          <p className="text-sm text-[#E5E5E5]">{relTime(last.at)} ago</p>
+          <p className="text-[10px] text-[#737373] truncate">{last.by ?? 'system'}</p>
+        </>
+      ) : (
+        <p className="text-sm text-[#A0A0A0]">None yet</p>
+      )}
+    </Link>
   )
 }
 

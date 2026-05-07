@@ -31,6 +31,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsers = lazy(() => import('./pages/AdminUsers'))
 const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
+const AdminTransfer = lazy(() => import('./pages/AdminTransfer'))
 const AdminBroadcast = lazy(() => import('./pages/AdminBroadcast'))
 
 function PageFallback() {
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
           <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserDetail /></RequireAdmin>} />
           <Route path="/admin/audit" element={<RequireAdmin><AdminAudit /></RequireAdmin>} />
+          <Route path="/admin/transfer" element={<RequireAdmin><AdminTransfer /></RequireAdmin>} />
           <Route path="/admin/broadcast" element={<RequireAdmin><AdminBroadcast /></RequireAdmin>} />
           <Route path="/admin/deposits" element={<RequireAdmin><AdminDeposits /></RequireAdmin>} />
           <Route path="/reset" element={<ResetPassword />} />

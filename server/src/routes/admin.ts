@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import rateLimit from 'express-rate-limit'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../auth.js'
+import { env } from '../env.js'
 
 const router = Router()
 
@@ -25,6 +27,10 @@ function publicUser(u: {
   id: string; email: string; name: string; avatar: string | null; prefs: string | null;
   twoFactor: boolean; role: string; suspended: boolean; suspendedReason: string | null;
   holdActive: boolean; holdType: string | null; holdReason: string | null; holdNote: string | null; holdAt: Date | null;
+  kycStatus: string; kycNotes: string | null; kycReviewedAt: Date | null; kycReviewedBy: string | null;
+  dailyWithdrawLimit: number | null; monthlyWithdrawLimit: number | null;
+  dailyTransferLimit: number | null; monthlyTransferLimit: number | null;
+  ipAllowlist: string | null;
   tokenVersion: number; createdAt: Date; updatedAt: Date;
 }) {
   let prefs: Record<string, unknown> = {}
@@ -35,6 +41,10 @@ function publicUser(u: {
     suspendedReason: u.suspendedReason,
     holdActive: u.holdActive, holdType: u.holdType, holdReason: u.holdReason,
     holdNote: u.holdNote, holdAt: u.holdAt,
+    kycStatus: u.kycStatus, kycNotes: u.kycNotes, kycReviewedAt: u.kycReviewedAt, kycReviewedBy: u.kycReviewedBy,
+    dailyWithdrawLimit: u.dailyWithdrawLimit, monthlyWithdrawLimit: u.monthlyWithdrawLimit,
+    dailyTransferLimit: u.dailyTransferLimit, monthlyTransferLimit: u.monthlyTransferLimit,
+    ipAllowlist: u.ipAllowlist,
     tokenVersion: u.tokenVersion,
     createdAt: u.createdAt, updatedAt: u.updatedAt, prefs,
   }
@@ -59,7 +69,7 @@ async function audit(actorId: string, action: string, targetUserId: string | nul
 
 router.get('/stats', async (_req, res) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const [users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h] = await Promise.all([
+  const [users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h, lastBroadcast] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'admin' } }),
     prisma.user.count({ where: { suspended: true } }),
@@ -68,6 +78,10 @@ router.get('/stats', async (_req, res) => {
     prisma.priceAlert.count({ where: { active: true } }),
     prisma.transaction.count({ where: { kind: 'deposit', createdAt: { gte: since } } }),
     prisma.user.count({ where: { createdAt: { gte: since } } }),
+    prisma.user.count({ where: { holdActive: true } }),
+    prisma.user.count({ where: { kycStatus: 'pending' } }),
+    prisma.transaction.count({ where: { kind: 'withdraw', createdAt: { gte: since } } }),
+    prisma.adminAudit.findFirst({ where: { action: 'notification.broadcast' }, orderBy: { createdAt: 'desc' }, include: { actor: { select: { email: true } } } }),
   ])
   const recentSignups = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' }, take: 8,
@@ -77,7 +91,11 @@ router.get('/stats', async (_req, res) => {
     orderBy: { createdAt: 'desc' }, take: 10,
     include: { user: { select: { id: true, email: true, name: true } } },
   })
-  res.json({ stats: { users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h }, recentSignups, recentTx })
+  res.json({
+    stats: { users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h },
+    lastBroadcast: lastBroadcast ? { at: lastBroadcast.createdAt, by: lastBroadcast.actor?.email ?? null, payload: lastBroadcast.payload } : null,
+    recentSignups, recentTx,
+  })
 })
 
 // --- users list / search -------------------------------------------------
@@ -440,17 +458,457 @@ router.post('/broadcast', async (req: AuthedRequest, res) => {
 
 // --- audit log -----------------------------------------------------------
 
+const auditQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(2000).default(100),
+  actorId: z.string().optional(),
+  targetUserId: z.string().optional(),
+  action: z.string().optional(),
+  since: z.string().optional(),
+  until: z.string().optional(),
+  q: z.string().optional(),
+})
+
 router.get('/audit', async (req, res) => {
-  const limit = Math.min(parseInt(String(req.query.limit ?? '100'), 10) || 100, 500)
+  const parsed = auditQuerySchema.safeParse(req.query)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid query' }); return }
+  const { limit, actorId, targetUserId, action, since, until, q } = parsed.data
+  const where: Record<string, unknown> = {}
+  if (actorId) where.actorId = actorId
+  if (targetUserId) where.targetUserId = targetUserId
+  if (action) where.action = { contains: action }
+  if (since || until) {
+    const range: Record<string, Date> = {}
+    if (since) { const d = new Date(since); if (!isNaN(d.getTime())) range.gte = d }
+    if (until) { const d = new Date(until); if (!isNaN(d.getTime())) range.lte = d }
+    if (Object.keys(range).length) where.createdAt = range
+  }
+  if (q) where.payload = { contains: q }
   const logs = await prisma.adminAudit.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: limit,
+    where, orderBy: { createdAt: 'desc' }, take: limit,
     include: {
       actor: { select: { id: true, email: true, name: true } },
       target: { select: { id: true, email: true, name: true } },
     },
   })
   res.json({ audit: logs })
+})
+
+// CSV export of audit log (uses the same filters)
+router.get('/audit.csv', async (req, res) => {
+  const parsed = auditQuerySchema.safeParse(req.query)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid query' }); return }
+  const { limit, actorId, targetUserId, action, since, until, q } = parsed.data
+  const where: Record<string, unknown> = {}
+  if (actorId) where.actorId = actorId
+  if (targetUserId) where.targetUserId = targetUserId
+  if (action) where.action = { contains: action }
+  if (since || until) {
+    const range: Record<string, Date> = {}
+    if (since) { const d = new Date(since); if (!isNaN(d.getTime())) range.gte = d }
+    if (until) { const d = new Date(until); if (!isNaN(d.getTime())) range.lte = d }
+    if (Object.keys(range).length) where.createdAt = range
+  }
+  if (q) where.payload = { contains: q }
+  const logs = await prisma.adminAudit.findMany({
+    where, orderBy: { createdAt: 'desc' }, take: Math.min(limit, 5000),
+    include: {
+      actor: { select: { email: true, name: true } },
+      target: { select: { email: true, name: true } },
+    },
+  })
+  const esc = (v: string | null | undefined) => {
+    const s = (v ?? '').toString().replace(/"/g, '""')
+    return /[",\n]/.test(s) ? `"${s}"` : s
+  }
+  const header = 'createdAt,actorEmail,actorName,action,targetEmail,targetName,payload'
+  const rows = logs.map((l) => [
+    l.createdAt.toISOString(),
+    l.actor?.email ?? '',
+    l.actor?.name ?? '',
+    l.action,
+    l.target?.email ?? '',
+    l.target?.name ?? '',
+    l.payload ?? '',
+  ].map(esc).join(','))
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="audit-${new Date().toISOString().slice(0, 10)}.csv"`)
+  res.send([header, ...rows].join('\n'))
+})
+
+// Per-user audit timeline (both as actor and target)
+router.get('/users/:id/audit', async (req, res) => {
+  const id = req.params.id
+  const limit = Math.min(parseInt(String(req.query.limit ?? '200'), 10) || 200, 1000)
+  const logs = await prisma.adminAudit.findMany({
+    where: { OR: [{ targetUserId: id }, { actorId: id }] },
+    orderBy: { createdAt: 'desc' }, take: limit,
+    include: {
+      actor: { select: { id: true, email: true, name: true } },
+      target: { select: { id: true, email: true, name: true } },
+    },
+  })
+  res.json({ audit: logs })
+})
+
+// --- bulk actions on users ----------------------------------------------
+
+const bulkSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+  action: z.enum(['hold', 'release', 'suspend', 'unsuspend', 'delete', 'revoke']),
+  reason: z.string().max(500).optional(),
+  holdType: z.enum(['all', 'withdraw', 'transfer']).optional(),
+  notify: z.boolean().default(true),
+})
+
+router.post('/users/bulk', async (req: AuthedRequest, res) => {
+  const parsed = bulkSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const { ids, action, reason, holdType, notify } = parsed.data
+  // Self-protection: never let admin act on themselves through bulk.
+  const targets = ids.filter((id) => id !== req.userId)
+  if (!targets.length) { res.status(400).json({ error: 'No valid targets (cannot bulk-act on yourself)' }); return }
+  let touched = 0
+  if (action === 'delete') {
+    const r = await prisma.user.deleteMany({ where: { id: { in: targets } } })
+    touched = r.count
+  } else if (action === 'suspend') {
+    const r = await prisma.user.updateMany({ where: { id: { in: targets } }, data: { suspended: true, suspendedReason: reason ?? 'Bulk suspended', tokenVersion: { increment: 1 } } })
+    touched = r.count
+  } else if (action === 'unsuspend') {
+    const r = await prisma.user.updateMany({ where: { id: { in: targets } }, data: { suspended: false, suspendedReason: null } })
+    touched = r.count
+  } else if (action === 'revoke') {
+    const r = await prisma.user.updateMany({ where: { id: { in: targets } }, data: { tokenVersion: { increment: 1 } } })
+    touched = r.count
+  } else if (action === 'hold') {
+    const r = await prisma.user.updateMany({ where: { id: { in: targets } }, data: { holdActive: true, holdType: holdType ?? 'all', holdReason: reason ?? 'compliance_review', holdAt: new Date() } })
+    touched = r.count
+    if (notify) await prisma.notification.createMany({ data: targets.map((userId) => ({ userId, kind: 'system', title: 'Account hold placed', body: `Reason: ${reason ?? 'compliance_review'}` })) }).catch(() => {})
+  } else if (action === 'release') {
+    const r = await prisma.user.updateMany({ where: { id: { in: targets } }, data: { holdActive: false, holdType: null, holdReason: null, holdNote: null, holdAt: null } })
+    touched = r.count
+  }
+  await audit(req.userId!, `users.bulk.${action}`, null, { ids: targets, count: touched, reason, holdType })
+  res.json({ ok: true, count: touched })
+})
+
+// --- impersonate user ----------------------------------------------------
+// Issues a short-lived (15 min) token for the target user with an `imp` claim
+// pointing back to the admin. The client banner shows "viewing as <email>".
+
+router.post('/users/:id/impersonate', async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  if (id === req.userId) { res.status(400).json({ error: 'Cannot impersonate yourself' }); return }
+  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true, name: true, role: true, suspended: true, tokenVersion: true } })
+  if (!target) { res.status(404).json({ error: 'User not found' }); return }
+  if (target.suspended) { res.status(400).json({ error: 'Target is suspended' }); return }
+  // Minted directly so we can attach a custom `imp` claim and a 15-minute TTL.
+  const token = jwt.sign(
+    { sub: target.id, email: target.email, v: target.tokenVersion, imp: req.userId },
+    env.JWT_SECRET,
+    { expiresIn: '15m' },
+  )
+  await audit(req.userId!, 'user.impersonate', id, { ttl: '15m' })
+  res.json({ token, user: { id: target.id, email: target.email, name: target.name, role: target.role }, expiresInSec: 15 * 60 })
+})
+
+// --- adjust holdings (buy / sell on user's behalf) -----------------------
+
+const HOLDING_REASONS = ['admin_correction', 'manual_purchase', 'manual_sale', 'gift', 'airdrop', 'compensation', 'court_order', 'other'] as const
+const adjustHoldingSchema = z.object({
+  symbol: z.string().min(1).max(20).transform((s) => s.toUpperCase()),
+  name: z.string().min(1).max(100).optional(),
+  type: z.enum(['crypto', 'stock', 'etf']).default('crypto'),
+  side: z.enum(['buy', 'sell']),
+  amount: z.number().positive(),
+  price: z.number().nonnegative(),
+  reason: z.enum(HOLDING_REASONS).default('admin_correction'),
+  note: z.string().max(500).optional(),
+  notify: z.boolean().default(true),
+})
+
+router.post('/users/:id/holdings/adjust', async (req: AuthedRequest, res) => {
+  const parsed = adjustHoldingSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const userId = req.params.id
+  const { symbol, side, amount, price, reason, note } = parsed.data
+  const reference = `Admin ${side} (${reason})${note ? ': ' + note : ''}`
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.holding.findUnique({ where: { userId_symbol: { userId, symbol } } })
+    if (side === 'buy') {
+      const newAmount = (existing?.amount ?? 0) + amount
+      const newAvg = newAmount > 0
+        ? (((existing?.amount ?? 0) * (existing?.avgPrice ?? 0)) + (amount * price)) / newAmount
+        : price
+      const holding = await tx.holding.upsert({
+        where: { userId_symbol: { userId, symbol } },
+        create: { userId, symbol, name: parsed.data.name ?? symbol, type: parsed.data.type, amount: newAmount, avgPrice: newAvg },
+        update: { amount: newAmount, avgPrice: newAvg, name: parsed.data.name ?? existing?.name ?? symbol, type: parsed.data.type },
+      })
+      const trade = await tx.trade.create({ data: { userId, symbol, side: 'buy', amount, price, total: amount * price } })
+      return { holding, trade }
+    } else {
+      if (!existing || existing.amount < amount) {
+        throw Object.assign(new Error(`Insufficient holdings (${existing?.amount ?? 0} ${symbol})`), { status: 400 })
+      }
+      const newAmount = existing.amount - amount
+      const holding = newAmount === 0
+        ? await tx.holding.delete({ where: { id: existing.id } }).then(() => null).catch(() => null)
+        : await tx.holding.update({ where: { id: existing.id }, data: { amount: newAmount } })
+      const trade = await tx.trade.create({ data: { userId, symbol, side: 'sell', amount, price, total: amount * price } })
+      return { holding, trade, reference }
+    }
+  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
+  if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }
+  if (parsed.data.notify) {
+    await prisma.notification.create({
+      data: { userId, kind: 'trade', title: `Admin ${side}: ${amount} ${symbol} @ ${price}`, body: reference },
+    }).catch(() => {})
+  }
+  await audit(req.userId!, `holding.${side}`, userId, parsed.data)
+  res.status(201).json(result)
+})
+
+// --- reverse a transaction ----------------------------------------------
+// Creates an offsetting transaction and adjusts the wallet balance accordingly.
+
+router.post('/transactions/:tid/reverse', async (req: AuthedRequest, res) => {
+  const reasonSchema = z.object({ reason: z.string().max(500).optional(), notify: z.boolean().default(true) })
+  const parsed = reasonSchema.safeParse(req.body ?? {})
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
+  const tid = req.params.tid
+  const original = await prisma.transaction.findUnique({ where: { id: tid } })
+  if (!original) { res.status(404).json({ error: 'Transaction not found' }); return }
+  if (original.status === 'reversed') { res.status(400).json({ error: 'Already reversed' }); return }
+  // Direction of money in the original
+  const credited = original.kind === 'deposit' || original.kind === 'dividend' || original.kind === 'interest'
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId: original.userId, currency: original.currency } } })
+    const sign = credited ? -1 : 1 // reversal moves opposite direction
+    const nextBalance = (existing?.balance ?? 0) + sign * original.amount
+    const nextAvailable = (existing?.available ?? 0) + sign * original.amount
+    const balance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: original.userId, currency: original.currency } },
+      create: { userId: original.userId, currency: original.currency, symbol: original.currency === 'USD' ? '$' : original.currency, balance: nextBalance, available: nextAvailable },
+      update: { balance: nextBalance, available: nextAvailable },
+    })
+    const reversal = await tx.transaction.create({
+      data: {
+        userId: original.userId,
+        kind: 'reversal',
+        currency: original.currency,
+        amount: original.amount,
+        status: 'completed',
+        reference: `Reversal of ${original.id}${parsed.data.reason ? ' — ' + parsed.data.reason : ''}`,
+        reversedFromId: original.id,
+      },
+    })
+    await tx.transaction.update({ where: { id: original.id }, data: { status: 'reversed' } })
+    return { balance, reversal }
+  })
+  if (parsed.data.notify) {
+    await prisma.notification.create({
+      data: { userId: original.userId, kind: 'system', title: `Transaction reversed`, body: `${original.kind} of ${original.amount} ${original.currency} was reversed by an admin.${parsed.data.reason ? ' Reason: ' + parsed.data.reason : ''}` },
+    }).catch(() => {})
+  }
+  await audit(req.userId!, 'transaction.reverse', original.userId, { transactionId: tid, reason: parsed.data.reason })
+  res.status(201).json(result)
+})
+
+// --- admin transfer between two users -----------------------------------
+
+const transferSchema = z.object({
+  fromUserId: z.string().min(1),
+  toUserId: z.string().min(1),
+  currency: z.string().min(1).max(10).transform((s) => s.toUpperCase()),
+  amount: z.number().positive(),
+  reason: z.enum([
+    'court_order', 'dispute_resolution', 'fraud_recovery', 'gift', 'family_transfer',
+    'compliance_directive', 'merger_consolidation', 'manual_correction', 'other',
+  ]).default('manual_correction'),
+  note: z.string().max(500).optional(),
+  allowNegative: z.boolean().default(false),
+  notify: z.boolean().default(true),
+})
+
+router.post('/transfer', async (req: AuthedRequest, res) => {
+  const parsed = transferSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const { fromUserId, toUserId, currency, amount, reason, note, allowNegative } = parsed.data
+  if (fromUserId === toUserId) { res.status(400).json({ error: 'From and To must differ' }); return }
+  const [from, to] = await Promise.all([
+    prisma.user.findUnique({ where: { id: fromUserId }, select: { id: true, email: true } }),
+    prisma.user.findUnique({ where: { id: toUserId }, select: { id: true, email: true } }),
+  ])
+  if (!from || !to) { res.status(404).json({ error: 'One or both users not found' }); return }
+  const reference = `Admin transfer (${reason})${note ? ': ' + note : ''}`
+  const symbol = currency === 'USD' ? '$' : currency
+  const result = await prisma.$transaction(async (tx) => {
+    const fromBal = await tx.walletBalance.findUnique({ where: { userId_currency: { userId: fromUserId, currency } } })
+    const toBal = await tx.walletBalance.findUnique({ where: { userId_currency: { userId: toUserId, currency } } })
+    const fromAvail = fromBal?.available ?? 0
+    if (!allowNegative && fromAvail < amount) {
+      throw Object.assign(new Error(`Insufficient available balance on source (${fromAvail} ${currency})`), { status: 400 })
+    }
+    const fromBalance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: fromUserId, currency } },
+      create: { userId: fromUserId, currency, symbol, balance: -amount, available: -amount },
+      update: { balance: (fromBal?.balance ?? 0) - amount, available: fromAvail - amount },
+    })
+    const toBalance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: toUserId, currency } },
+      create: { userId: toUserId, currency, symbol, balance: amount, available: amount },
+      update: { balance: (toBal?.balance ?? 0) + amount, available: (toBal?.available ?? 0) + amount },
+    })
+    const fromTx = await tx.transaction.create({ data: { userId: fromUserId, kind: 'transfer', currency, amount, status: 'completed', reference: `${reference} → ${to.email}` } })
+    const toTx = await tx.transaction.create({ data: { userId: toUserId, kind: 'transfer', currency, amount, status: 'completed', reference: `${reference} ← ${from.email}` } })
+    return { fromBalance, toBalance, fromTx, toTx }
+  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
+  if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }
+  if (parsed.data.notify) {
+    await prisma.notification.createMany({
+      data: [
+        { userId: fromUserId, kind: 'system', title: `Outgoing transfer: ${symbol}${amount} ${currency}`, body: reference },
+        { userId: toUserId, kind: 'system', title: `Incoming transfer: ${symbol}${amount} ${currency}`, body: reference },
+      ],
+    }).catch(() => {})
+  }
+  await audit(req.userId!, 'wallet.transfer.admin', toUserId, { fromUserId, toUserId, currency, amount, reason })
+  res.status(201).json(result)
+})
+
+// --- fee charge (specialised deduction) ---------------------------------
+
+const FEE_TYPES = ['wire', 'inactivity', 'custody', 'maintenance', 'late_payment', 'currency_conversion', 'withdrawal', 'admin_fee', 'other'] as const
+const feeSchema = z.object({
+  currency: z.string().min(1).max(10).transform((s) => s.toUpperCase()),
+  amount: z.number().positive(),
+  feeType: z.enum(FEE_TYPES).default('admin_fee'),
+  note: z.string().max(500).optional(),
+  allowNegative: z.boolean().default(false),
+  notify: z.boolean().default(true),
+})
+
+router.post('/users/:id/fee', async (req: AuthedRequest, res) => {
+  const parsed = feeSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const userId = req.params.id
+  const { currency, amount, feeType, note, allowNegative } = parsed.data
+  const symbol = currency === 'USD' ? '$' : currency
+  const reference = `Fee (${feeType})${note ? ': ' + note : ''}`
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency } } })
+    const currentAvail = existing?.available ?? 0
+    if (!allowNegative && currentAvail < amount) {
+      throw Object.assign(new Error(`Insufficient available balance (${currentAvail} ${currency})`), { status: 400 })
+    }
+    const balance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId, currency } },
+      create: { userId, currency, symbol, balance: -amount, available: -amount },
+      update: { balance: (existing?.balance ?? 0) - amount, available: currentAvail - amount },
+    })
+    const transaction = await tx.transaction.create({
+      data: { userId, kind: 'fee', currency, amount, status: 'completed', reference, subType: feeType },
+    })
+    return { balance, transaction }
+  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
+  if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }
+  if (parsed.data.notify) {
+    await prisma.notification.create({
+      data: { userId, kind: 'system', title: `${symbol}${amount} ${currency} fee charged`, body: reference },
+    }).catch(() => {})
+  }
+  await audit(req.userId!, 'wallet.fee', userId, parsed.data)
+  res.status(201).json(result)
+})
+
+// --- KYC review --------------------------------------------------------
+
+const kycSchema = z.object({
+  status: z.enum(['none', 'pending', 'approved', 'rejected']),
+  notes: z.string().max(2000).optional(),
+  notify: z.boolean().default(true),
+})
+
+router.post('/users/:id/kyc', async (req: AuthedRequest, res) => {
+  const parsed = kycSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const userId = req.params.id
+  const u = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      kycStatus: parsed.data.status,
+      kycNotes: parsed.data.notes ?? null,
+      kycReviewedAt: parsed.data.status === 'none' ? null : new Date(),
+      kycReviewedBy: parsed.data.status === 'none' ? null : req.userId!,
+    },
+  })
+  if (parsed.data.notify && parsed.data.status !== 'none') {
+    await prisma.notification.create({
+      data: { userId, kind: 'system', title: `KYC ${parsed.data.status}`, body: parsed.data.notes ?? `Your KYC review is now ${parsed.data.status}.` },
+    }).catch(() => {})
+  }
+  await audit(req.userId!, 'user.kyc.update', userId, parsed.data)
+  res.json({ user: publicUser(u) })
+})
+
+// --- limits ------------------------------------------------------------
+
+const limitsSchema = z.object({
+  dailyWithdrawLimit: z.number().nonnegative().nullable().optional(),
+  monthlyWithdrawLimit: z.number().nonnegative().nullable().optional(),
+  dailyTransferLimit: z.number().nonnegative().nullable().optional(),
+  monthlyTransferLimit: z.number().nonnegative().nullable().optional(),
+})
+
+router.patch('/users/:id/limits', async (req: AuthedRequest, res) => {
+  const parsed = limitsSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const u = await prisma.user.update({ where: { id: req.params.id }, data: parsed.data })
+  await audit(req.userId!, 'user.limits.update', req.params.id, parsed.data)
+  res.json({ user: publicUser(u) })
+})
+
+// --- IP allowlist ------------------------------------------------------
+
+const ipSchema = z.object({ ipAllowlist: z.string().max(2000).nullable() })
+
+router.patch('/users/:id/ip-allowlist', async (req: AuthedRequest, res) => {
+  const parsed = ipSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
+  const u = await prisma.user.update({ where: { id: req.params.id }, data: { ipAllowlist: parsed.data.ipAllowlist || null } })
+  await audit(req.userId!, 'user.ipAllowlist.update', req.params.id, parsed.data)
+  res.json({ user: publicUser(u) })
+})
+
+// --- email user (delivered as a system notification with kind='email') --
+
+const emailSchema = z.object({
+  subject: z.string().min(1).max(200),
+  body: z.string().min(1).max(10_000),
+  template: z.enum(['none', 'welcome', 'verification_required', 'kyc_request', 'password_reset_offer', 'security_alert', 'custom']).default('none'),
+})
+
+router.post('/users/:id/email', async (req: AuthedRequest, res) => {
+  const parsed = emailSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const userId = req.params.id
+  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
+  if (!exists) { res.status(404).json({ error: 'User not found' }); return }
+  // We don't have an SMTP backend wired in here — record as a system
+  // notification (kind='email') so the user sees it in-app and the admin
+  // gets an audit trail. Hooking up real email is a 5-line swap later.
+  const n = await prisma.notification.create({
+    data: { userId, kind: 'email', title: parsed.data.subject, body: parsed.data.body },
+  })
+  await audit(req.userId!, 'user.email', userId, { subject: parsed.data.subject, template: parsed.data.template, length: parsed.data.body.length })
+  res.status(201).json({ notification: n, deliveredVia: 'in_app' })
+})
+
+// --- audit log -----------------------------------------------------------
+
+router.get('/audit-old', async (_req, res) => {
+  res.status(404).json({ error: 'use /audit' })
 })
 
 export default router

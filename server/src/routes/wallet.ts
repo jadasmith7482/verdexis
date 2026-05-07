@@ -49,7 +49,12 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
   if (kind === 'withdraw' || kind === 'transfer') {
     const u = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { holdActive: true, holdType: true, holdReason: true, holdNote: true },
+      select: {
+        holdActive: true, holdType: true, holdReason: true, holdNote: true,
+        ipAllowlist: true,
+        dailyWithdrawLimit: true, monthlyWithdrawLimit: true,
+        dailyTransferLimit: true, monthlyTransferLimit: true,
+      },
     })
     if (u?.holdActive) {
       const blocks =
@@ -63,6 +68,38 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
           note: u.holdNote,
           scope: u.holdType,
         })
+        return
+      }
+    }
+    // IP allowlist (simple substring-match against comma-separated entries).
+    if (u?.ipAllowlist && u.ipAllowlist.trim()) {
+      const allowed = u.ipAllowlist.split(',').map((s) => s.trim()).filter(Boolean)
+      const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || ''
+      const ok = allowed.some((entry) => ip === entry || ip.startsWith(entry))
+      if (!ok) {
+        res.status(403).json({ error: 'Source IP not in allowlist for this account', ip })
+        return
+      }
+    }
+    // Per-user money-movement caps.
+    const dailyCap = kind === 'withdraw' ? u?.dailyWithdrawLimit : u?.dailyTransferLimit
+    const monthlyCap = kind === 'withdraw' ? u?.monthlyWithdrawLimit : u?.monthlyTransferLimit
+    if (dailyCap || monthlyCap) {
+      const now = Date.now()
+      const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
+      const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000)
+      const recent = await prisma.transaction.findMany({
+        where: { userId: req.userId!, kind, status: 'completed', createdAt: { gte: monthAgo } },
+        select: { amount: true, createdAt: true },
+      })
+      const monthSum = recent.reduce((s, t) => s + t.amount, 0)
+      const daySum = recent.filter((t) => t.createdAt >= dayAgo).reduce((s, t) => s + t.amount, 0)
+      if (dailyCap && daySum + amount > dailyCap) {
+        res.status(429).json({ error: `Daily ${kind} cap exceeded`, limit: dailyCap, used: daySum, attempted: amount })
+        return
+      }
+      if (monthlyCap && monthSum + amount > monthlyCap) {
+        res.status(429).json({ error: `Monthly ${kind} cap exceeded`, limit: monthlyCap, used: monthSum, attempted: amount })
         return
       }
     }
