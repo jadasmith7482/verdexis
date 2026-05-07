@@ -117,24 +117,76 @@ export default function Dashboard() {
     ? holdings.reduce((best, h) => (h.pnlPercent > best.pnlPercent ? h : best), holdings[0])
     : null
 
-  // Generate portfolio area chart data (simulated 30 days)
-  const portfolioHistory = Array.from({ length: 30 }, (_, i) => {
-    const base = totalValue * 0.85
-    const growth = (totalValue - base) * (i / 29)
-    const noise = Math.sin(i * 0.5) * totalValue * 0.03
-    return base + growth + noise
-  })
-  const chartMax = Math.max(...portfolioHistory)
-  const chartMin = Math.min(...portfolioHistory)
+  // Real 7-day net-worth history reconstructed from each holding's hourly
+  // sparkline (CoinGecko sparkline_in_7d, ~168 hourly points) weighted by
+  // the user's actual current quantity. Stable-coins / cash holdings without
+  // a sparkline contribute a flat (quantity * currentPrice) line.
+  const quoteById: Record<string, CryptoQuote> = {}
+  for (const c of cryptoData) {
+    quoteById[c.id] = c
+    if (c.symbol) quoteById[c.symbol.toLowerCase()] = c
+  }
+  const HISTORY_POINTS = 168
+  const portfolioHistory: number[] = (() => {
+    if (!holdings.length) return []
+    const series = new Array(HISTORY_POINTS).fill(0)
+    let haveAny = false
+    for (const h of holdings) {
+      const q = quoteById[h.id] || quoteById[h.symbol?.toLowerCase?.() || '']
+      const sp = q?.sparkline_in_7d?.price
+      if (sp && sp.length >= 2) {
+        haveAny = true
+        // Resample sparkline into HISTORY_POINTS buckets
+        for (let i = 0; i < HISTORY_POINTS; i++) {
+          const idx = Math.min(sp.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (sp.length - 1)))
+          series[i] += h.quantity * sp[idx]
+        }
+      } else {
+        // Flat contribution (cash, stablecoin, or missing sparkline)
+        const flat = h.value || h.quantity * h.currentPrice
+        for (let i = 0; i < HISTORY_POINTS; i++) series[i] += flat
+      }
+    }
+    if (!haveAny) return []
+    // Anchor the most recent point to the current totalValue so the chart
+    // visually agrees with the big number above it.
+    const last = series[series.length - 1]
+    if (last > 0 && totalValue > 0) {
+      const scale = totalValue / last
+      for (let i = 0; i < series.length; i++) series[i] *= scale
+    }
+    // Light moving-average smoothing (window = 5) to remove hourly noise
+    // while preserving real shape & endpoints.
+    const W = 5
+    const smoothed = series.map((_, i) => {
+      const lo = Math.max(0, i - Math.floor(W / 2))
+      const hi = Math.min(series.length - 1, i + Math.floor(W / 2))
+      let sum = 0
+      for (let j = lo; j <= hi; j++) sum += series[j]
+      return sum / (hi - lo + 1)
+    })
+    // Preserve exact start and end so % change stays accurate
+    smoothed[0] = series[0]
+    smoothed[smoothed.length - 1] = series[series.length - 1]
+    return smoothed
+  })()
+  const chartMax = portfolioHistory.length ? Math.max(...portfolioHistory) : 0
+  const chartMin = portfolioHistory.length ? Math.min(...portfolioHistory) : 0
   const chartRange = chartMax - chartMin || 1
   const chartPath = portfolioHistory
     .map((v, i) => {
-      const x = (i / 29) * 100
+      const x = (i / (portfolioHistory.length - 1 || 1)) * 100
       const y = 100 - ((v - chartMin) / chartRange) * 90 - 5
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
     })
     .join(' ')
-  const areaPath = chartPath + ` L100,100 L0,100 Z`
+  const areaPath = portfolioHistory.length ? chartPath + ` L100,100 L0,100 Z` : ''
+  const periodChange = portfolioHistory.length >= 2
+    ? portfolioHistory[portfolioHistory.length - 1] - portfolioHistory[0]
+    : 0
+  const periodChangePercent = portfolioHistory.length >= 2 && portfolioHistory[0] > 0
+    ? (periodChange / portfolioHistory[0]) * 100
+    : 0
 
   const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
@@ -255,9 +307,12 @@ export default function Dashboard() {
                 </div>
                 {isAuthenticated && (
                   <div className="text-right">
-                    <p className={`text-sm flex items-center gap-1 ${dayChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                      {dayChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                      {dayChangePercent >= 0 ? '+' : ''}{dayChangePercent.toFixed(2)}%
+                    <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                      {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                      {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">7d</span>
+                    </p>
+                    <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
+                      {fmtMoney(periodChange, { sign: true })}
                     </p>
                   </div>
                 )}
@@ -268,22 +323,28 @@ export default function Dashboard() {
                   <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6 truncate">
                     {fmtMoney(totalValue)}
                   </p>
-                  {/* SVG Area Chart */}
+                  {/* SVG Area Chart - real 7-day net worth from holdings sparklines */}
                   <div className="h-48 w-full">
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                      <defs>
-                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0C8B44" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="#0C8B44" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path d={areaPath} fill="url(#areaGradient)" />
-                      <path d={chartPath} fill="none" stroke="#0C8B44" strokeWidth="0.5" strokeLinecap="round" />
-                    </svg>
+                    {portfolioHistory.length >= 2 ? (
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} stopOpacity="0.3" />
+                            <stop offset="100%" stopColor={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <path d={areaPath} fill="url(#areaGradient)" />
+                        <path d={chartPath} fill="none" stroke={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} strokeWidth="0.5" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-xs text-[#737373]">
+                        Loading market history…
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#737373] mt-2">
-                    <span>30 days ago</span>
-                    <span>Today</span>
+                    <span>7 days ago</span>
+                    <span>Now</span>
                   </div>
 
                   {/* Recent Activity - moved here under Total Net Worth */}
