@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import CandleChart from '../components/CandleChart'
 import { marketData, type CryptoQuote } from '../lib/marketData'
+import { liveTicker } from '../lib/liveTicker'
 import { portfolioStore } from '../lib/portfolioStore'
 import WatchlistPanel from '../components/WatchlistPanel'
 import { Toaster, toast } from 'sonner'
@@ -59,7 +60,16 @@ export default function Trading() {
   const [loading, setLoading] = useState(true)
   const [orderBookTab, setOrderBookTab] = useState<'orderbook' | 'trades' | 'depth'>('orderbook')
   const [recentTrades, setRecentTrades] = useState(portfolioStore.getTrades().slice(0, 10))
+  const [livePrice, setLivePrice] = useState<number | null>(null)
   const isAuthenticated = !!localStorage.getItem('verdexis_holdings')
+
+  // Subscribe to sub-second Binance ticker for the currently selected coin so
+  // the header price + chart + trade preview all tick smoothly.
+  useEffect(() => {
+    if (!selectedCrypto) { setLivePrice(null); return }
+    setLivePrice(liveTicker.getPrice(selectedCrypto.id))
+    return liveTicker.subscribe(selectedCrypto.id, (p) => setLivePrice(p))
+  }, [selectedCrypto?.id])
 
   useEffect(() => {
     fetchData()
@@ -193,8 +203,8 @@ export default function Trading() {
                     </div>
                   </div>
                   <div className="h-8 w-px bg-[#ffffff10]" />
-                  <p className="text-xl font-light text-[#E5E5E5]">
-                    ${selectedCrypto.current_price.toLocaleString()}
+                  <p className="text-xl font-light text-[#E5E5E5] tabular-nums">
+                    ${(livePrice ?? selectedCrypto.current_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <div className={`text-sm ${selectedCrypto.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                     {selectedCrypto.price_change_percentage_24h >= 0 ? '+' : ''}
@@ -269,7 +279,7 @@ export default function Trading() {
                   <CandleChart
                     coinId={selectedCrypto.id}
                     symbol={selectedCrypto.symbol}
-                    livePrice={selectedCrypto.current_price}
+                    livePrice={livePrice ?? selectedCrypto.current_price}
                     range={timeRange}
                   />
                 ) : (

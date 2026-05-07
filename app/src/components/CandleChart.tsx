@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { marketData, type Candle, type OhlcRange } from '../lib/marketData'
+import { liveTicker } from '../lib/liveTicker'
 
 interface Props {
   coinId: string
@@ -21,7 +22,15 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hover, setHover] = useState<{ x: number; y: number; candle: Candle } | null>(null)
+  const [tickerPrice, setTickerPrice] = useState<number | null>(() => liveTicker.getPrice(coinId))
   const wrapRef = useRef<HTMLDivElement | null>(null)
+
+  // Sub-second live price from Binance WebSocket (where available).
+  useEffect(() => {
+    setTickerPrice(liveTicker.getPrice(coinId))
+    const unsub = liveTicker.subscribe(coinId, (p) => setTickerPrice(p))
+    return unsub
+  }, [coinId])
 
   // Fetch + auto-refresh per range.
   useEffect(() => {
@@ -46,17 +55,19 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
   }, [coinId, range])
 
   // Splice the live price onto the last candle so it visibly ticks between
-  // CoinGecko refreshes (which are heavily cached server-side).
+  // CoinGecko refreshes (which are heavily cached server-side). Prefer the
+  // sub-second Binance ticker; fall back to the prop livePrice (CoinGecko).
+  const effectiveLivePrice = tickerPrice ?? livePrice
   const merged = useMemo<Candle[]>(() => {
-    if (candles.length === 0 || livePrice == null || !isFinite(livePrice)) return candles
+    if (candles.length === 0 || effectiveLivePrice == null || !isFinite(effectiveLivePrice)) return candles
     const out = candles.slice()
     const last = { ...out[out.length - 1] }
-    last.close = livePrice
-    last.high = Math.max(last.high, livePrice)
-    last.low = Math.min(last.low, livePrice)
+    last.close = effectiveLivePrice
+    last.high = Math.max(last.high, effectiveLivePrice)
+    last.low = Math.min(last.low, effectiveLivePrice)
     out[out.length - 1] = last
     return out
-  }, [candles, livePrice])
+  }, [candles, effectiveLivePrice])
 
   const stats = useMemo(() => {
     if (merged.length === 0) return null
