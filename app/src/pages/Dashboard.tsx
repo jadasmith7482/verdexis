@@ -17,6 +17,7 @@ import CurrencySelector from '../components/dashboard/CurrencySelector'
 import ExportMenu from '../components/dashboard/ExportMenu'
 import CustomizeWidgets from '../components/dashboard/CustomizeWidgets'
 import TimeRangePicker, { type ChartRange } from '../components/dashboard/TimeRangePicker'
+import NetWorthChart from '../components/NetWorthChart'
 import EmptyStateCta from '../components/dashboard/EmptyStateCta'
 import WatchlistPanel from '../components/WatchlistPanel'
 import { marketData, type CryptoQuote } from '../lib/marketData'
@@ -303,17 +304,6 @@ export default function Dashboard() {
     smoothed[smoothed.length - 1] = series[series.length - 1]
     return smoothed
   })()
-  const chartMax = portfolioHistory.length ? Math.max(...portfolioHistory) : 0
-  const chartMin = portfolioHistory.length ? Math.min(...portfolioHistory) : 0
-  const chartYRange = chartMax - chartMin || 1
-  const chartPath = portfolioHistory
-    .map((v, i) => {
-      const x = (i / (portfolioHistory.length - 1 || 1)) * 100
-      const y = 100 - ((v - chartMin) / chartYRange) * 90 - 5
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
-    })
-    .join(' ')
-  const areaPath = portfolioHistory.length ? chartPath + ` L100,100 L0,100 Z` : ''
   const periodChange = portfolioHistory.length >= 2
     ? portfolioHistory[portfolioHistory.length - 1] - portfolioHistory[0]
     : 0
@@ -482,44 +472,31 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* SVG Area Chart - real net worth from holdings sparklines */}
-                  <div className="h-48 w-full">
+                  {/* Highcharts Area Chart - real net worth from holdings sparklines */}
+                  <div className="w-full">
                     {portfolioHistory.length >= 2 ? (
-                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                        <defs>
-                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} stopOpacity="0.3" />
-                            <stop offset="100%" stopColor={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
-                        <path d={areaPath} fill="url(#areaGradient)" />
-                        <path d={chartPath} fill="none" stroke={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} strokeWidth="0.5" strokeLinecap="round" />
-                        {showBenchmark && (() => {
+                      <NetWorthChart
+                        series={portfolioHistory}
+                        benchmark={(() => {
+                          if (!showBenchmark) return null
                           const btcSp = quoteById['bitcoin']?.sparkline_in_7d?.price
                           if (!btcSp || btcSp.length < 2) return null
-                          // Normalise BTC to start at chartMin so the two lines share the same scale.
                           const btcStart = btcSp[0]
                           const points = portfolioHistory.length
-                          const ratios: number[] = []
+                          const baseStart = portfolioHistory[0]
+                          const out: number[] = []
                           for (let i = 0; i < points; i++) {
                             const idx = Math.min(btcSp.length - 1, Math.round((i / (points - 1)) * (btcSp.length - 1)))
-                            ratios.push(btcSp[idx] / btcStart)
+                            out.push((btcSp[idx] / btcStart) * baseStart)
                           }
-                          const baseStart = portfolioHistory[0]
-                          const synth = ratios.map((r) => r * baseStart)
-                          const synthMax = Math.max(...synth)
-                          const synthMin = Math.min(...synth)
-                          const synthRange = synthMax - synthMin || 1
-                          const path = synth.map((v, i) => {
-                            const x = (i / (synth.length - 1 || 1)) * 100
-                            const y = 100 - ((v - synthMin) / synthRange) * 90 - 5
-                            return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
-                          }).join(' ')
-                          return <path d={path} fill="none" stroke="#FF9800" strokeWidth="0.4" strokeDasharray="1.5 1.5" opacity="0.85" />
+                          return out
                         })()}
-                      </svg>
+                        range={chartRange}
+                        isUp={periodChangePercent >= 0}
+                        height={192}
+                      />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center text-xs text-[#737373]">
+                      <div className="h-48 w-full flex items-center justify-center text-xs text-[#737373]">
                         Loading market history…
                       </div>
                     )}
