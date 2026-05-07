@@ -57,6 +57,24 @@
   body {
     @apply bg-[#070C0E] text-[#E5E5E5] antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    /* Kill the big blue rectangle iOS/Android shows over a tapped link or
+       button. We render our own :hover/:active styles. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Disable browser-default text selection inside interactive surfaces so a
+     drag/long-press inside a card doesn't paint the whole row blue and
+     swallow the click. Inputs and explicitly-selectable text still allow
+     selection. */
+  a, button, [role="button"], [role="link"], [role="tab"], [role="menuitem"], summary {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, [contenteditable="true"], .select-text, .select-text * {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 
