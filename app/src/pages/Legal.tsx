@@ -58,7 +58,7 @@ export default function Legal() {
             <h1 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">
               Privacy, Terms &amp; Security
             </h1>
-            <p className="text-sm text-[#737373] mt-3">Last updated: 2026</p>
+            <p className="text-sm text-[#737373] mt-3">Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
 
           {/* Quick nav */}

@@ -89,9 +89,9 @@ export default function About() {
             <Users className="w-8 h-8 text-[#0C8B44] mx-auto mb-4" />
             <h2 className="text-2xl font-light text-[#E5E5E5] mb-3">A small team, building carefully</h2>
             <p className="text-[#A0A0A0] max-w-xl mx-auto leading-relaxed">
-              We are engineers, designers, and former traders who left bigger companies to build
-              the platform we always wished existed. Distributed across four continents, focused
-              on one thing: making your money make sense.
+              We are engineers, designers, and former traders building the platform we always
+              wished existed. Remote-first and focused on one thing: making your money make
+              sense.
             </p>
           </div>
 
@@ -110,7 +110,7 @@ export default function About() {
                 <p className="text-sm text-[#E5E5E5] group-hover:text-[#0C8B44] transition-colors">hello@verdexis.com</p>
               </a>
               <a
-                href="https://twitter.com"
+                href="https://twitter.com/verdexis"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="glass-card p-5 hover:border-[#0C8B44]/30 transition-colors group"
@@ -120,7 +120,7 @@ export default function About() {
                 <p className="text-sm text-[#E5E5E5] group-hover:text-[#0C8B44] transition-colors">@verdexis</p>
               </a>
               <a
-                href="https://linkedin.com"
+                href="https://www.linkedin.com/company/verdexis"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="glass-card p-5 hover:border-[#0C8B44]/30 transition-colors group"
