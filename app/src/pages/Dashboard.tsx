@@ -172,10 +172,21 @@ export default function Dashboard() {
     return () => clearInterval(t)
   }, [cryptoData, isAuthenticated])
 
-  // Portfolio calculations
-  const totalValue = holdings.reduce((sum, h) => sum + h.value, 0)
+  // Portfolio calculations.
+  // `positionsValue` = market value of holdings only — used for chart scaling
+  // and category-allocation breakdowns (where cash would skew the percentages).
+  // `walletValueUsd` = wallet cash + crypto wallet balances valued at the same
+  // live quotes the holdings use.
+  // `totalValue` (a.k.a. Net Worth) = positions + wallet, so the dashboard's
+  // headline number matches the Wallet page's Total Balance + Holdings value.
+  const positionsValue = holdings.reduce((sum, h) => sum + h.value, 0)
+  // Recompute every render: the wallet event listener already triggers re-renders.
+  // void wallet/transactions deps to keep React happy without storing the helper output in state.
+  void wallet; void transactions
+  const walletValueUsd = portfolioStore.getWalletValueUsd()
+  const totalValue = positionsValue + walletValueUsd
   const totalPnl = holdings.reduce((sum, h) => sum + h.pnl, 0)
-  const dayChangePercent = totalValue > 0 ? (totalPnl / totalValue) * 100 : 0
+  const dayChangePercent = positionsValue > 0 ? (totalPnl / positionsValue) * 100 : 0
   const bestPerformer = holdings.length > 0
     ? holdings.reduce((best, h) => (h.pnlPercent > best.pnlPercent ? h : best), holdings[0])
     : null
@@ -210,12 +221,21 @@ export default function Dashboard() {
       }
     }
     if (!haveAny) return []
-    // Anchor the most recent point to the current totalValue so the chart
-    // visually agrees with the big number above it.
+    // Anchor the most recent point to the current positions value so the
+    // chart (which is reconstructed from holding sparklines only) visually
+    // agrees with the positions side of the headline. The cash side of
+    // net worth is added back as a flat baseline below so the chart's
+    // top number still equals Total Net Worth.
     const last = series[series.length - 1]
-    if (last > 0 && totalValue > 0) {
-      const scale = totalValue / last
+    if (last > 0 && positionsValue > 0) {
+      const scale = positionsValue / last
       for (let i = 0; i < series.length; i++) series[i] *= scale
+    }
+    // Add wallet cash as a flat lift across the whole window — it doesn't
+    // move with crypto sparklines but it IS part of net worth, so the chart
+    // bottoms out at walletValueUsd instead of zero.
+    if (walletValueUsd > 0) {
+      for (let i = 0; i < series.length; i++) series[i] += walletValueUsd
     }
     // Light moving-average smoothing (window = 5) to remove hourly noise
     // while preserving real shape & endpoints.
@@ -330,7 +350,7 @@ export default function Dashboard() {
               if (pnl > 0) wins++
             })
             const winRate = sells.length > 0 ? (wins / sells.length) * 100 : 0
-            const totalReturnPct = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0
+            const totalReturnPct = totalInvested > 0 ? ((positionsValue - totalInvested) / totalInvested) * 100 : 0
             return (
               <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff05] p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
@@ -393,8 +413,11 @@ export default function Dashboard() {
 
               {isAuthenticated ? (
                 <>
-                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4 truncate">
+                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 truncate">
                     {fmtMoney(totalValue)}
+                  </p>
+                  <p className="text-xs text-[#737373] mb-4">
+                    Cash {fmtMoney(walletValueUsd)} <span className="text-[#404040]">·</span> Positions {fmtMoney(positionsValue)}
                   </p>
 
                   {/* Range picker + benchmark toggle */}
@@ -734,7 +757,7 @@ export default function Dashboard() {
                   <div className="lg:col-span-1"><ConnectedAccountsCard /></div>
                 )}
                 {!hiddenWidgets.has('categoryBreakdown') && (
-                  <div className="lg:col-span-2"><CategoryBreakdownCard holdings={holdings} totalValue={totalValue} /></div>
+                  <div className="lg:col-span-2"><CategoryBreakdownCard holdings={holdings} totalValue={positionsValue} /></div>
                 )}
               </>
             )}

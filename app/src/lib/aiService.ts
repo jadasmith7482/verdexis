@@ -128,8 +128,7 @@ class AIService {
   private buildPortfolioContext(): string {
     try {
       const holdings = portfolioStore.getHoldings()
-      const wallet = portfolioStore.getWallet()
-      const cash = wallet.find((w) => w.currency === 'USD')?.balance ?? 0
+      const cash = portfolioStore.getWalletValueUsd()
       const positions = holdings.reduce((s, h) => s + h.value, 0)
       const total = cash + positions
       const pnl = holdings.reduce((s, h) => s + h.pnl, 0)
@@ -165,8 +164,7 @@ class AIService {
       // Portfolio-related queries
       if (lowerQuery.includes('portfolio') || lowerQuery.includes('net worth')) {
         const holdings = portfolioStore.getHoldings()
-        const wallet = portfolioStore.getWallet()
-        const cash = wallet.find((w) => w.currency === 'USD')?.balance ?? 0
+        const cash = portfolioStore.getWalletValueUsd()
         const positions = holdings.reduce((s, h) => s + h.value, 0)
         const totalValue = cash + positions
         const totalPnl = holdings.reduce((s, h) => s + h.pnl, 0)

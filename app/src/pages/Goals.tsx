@@ -25,14 +25,7 @@ function GoalsInner() {
   }, [])
 
   useEffect(() => {
-    const compute = () => {
-      const holdings = portfolioStore.getHoldings()
-      const wallet = portfolioStore.getWallet()
-      const usdRates: Record<string, number> = { USD: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
-      const cash = wallet.reduce((s, w) => s + (w.balance * (usdRates[w.currency] ?? 1)), 0)
-      const positions = holdings.reduce((s, h) => s + h.value, 0)
-      setPortfolioValue(cash + positions)
-    }
+    const compute = () => setPortfolioValue(portfolioStore.getNetWorth())
     compute()
     window.addEventListener('verdexis:portfolio', compute)
     return () => window.removeEventListener('verdexis:portfolio', compute)

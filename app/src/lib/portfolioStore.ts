@@ -102,6 +102,11 @@ class PortfolioStoreImpl {
   private wallet: WalletBalance[]
   private transactions: WalletTransaction[]
   private hydrated = false
+  // Most recent live quote map keyed by both coin id (e.g. 'bitcoin') and
+  // upper-case symbol (e.g. 'BTC'). Updated by markToMarket so wallet-value
+  // helpers can convert non-USD balances to USD using the same prices the
+  // dashboard already uses for holdings. Falls back to baseline rates below.
+  private lastQuotes: Record<string, number> = {}
 
   constructor() {
     this.holdings = this.load(STORAGE_KEYS.holdings, DEFAULT_HOLDINGS)
@@ -206,6 +211,14 @@ class PortfolioStoreImpl {
    * Persists to localStorage and emits a single change event.
    */
   markToMarket(quotes: Record<string, number>): void {
+    // Always cache quotes (even when no holdings) so wallet conversions can
+    // use them. Keys come in as coin id ('bitcoin') and/or symbol ('btc').
+    for (const [k, v] of Object.entries(quotes)) {
+      if (typeof v === 'number' && isFinite(v) && v > 0) {
+        this.lastQuotes[k.toLowerCase()] = v
+        this.lastQuotes[k.toUpperCase()] = v
+      }
+    }
     if (!this.holdings.length) return
     let changed = false
     for (const h of this.holdings) {
@@ -231,6 +244,31 @@ class PortfolioStoreImpl {
   }
 
   getWallet(): WalletBalance[] { return this.wallet }
+
+  /** Single source of truth for the user's cash side. Sums every wallet
+   *  entry converted to USD: USD/USDC/USDT count as 1:1, other currencies
+   *  use the latest live quote (cached from markToMarket) and fall back to
+   *  a static baseline only if no live price has ever been seen.  */
+  getWalletValueUsd(): number {
+    const baseline: Record<string, number> = { USD: 1, USDC: 1, USDT: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
+    let total = 0
+    for (const w of this.wallet) {
+      const cur = w.currency.toUpperCase()
+      if (cur === 'USD' || cur === 'USDC' || cur === 'USDT') { total += w.balance; continue }
+      const live = this.lastQuotes[cur] ?? this.lastQuotes[cur.toLowerCase()]
+      const rate = (typeof live === 'number' && live > 0) ? live : (baseline[cur] ?? 0)
+      total += w.balance * rate
+    }
+    return total
+  }
+
+  /** Net worth = holdings (positions) value at market + wallet cash + crypto
+   *  wallet balances valued at market. This is the figure surfaced as the
+   *  big "Total Net Worth" on the dashboard and matches the Wallet page. */
+  getNetWorth(): number {
+    const positions = this.holdings.reduce((s, h) => s + h.value, 0)
+    return positions + this.getWalletValueUsd()
+  }
 
   getTransactions(): WalletTransaction[] {
     return [...this.transactions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

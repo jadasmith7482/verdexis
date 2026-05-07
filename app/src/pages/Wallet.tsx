@@ -144,7 +144,11 @@ export default function WalletPage() {
     })
   }, [])
 
-  const totalBalance = wallet.reduce((sum, w) => sum + (w.currency === 'USD' ? w.balance : w.balance * getUsdRate(w.currency)), 0)
+  // Single source of truth shared with the Dashboard so the Wallet's
+  // \"Total Balance\" hero matches the Dashboard's \"Cash\" subtitle exactly.
+  // Recompute on each render \u2014 the wallet event listener already triggers them.
+  void wallet
+  const totalBalance = portfolioStore.getWalletValueUsd()
 
   function getUsdRate(currency: string): number {
     const rates: Record<string, number> = { USD: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
