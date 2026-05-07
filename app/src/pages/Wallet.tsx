@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import { portfolioStore } from '../lib/portfolioStore'
+import { cryptoIconFor } from '../lib/cryptoIcon'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
@@ -60,6 +61,32 @@ export default function WalletPage() {
   function getUsdRate(currency: string): number {
     const rates: Record<string, number> = { USD: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
     return rates[currency] || 1
+  }
+
+  function CurrencyIcon({ currency, size = 32 }: { currency: string; size?: number }) {
+    const isUsd = currency === 'USD'
+    if (isUsd) {
+      return (
+        <div
+          className="rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44] shrink-0"
+          style={{ width: size, height: size }}
+        >$</div>
+      )
+    }
+    return (
+      <img
+        src={cryptoIconFor(currency)}
+        alt={currency}
+        className="rounded-full bg-[#0C8B44]/10 shrink-0 object-contain"
+        style={{ width: size, height: size }}
+        onError={(e) => {
+          const t = e.currentTarget
+          t.style.display = 'none'
+          const fb = t.nextElementSibling as HTMLElement | null
+          if (fb) fb.style.display = 'flex'
+        }}
+      />
+    )
   }
 
   const handleDeposit = () => {
@@ -302,24 +329,26 @@ export default function WalletPage() {
             {wallet.map((w) => (
               <div key={w.currency} className="glass-card p-4 hover:border-[#0C8B44]/30 transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{w.currency[0]}</div>
-                    <span className="text-sm font-medium text-[#E5E5E5]">{w.currency}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CurrencyIcon currency={w.currency} size={32} />
+                    <span className="text-sm font-medium text-[#E5E5E5] truncate">{w.currency}</span>
                   </div>
-                  {w.currency !== 'USD' && <span className="text-xs text-[#737373]">${(w.balance * getUsdRate(w.currency)).toLocaleString()}</span>}
-                </div>                <p className="text-2xl font-light text-[#E5E5E5]">{showBalance ? <>{w.symbol}{w.balance.toLocaleString()}</> : '****'}</p>
-                <p className="text-xs text-[#737373] mt-1">Available: {w.symbol}{w.available.toLocaleString()}</p>
+                  {w.currency !== 'USD' && <span className="text-xs text-[#737373] shrink-0">${(w.balance * getUsdRate(w.currency)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}
+                </div>                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })}</> : '****'}</p>
+                <p className="text-xs text-[#737373] mt-1 truncate">Available: {w.symbol}{w.available.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
               </div>
             ))}
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-[#1a1a1a] rounded-xl mb-6 w-fit">
-            {([{ key: 'overview', label: 'Overview' }, { key: 'deposit', label: 'Deposit' }, { key: 'withdraw', label: 'Withdraw' }, { key: 'transfer', label: 'Transfer' }, { key: 'income', label: 'Income' }] as const).map((tab) => (              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-[#0C8B44] text-white' : 'text-[#737373] hover:text-[#E5E5E5]'}`}>
+          <div className="-mx-2 px-2 mb-6 overflow-x-auto no-scrollbar">
+            <div className="inline-flex gap-1 p-1 bg-[#1a1a1a] rounded-xl">
+              {([{ key: 'overview', label: 'Overview' }, { key: 'deposit', label: 'Deposit' }, { key: 'withdraw', label: 'Withdraw' }, { key: 'transfer', label: 'Transfer' }, { key: 'income', label: 'Income' }] as const).map((tab) => (              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#0C8B44] text-white' : 'text-[#737373] hover:text-[#E5E5E5]'}`}>
                 {tab.label}
               </button>
             ))}
+            </div>
           </div>
 
           {/* Tab Content */}
@@ -381,7 +410,7 @@ export default function WalletPage() {
                   {wallet.map((w) => (
                     <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
                       className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                      <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{w.currency[0]}</div>
+                      <CurrencyIcon currency={w.currency} size={32} />
                       <span className="text-sm text-[#E5E5E5]">{w.currency}</span>
                     </button>
                   ))}
@@ -446,8 +475,8 @@ export default function WalletPage() {
                   {wallet.map((w) => (
                     <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
                       className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                      <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{w.currency[0]}</div>
-                      <div><span className="text-sm text-[#E5E5E5]">{w.currency}</span><p className="text-xs text-[#737373]">Avail: {w.symbol}{w.available.toLocaleString()}</p></div>
+                      <CurrencyIcon currency={w.currency} size={32} />
+                      <div><span className="text-sm text-[#E5E5E5]">{w.currency}</span><p className="text-xs text-[#737373]">Avail: {w.symbol}{w.available.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p></div>
                     </button>
                   ))}
                 </div>
@@ -513,7 +542,7 @@ export default function WalletPage() {
                     {wallet.filter((w) => w.currency !== 'USD').map((w) => (
                       <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
                         className={`p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                        <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44] mx-auto mb-2">{w.currency[0]}</div>
+                        <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={w.currency} size={32} /></div>
                         <p className="text-xs text-[#E5E5E5]">{w.currency}</p>
                       </button>
                     ))}

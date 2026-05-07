@@ -9,7 +9,20 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center">
+              <img
+                src="/assets/logo-icon-transparent.png"
+                alt="Verdexis"
+                className="w-7 h-7 object-contain"
+                onError={(e) => {
+                  const t = e.currentTarget
+                  t.style.display = 'none'
+                  const fb = t.nextElementSibling as HTMLElement | null
+                  if (fb) fb.style.display = 'flex'
+                }}
+              />
+              <div
+                className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0C8B44] to-[#00E676] items-center justify-center hidden"
+              >
                 <span className="text-white text-xs font-bold">V</span>
               </div>
               <span className="text-sm font-medium text-[#E5E5E5] tracking-wide">VERDEXIS</span>
