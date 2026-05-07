@@ -22,6 +22,8 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const Alerts = lazy(() => import('./pages/Alerts'))
 const Goals = lazy(() => import('./pages/Goals'))
+const StatusPage = lazy(() => import('./pages/Status'))
+const Disclosures = lazy(() => import('./pages/Disclosures'))
 
 function PageFallback() {
   return (
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/goals" element={<Goals />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/disclosures" element={<Disclosures />} />
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
