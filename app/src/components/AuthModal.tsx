@@ -150,7 +150,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                 ? 'Sign in to access your dashboard'
                 : mode === 'forgot'
                 ? "We'll email you a secure reset link"
-                : 'Join 127,000+ investors on Verdexis'}
+                : 'Get started with Verdexis'}
             </p>
           </div>
 

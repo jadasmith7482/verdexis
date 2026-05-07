@@ -13,7 +13,7 @@ const sections = [
       ['How we use it', 'To operate the platform, provide AI-driven insights tailored to your holdings, secure your account, comply with legal obligations, and improve product quality.'],
       ['Third parties', 'We share data only with infrastructure providers under data-processing agreements (CoinGecko, Alpha Vantage, Finnhub for market data; standard cloud providers for hosting).'],
       ['Your rights', 'You may request a full export or permanent deletion of your data at any time from Settings → Profile. We honor GDPR and CCPA requests within 30 days.'],
-      ['Contact', 'privacy@verdexis.local'],
+      ['Contact', 'privacy@verdexis.com'],
     ],
   },
   {
@@ -41,7 +41,7 @@ const sections = [
       ['Infrastructure', 'Hosted on hardened cloud infrastructure with isolated network segments and least-privilege IAM.'],
       ['Monitoring', '24/7 anomaly detection, audit logging on all financial actions, and weekly third-party vulnerability scans.'],
       ['Compliance', 'SOC 2 Type II controls, ISO 27001 alignment, PCI DSS for payment paths, GDPR-compliant data handling.'],
-      ['Disclosure', 'Found a vulnerability? Email security@verdexis.local — we acknowledge within 24h.'],
+      ['Disclosure', 'Found a vulnerability? Email security@verdexis.com — we acknowledge within 24h.'],
     ],
   },
 ] as const

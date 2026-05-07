@@ -5,10 +5,10 @@ import {
 } from 'lucide-react'
 
 const stats = [
-  { label: 'Active investors', value: '127K+' },
-  { label: 'Assets tracked', value: '12K+' },
-  { label: 'Countries', value: '94' },
-  { label: 'Uptime', value: '99.98%' },
+  { label: 'Markets covered', value: 'Crypto + Equities' },
+  { label: 'Data', value: 'Real-time' },
+  { label: 'AI personas', value: '7' },
+  { label: 'Availability', value: '24/7' },
 ]
 
 const values = [
@@ -102,12 +102,12 @@ export default function About() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
               <a
-                href="mailto:hello@verdexis.local"
+                href="mailto:hello@verdexis.com"
                 className="glass-card p-5 hover:border-[#0C8B44]/30 transition-colors group"
               >
                 <Mail className="w-5 h-5 text-[#0C8B44] mx-auto mb-2" />
                 <p className="text-xs text-[#737373] mb-1">General</p>
-                <p className="text-sm text-[#E5E5E5] group-hover:text-[#0C8B44] transition-colors">hello@verdexis.local</p>
+                <p className="text-sm text-[#E5E5E5] group-hover:text-[#0C8B44] transition-colors">hello@verdexis.com</p>
               </a>
               <a
                 href="https://twitter.com"

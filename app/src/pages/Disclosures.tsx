@@ -97,7 +97,7 @@ export default function Disclosures() {
           <div className="mt-16 p-5 rounded-2xl bg-amber-400/5 border border-amber-400/20">
             <p className="text-xs text-amber-200/90 leading-relaxed">
               By continuing to use Verdexis you acknowledge that you have read, understood, and accept these disclosures.
-              Questions? Email <a href="mailto:legal@verdexis.local" className="underline">legal@verdexis.local</a>.
+              Questions? Email <a href="mailto:legal@verdexis.com" className="underline">legal@verdexis.com</a>.
             </p>
           </div>
         </div>

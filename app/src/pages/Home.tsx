@@ -11,22 +11,15 @@ import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
   Zap, BarChart3, PieChart, Activity, Bot,
   ChevronRight, Wallet, LineChart, BrainCircuit, Lock,
-  Globe, Server, Users, CheckCircle, Star, Play,
+  Globe, Server, CheckCircle, Star, Play,
   Radio, FileText, Linkedin, Twitter, Fingerprint, Eye,
   Github, Youtube, MessageSquare,
 } from 'lucide-react'
 
-const testimonials = [
-  { name: 'Marcus Chen', role: 'Portfolio Manager', company: 'Apex Capital', image: '/assets/person-marcus.jpg', text: 'Verdexis transformed how I manage client portfolios. The AI insights improved our risk-adjusted returns by 23%. No more switching between Bloomberg and CoinGecko.', rating: 5 },
-  { name: 'Sarah Williams', role: 'Retail Investor', company: 'Individual Trader', image: '/assets/person-sarah.jpg', text: 'I have tried dozens of platforms and none come close. The dashboard gives me a complete picture of my net worth across crypto and stocks.', rating: 5 },
-  { name: 'David Okafor', role: 'CTO', company: 'Nexa Finance', image: '/assets/person-david.jpg', text: 'The WebSocket feeds are instant, charting is professional-grade, and the security architecture passed our compliance review with zero concerns.', rating: 5 },
-  { name: 'Elena Rossi', role: 'Crypto Analyst', company: 'DeFi Research Lab', image: '/assets/person-elena.jpg', text: 'The depth of market data is unmatched for a free platform. Real-time prices, on-chain metrics, and AI sentiment analysis all in one interface.', rating: 5 },
-  { name: 'James Park', role: 'Day Trader', company: 'Self-employed', image: '/assets/person-james.jpg', text: 'Execution speed matters in my world. Verdexis order routing is lightning fast and the charts rival TradingView at a fraction of the cost.', rating: 5 },
-  { name: 'Amara Johnson', role: 'CFO', company: 'Greenfield Ventures', image: '/assets/person-amara.jpg', text: 'We needed a platform for treasury management and trading operations. Verdexis delivered with multi-sig wallets and full audit trails.', rating: 5 },
-]
+const testimonials: { name: string; role: string; company: string; image: string; text: string; rating: number }[] = []
 
 const howItWorks = [
-  { step: '01', title: 'Connect Your Accounts', desc: 'Link your exchange accounts, wallets, and bank accounts securely. Verdexis supports 200+ exchanges and all major blockchains.', icon: Globe, color: '#0C8B44' },
+  { step: '01', title: 'Connect Your Accounts', desc: 'Link your exchange accounts, wallets, and bank accounts securely. Verdexis supports leading exchanges and major blockchains.', icon: Globe, color: '#0C8B44' },
   { step: '02', title: 'AI Analyzes Everything', desc: 'Our AI engine processes your entire financial picture — portfolio allocation, market conditions, and emerging opportunities — 24/7.', icon: BrainCircuit, color: '#6A0DAD' },
   { step: '03', title: 'Get Actionable Insights', desc: 'Receive personalized recommendations with confidence scores. Rebalance alerts, entry/exit signals, tax-loss harvesting — all instant.', icon: Zap, color: '#F57C00' },
   { step: '04', title: 'Execute With One Click', desc: 'Act on insights directly from the dashboard. Smart order routing finds the best prices. Set automated strategies.', icon: CheckCircle, color: '#2196F3' },
@@ -35,7 +28,7 @@ const howItWorks = [
 const pricingPlans = [
   { name: 'Starter', price: '0', period: 'forever free', desc: 'Perfect for new investors exploring the platform.', features: ['Real-time market data', 'Portfolio tracking (50 assets)', 'Basic AI insights', '1 connected exchange', 'Email support', 'Standard charting'], cta: 'Get Started Free', highlighted: false },
   { name: 'Pro', price: '29', period: '/month', desc: 'For serious traders who need professional tools.', features: ['Everything in Starter', 'Unlimited portfolio assets', 'Full AI analyst access', 'Unlimited exchanges', 'Priority execution routing', 'Advanced charting & indicators', 'Unlimited price alerts', 'API access (1K calls/day)'], cta: 'Upgrade to Pro', highlighted: true },
-  { name: 'Institution', price: '99', period: '/month', desc: 'For funds, family offices, and professional teams.', features: ['Everything in Pro', 'Multi-user team accounts', 'Custom AI model training', 'White-label options', 'Dedicated account manager', 'Custom integrations', 'Unlimited API access', '99.9% SLA guarantee', 'On-premise deployment'], cta: 'Contact Sales', highlighted: false },
+  { name: 'Institution', price: '99', period: '/month', desc: 'For funds, family offices, and professional teams.', features: ['Everything in Pro', 'Multi-user team accounts', 'Custom AI model training', 'White-label options', 'Dedicated account manager', 'Custom integrations', 'Unlimited API access', 'Priority support SLA', 'On-premise deployment'], cta: 'Contact Sales', highlighted: false },
 ]
 
 const partnerLogos = [
@@ -53,8 +46,8 @@ const securityFeatures = [
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit' },
   { icon: Fingerprint, title: 'Multi-Factor Authentication', desc: 'FIDO2 WebAuthn + TOTP support' },
   { icon: Eye, title: 'Privacy by Design', desc: 'Zero-knowledge architecture, no data selling' },
-  { icon: Server, title: 'Cold Storage', desc: '98% of crypto assets in air-gapped cold wallets' },
-  { icon: Shield, title: 'Insurance Coverage', desc: '$250M digital asset insurance policy' },
+  { icon: Server, title: 'Cold Storage', desc: 'Majority of crypto assets held in air-gapped cold wallets' },
+  { icon: Shield, title: 'Insurance Coverage', desc: 'Custodial assets covered by partner policies' },
   { icon: FileText, title: 'Full Audit Trail', desc: 'Immutable logs of every action on your account' },
 ]
 
@@ -160,7 +153,7 @@ export default function Home() {
       <section className="py-20 px-6 border-y border-[#ffffff08]">
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[{ value: '$2.4B+', label: 'Assets Tracked', icon: BarChart3 }, { value: '127K+', label: 'Active Traders¹', icon: Users }, { value: '200+', label: 'Exchanges Connected', icon: Globe }, { value: '99.9%', label: 'Uptime SLA', icon: Server }].map((stat) => (
+            {[{ value: 'Real-time', label: 'Market Data', icon: Activity }, { value: 'Multi-Asset', label: 'Crypto + Equities', icon: BarChart3 }, { value: 'AI-Native', label: 'Insights & Alerts', icon: BrainCircuit }, { value: '24/7', label: 'Global Coverage', icon: Globe }].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="w-12 h-12 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center mx-auto mb-4"><stat.icon className="w-6 h-6 text-[#0C8B44]" /></div>
                 <p className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{stat.value}</p>
@@ -254,8 +247,7 @@ export default function Home() {
               <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6">Built by Traders, for Traders</h2>
               <p className="text-[#A0A0A0] mb-8 leading-relaxed">We built Verdexis because we were frustrated with fragmented tools. No single platform combined professional-grade trading, AI analysis, and portfolio management. So we created it.</p>
               <div className="space-y-4">
-                {[{ icon: Zap, title: 'Sub-second execution', desc: 'Smart order routing across 200+ exchanges' }, { icon: BrainCircuit, title: 'AI that actually helps', desc: 'Not generic advice &mdash; personalized, data-driven insights' }, { icon: Shield, title: 'Your keys, your crypto', desc: 'Non-custodial options with institutional security' }].map((item) => (
-                  <div key={item.title} className="flex items-start gap-4 p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05]">
+                {[{ icon: Zap, title: 'Sub-second execution', desc: 'Smart order routing across leading exchanges' }, { icon: BrainCircuit, title: 'AI that actually helps', desc: 'Not generic advice &mdash; personalized, data-driven insights' }, { icon: Shield, title: 'Your keys, your crypto', desc: 'Non-custodial options with institutional security' }].map((item) => (                  <div key={item.title} className="flex items-start gap-4 p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05]">
                     <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/10 flex items-center justify-center shrink-0"><item.icon className="w-5 h-5 text-[#0C8B44]" /></div>
                     <div><p className="text-sm font-medium text-[#E5E5E5]">{item.title}</p><p className="text-xs text-[#737373]">{item.desc}</p></div>
                   </div>
@@ -468,13 +460,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS ===== */}
+      {/* ===== TESTIMONIALS (rendered only when populated) ===== */}
+      {testimonials.length > 0 && (
       <section className="py-24 px-6">
         <div className="max-w-[1280px] mx-auto">
           <div className="text-center mb-16">
             <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44] mb-3 block">Testimonials</span>
-            <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">Trusted by 127,000+ Investors</h2>
-            <p className="text-[#A0A0A0] max-w-lg mx-auto">From retail traders to institutional funds &mdash; hear what our users say.</p>
+            <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">What our customers say</h2>
+            <p className="text-[#A0A0A0] max-w-lg mx-auto">From retail traders to institutional funds.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((t) => (
@@ -492,12 +485,12 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      )}
       {/* ===== HUMAN IMAGE SHOWCASE ===== */}
       <section className="py-24 px-6 bg-[#0a0f11]">
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[{ img: '/assets/showcase-team.jpg', title: 'Built for teams and individuals', desc: 'From solo day traders to 50-person fund teams — everyone finds their edge.' }, { img: '/assets/showcase-mobile.jpg', title: 'Trade anywhere, anytime', desc: 'Professional-grade tools in your pocket. Never miss a market move.' }, { img: '/assets/showcase-success.jpg', title: 'Real traders, real results', desc: 'Our users report an average 156% portfolio growth in their first year.' }].map((card) => (
+            {[{ img: '/assets/showcase-team.jpg', title: 'Built for teams and individuals', desc: 'From solo day traders to fund teams — everyone finds their edge.' }, { img: '/assets/showcase-mobile.jpg', title: 'Trade anywhere, anytime', desc: 'Professional-grade tools in your pocket. Never miss a market move.' }, { img: '/assets/showcase-success.jpg', title: 'Built for serious investors', desc: 'Institutional-grade analytics, charting and AI insights for every portfolio.' }].map((card) => (
               <div key={card.title} className="rounded-2xl overflow-hidden border border-[#ffffff08] group">
                 <img src={card.img} alt={card.title} className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="p-6"><p className="text-base font-medium text-[#E5E5E5]">{card.title}</p><p className="text-sm text-[#737373] mt-1">{card.desc}</p></div>
@@ -619,7 +612,7 @@ export default function Home() {
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(rgba(12,139,68,0.3) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
             <div className="relative z-10">
               <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">Ready to Transform Your Wealth?</h2>
-              <p className="text-[#A0A0A0] max-w-xl mx-auto mb-8">Join 127,000+ investors who trust Verdexis for AI-powered trading, portfolio management, and real-time market intelligence.</p>
+              <p className="text-[#A0A0A0] max-w-xl mx-auto mb-8">Sign up to get AI-powered trading, portfolio management and real-time market intelligence in one workspace.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button onClick={openSignup} className="px-8 py-3.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Get Started Free</button>
                 <Link to="/trading" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44] transition-colors">Explore Markets</Link>

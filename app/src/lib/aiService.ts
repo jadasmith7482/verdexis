@@ -92,15 +92,25 @@ class AIService {
         })
       }
 
-      // Diversification recommendation
-      insights.push({
-        type: 'recommendation',
-        title: 'Portfolio Diversification',
-        description:
-          'Based on current market conditions, consider increasing allocation to SOL and DOT for better risk-adjusted returns. Your portfolio is currently overweight in BTC.',
-        confidence: 82,
-        timestamp: new Date(),
-      })
+      // Diversification recommendation — derived from the user's actual
+      // holdings rather than a static "60% BTC" assumption.
+      try {
+        const holdings = portfolioStore.getHoldings()
+        const totalValue = holdings.reduce((s, h) => s + h.value, 0)
+        if (totalValue > 0 && holdings.length > 0) {
+          const top = holdings.slice().sort((a, b) => b.value - a.value)[0]
+          const topPct = (top.value / totalValue) * 100
+          if (topPct >= 50) {
+            insights.push({
+              type: 'recommendation',
+              title: 'Portfolio Diversification',
+              description: `${top.symbol} is ${topPct.toFixed(0)}% of your portfolio. Concentration above 50% in a single asset increases idiosyncratic risk — consider rebalancing into uncorrelated positions.`,
+              confidence: Math.min(95, Math.round(topPct + 20)),
+              timestamp: new Date(),
+            })
+          }
+        }
+      } catch { /* ignore */ }
 
       return insights
     } catch (error) {
@@ -199,59 +209,29 @@ class AIService {
 
       // Trading strategy queries
       if (lowerQuery.includes('strategy') || lowerQuery.includes('trade')) {
-        return `Based on current market analysis, I'm seeing strong support levels for BTC at $65,000 and ETH at $3,400. A dollar-cost averaging strategy with weekly purchases could be effective in this volatile environment. Would you like me to set up automated trades?`
+        return `Without a specific strategy in mind, dollar-cost averaging into your core convictions tends to outperform timing the market for most investors. Tell me which assets you're focused on and I can suggest entry rules, position sizing, and risk caps.`
       }
 
       // Market analysis
       if (lowerQuery.includes('market') || lowerQuery.includes('analysis')) {
         const news = await marketData.getMarketNews()
         const latestNews = news[0]
-        return `Market overview: The crypto market is showing mixed signals today. ${latestNews?.headline || 'Institutional inflows remain strong'}. Key levels to watch: BTC resistance at $68,000, ETH resistance at $3,600. Overall sentiment is cautiously bullish based on on-chain metrics.`
+        return `Market overview: pulling the latest from real-time feeds.${latestNews?.headline ? ` Top headline right now: "${latestNews.headline}".` : ''} Ask me about a specific asset (e.g. "BTC", "ETH", "AAPL") for live price, 24h range and volume.`
       }
 
       // Default response
       return `I can help with portfolio analysis, market insights, price checks, and trading strategies. Could you provide more details about what you need? You can also switch personas to see how Buffett, Graham, Lynch, Munger, Klarman, or Wood would frame the same question.`
     } catch (error) {
       console.error('Error processing query:', error)
-      return `I apologize, but I'm having trouble accessing real-time market data right now. However, I can tell you that based on recent trends, diversification across BTC, ETH, and SOL remains a solid strategy. What specific aspect of your portfolio would you like to discuss?`
+      return `I'm having trouble reaching live market data right now. Please try again shortly.`
     }
   }
 
   private getMockInsights(): AIInsight[] {
-    return [
-      {
-        type: 'recommendation',
-        title: 'BTC Momentum Alert',
-        description:
-          'Bitcoin is up 2.4% in 24h. Consider taking partial profits above $70,000 resistance.',
-        confidence: 78,
-        timestamp: new Date(),
-      },
-      {
-        type: 'alert',
-        title: 'ETH Dip Opportunity',
-        description:
-          'Ethereum has dropped 1.8%. This could be a buying opportunity if support holds at $3,400.',
-        confidence: 65,
-        timestamp: new Date(),
-      },
-      {
-        type: 'analysis',
-        title: 'Market Sentiment Analysis',
-        description:
-          'Current market sentiment is bullish based on recent news flow. Institutional inflows remain strong.',
-        confidence: 72,
-        timestamp: new Date(),
-      },
-      {
-        type: 'recommendation',
-        title: 'Portfolio Diversification',
-        description:
-          'Consider increasing SOL allocation by 5% for better risk-adjusted returns. Your portfolio is currently 60% BTC.',
-        confidence: 82,
-        timestamp: new Date(),
-      },
-    ]
+    // Returning an empty list keeps the UI honest when the live data path
+    // fails — we'd rather show "no insights available" than fabricated
+    // numbers that could mislead a user's decisions.
+    return []
   }
 }
 

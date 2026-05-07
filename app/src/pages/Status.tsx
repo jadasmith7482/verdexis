@@ -171,7 +171,7 @@ export default function StatusPage() {
           })}
 
           <p className="text-[11px] text-[#737373] text-center mt-12">
-            Status checks run client-side. For incidents and historical uptime, contact <a href="mailto:status@verdexis.local" className="text-[#0C8B44] hover:underline">status@verdexis.local</a>.
+            Status checks run client-side. For incidents and historical uptime, contact <a href="mailto:status@verdexis.com" className="text-[#0C8B44] hover:underline">status@verdexis.com</a>.
           </p>
         </div>
       </div>

@@ -58,7 +58,7 @@ export default function Footer() {
             <ul className="space-y-2 text-xs text-[#A0A0A0]">
               <li className="flex items-center gap-1.5" title="All traffic encrypted with TLS 1.3"><Lock className="w-3 h-3 text-[#0C8B44]" /> TLS 1.3 Encrypted</li>
               <li className="flex items-center gap-1.5" title="Data at rest encrypted with AES-256"><Shield className="w-3 h-3 text-[#0C8B44]" /> AES-256 at Rest</li>
-              <li className="flex items-center gap-1.5"><Activity className="w-3 h-3 text-[#0C8B44]" /> 99.99% Uptime</li>
+              <li className="flex items-center gap-1.5"><Activity className="w-3 h-3 text-[#0C8B44]" /> Real-Time Status</li>
             </ul>
           </div>
         </div>

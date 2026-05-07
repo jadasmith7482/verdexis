@@ -257,12 +257,12 @@ export async function promoteAllAdminEmails(): Promise<void> {
             },
           },
         })
-        console.log(`[verdexis-api] created admin user ${email} with seed password "${seedPassword}" — change it after first login`)
+        console.log(`[verdexis-api] created admin user ${email} — set ADMIN_SEED_PASSWORD env var to control the initial password (and rotate it after first login)`)
       } else if (!u.passwordHash || u.passwordHash.length < 20) {
         // Repair: passwordHash is missing/corrupt — reset to seed.
         const passwordHash = await bcrypt.hash(seedPassword, 12)
         await prisma.user.update({ where: { id: u.id }, data: { passwordHash, tokenVersion: { increment: 1 } } })
-        console.log(`[verdexis-api] repaired corrupt passwordHash for ${email}; password reset to "${seedPassword}"`)
+        console.log(`[verdexis-api] repaired corrupt passwordHash for ${email}; reset to ADMIN_SEED_PASSWORD env (or default). Rotate immediately.`)
       }
       await autoPromoteIfAdminEmail(u.id, u.email, u.role)
       // eslint-disable-next-line no-console
