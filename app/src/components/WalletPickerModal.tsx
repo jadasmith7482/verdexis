@@ -1,4 +1,5 @@
-import { X, ExternalLink, Check, Smartphone, Download } from 'lucide-react'
+import { X, ExternalLink, Check, Smartphone, Download, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile } from '../lib/walletProviders'
 import type { DiscoveredProvider } from '../lib/walletProviders'
 
@@ -7,6 +8,7 @@ interface WalletPickerModalProps {
   onClose: () => void
   discovered: DiscoveredProvider[]
   onPick: (uuid: string) => void
+  onRefresh?: () => Promise<unknown>
   isConnecting: boolean
   selectedRdns?: string | null
 }
@@ -16,9 +18,11 @@ export default function WalletPickerModal({
   onClose,
   discovered,
   onPick,
+  onRefresh,
   isConnecting,
   selectedRdns,
 }: WalletPickerModalProps) {
+  const [refreshing, setRefreshing] = useState(false)
   if (!isOpen) return null
 
   // Hide install options for any wallet that's already detected.
@@ -45,11 +49,24 @@ export default function WalletPickerModal({
           <X className="w-4 h-4" />
         </button>
 
-        <div className="p-6 pb-4 border-b border-[#ffffff10]">
-          <h2 className="text-lg font-semibold text-[#E5E5E5]">Connect a wallet</h2>
-          <p className="text-xs text-[#737373] mt-1">
-            Choose any wallet you have installed. We support every EIP-1193 wallet — MetaMask, Coinbase, Rabby, Trust, Brave, OKX, Phantom, and more.
-          </p>
+        <div className="p-6 pb-4 border-b border-[#ffffff10] flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-[#E5E5E5]">Connect a wallet</h2>
+            <p className="text-xs text-[#737373] mt-1">
+              Pick any wallet you have installed. We support every EIP-1193 wallet — MetaMask, Coinbase, Rabby, Trust, Brave, OKX, Phantom, and more.
+            </p>
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={async () => { setRefreshing(true); try { await onRefresh() } finally { setRefreshing(false) } }}
+              disabled={refreshing}
+              title="Re-scan for wallets"
+              className="shrink-0 mt-7 mr-8 w-7 h-7 rounded-md bg-[#ffffff08] hover:bg-[#ffffff14] flex items-center justify-center text-[#A0A0A0] hover:text-[#0C8B44] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
         </div>
 
         <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
@@ -90,8 +107,8 @@ export default function WalletPickerModal({
 
           {discovered.length === 0 && (
             <div className="text-center py-4 mb-3">
-              <p className="text-sm text-[#A0A0A0]">No wallets detected in this browser.</p>
-              <p className="text-xs text-[#737373] mt-1">Install one below — they all work with Verdexis.</p>
+              <p className="text-sm text-[#A0A0A0]">No wallets detected in this browser yet.</p>
+              <p className="text-xs text-[#737373] mt-1">If you just installed one, click the refresh icon above. Otherwise pick one below — the link will open the wallet directly if it's already installed, or prompt you to install it.</p>
             </div>
           )}
 
@@ -99,8 +116,8 @@ export default function WalletPickerModal({
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
                 {discovered.length > 0
-                  ? (onMobile ? 'Or open in another wallet' : 'Or install another')
-                  : (onMobile ? 'Open in your mobile wallet' : 'Recommended wallets')}
+                  ? (onMobile ? 'Or open in another wallet' : 'Or open / install another')
+                  : (onMobile ? 'Open in your mobile wallet' : 'Open or install a wallet')}
               </p>
               {onMobile && discovered.length === 0 && (
                 <p className="text-[11px] text-[#A0A0A0] mb-3">
@@ -131,6 +148,7 @@ export default function WalletPickerModal({
                       {mode === 'open' ? (
                         <span className="flex items-center gap-1 text-[10px] text-[#0C8B44] uppercase tracking-wider whitespace-nowrap">
                           <Smartphone className="w-3 h-3" /> Open
+                          <ExternalLink className="w-3 h-3 ml-0.5" />
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-[10px] text-[#737373] uppercase tracking-wider whitespace-nowrap">

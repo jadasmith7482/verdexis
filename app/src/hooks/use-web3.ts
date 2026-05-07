@@ -193,8 +193,10 @@ export function useWeb3() {
   }, [attachListeners])
 
   const connect = useCallback(async () => {
-    const list = discovered.length ? discovered : await discoverWallets()
-    if (!discovered.length) setDiscovered(list)
+    // Always re-discover when the user clicks Connect — wallet extensions can
+    // inject after page load, so a stale empty list shouldn't lock them out.
+    const list = await discoverWallets()
+    setDiscovered(list)
     if (list.length === 0) {
       setState((s) => ({ ...s, error: 'No Web3 wallet detected. Choose one to install.', isAvailable: false }))
       setPickerOpen(true)
@@ -205,7 +207,14 @@ export function useWeb3() {
       return
     }
     setPickerOpen(true)
-  }, [discovered, connectTo])
+  }, [connectTo])
+
+  const refreshDiscovered = useCallback(async () => {
+    const list = await discoverWallets()
+    setDiscovered(list)
+    setState((s) => ({ ...s, isAvailable: list.length > 0 }))
+    return list
+  }, [])
 
   const disconnect = useCallback(() => {
     setState((s) => ({ ...s, address: null, isConnected: false, balanceEth: null, error: null, walletInfo: null }))
@@ -252,6 +261,7 @@ export function useWeb3() {
     setPickerOpen,
     connect,
     connectTo,
+    refreshDiscovered,
     disconnect,
     sendTransaction,
     refreshBalance,

@@ -52,9 +52,10 @@ function detectLegacyName(p: EthereumProvider): { name: string; rdns: string } {
   return { name: 'Browser Wallet', rdns: 'unknown.injected' }
 }
 
-// Fire an EIP-6963 request and collect every announce that fires synchronously
-// (wallets that implement the spec re-announce on every request).
-export function discoverWallets(timeoutMs = 350): Promise<DiscoveredProvider[]> {
+// Fire an EIP-6963 request and collect every announce that fires within the
+// timeout. Some wallet extensions inject late (after DOMContentLoaded) so we
+// give them a generous window and re-broadcast `requestProvider` periodically.
+export function discoverWallets(timeoutMs = 1500): Promise<DiscoveredProvider[]> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') {
       resolve([])
@@ -72,8 +73,14 @@ export function discoverWallets(timeoutMs = 350): Promise<DiscoveredProvider[]> 
 
     window.addEventListener('eip6963:announceProvider', onAnnounce)
     window.dispatchEvent(new Event('eip6963:requestProvider'))
+    // Re-broadcast every 250ms so wallets that inject after our first request
+    // still get a chance to announce themselves.
+    const interval = window.setInterval(() => {
+      window.dispatchEvent(new Event('eip6963:requestProvider'))
+    }, 250)
 
     setTimeout(() => {
+      window.clearInterval(interval)
       window.removeEventListener('eip6963:announceProvider', onAnnounce)
 
       // Fallback: include window.ethereum (and its .providers[] array, if present)
@@ -176,11 +183,18 @@ export const WALLET_INSTALL_OPTIONS: WalletInstallOption[] = [
   },
 ]
 
-/** Resolve the right URL for a wallet option based on the user's device. */
+/** Resolve the right URL for a wallet option based on the user's device.
+ *  Wallet deep-links (metamask.app.link, go.cb-w.com, link.trustwallet.com)
+ *  work as universal links on desktop too: if the extension is installed the
+ *  link page opens the wallet popup; otherwise it prompts the install. */
 export function resolveWalletActionUrl(opt: WalletInstallOption): { url: string; mode: 'open' | 'install' } {
   if (typeof window === 'undefined') return { url: opt.installUrl, mode: 'install' }
-  if (isMobile() && opt.deepLink) {
-    return { url: opt.deepLink(window.location.href), mode: 'open' }
+  if (opt.deepLink) {
+    try {
+      return { url: opt.deepLink(window.location.href), mode: 'open' }
+    } catch {
+      /* fall through to install */
+    }
   }
   return { url: opt.installUrl, mode: 'install' }
 }

@@ -579,6 +579,7 @@ export default function WalletPage() {
         onClose={() => web3.setPickerOpen(false)}
         discovered={web3.discovered}
         onPick={(uuid) => { void web3.connectTo(uuid) }}
+        onRefresh={() => web3.refreshDiscovered()}
         isConnecting={web3.isConnecting}
         selectedRdns={web3.walletInfo?.rdns}
       />
