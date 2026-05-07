@@ -107,8 +107,14 @@ export default function WalletPickerModal({
 
           {discovered.length === 0 && (
             <div className="text-center py-4 mb-3">
-              <p className="text-sm text-[#A0A0A0]">No wallets detected in this browser yet.</p>
-              <p className="text-xs text-[#737373] mt-1">If you just installed one, click the refresh icon above. Otherwise pick one below — the link will open the wallet directly if it's already installed, or prompt you to install it.</p>
+              <p className="text-sm text-[#A0A0A0]">
+                {onMobile ? 'No wallet connected on this device.' : 'No wallets detected in this browser yet.'}
+              </p>
+              <p className="text-xs text-[#737373] mt-1">
+                {onMobile
+                  ? 'Tap a wallet below — it will open Verdexis inside that wallet\u2019s in-app browser, where you can connect with one tap. If the app isn\u2019t installed, the link will take you to the App Store / Play Store first.'
+                  : 'If you just installed one, click the refresh icon above. Otherwise pick one below — the link will open the wallet directly if it\u2019s already installed, or prompt you to install it.'}
+              </p>
             </div>
           )}
 
