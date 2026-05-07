@@ -18,6 +18,16 @@ import {
 
 const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
+const fmtMoney = (n: number, opts: { compact?: boolean; sign?: boolean } = {}) => {
+  const abs = Math.abs(n)
+  const useCompact = opts.compact && abs >= 100_000
+  const formatted = useCompact
+    ? abs.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 })
+    : abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const prefix = opts.sign ? (n >= 0 ? '+$' : '-$') : '$'
+  return `${prefix}${formatted}`
+}
+
 function getSparklinePath(prices: number[], width: number, height: number): string {
   if (!prices || prices.length === 0) return ''
   const min = Math.min(...prices)
@@ -152,8 +162,8 @@ export default function Dashboard() {
           {isAuthenticated && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
-                { label: 'Total Net Worth', value: `$${totalValue.toLocaleString()}`, change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
-                { label: 'Unrealized P&L', value: `${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString()}`, change: 'All-time across holdings', positive: totalPnl >= 0, icon: TrendingUp },
+                { label: 'Total Net Worth', value: fmtMoney(totalValue, { compact: true }), change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
+                { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true, compact: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp },
                 { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
                 { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
               ].map((stat) => (
@@ -255,8 +265,8 @@ export default function Dashboard() {
 
               {isAuthenticated ? (
                 <>
-                  <p className="text-4xl sm:text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6 break-all">
-                    ${totalValue.toLocaleString()}
+                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6 truncate">
+                    {fmtMoney(totalValue)}
                   </p>
                   {/* SVG Area Chart */}
                   <div className="h-48 w-full">
@@ -418,9 +428,9 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-[#E5E5E5]">${h.value.toLocaleString()}</p>
+                          <p className="text-sm text-[#E5E5E5]">{fmtMoney(h.value)}</p>
                           <p className={`text-xs ${h.pnl >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                            {h.pnl >= 0 ? '+' : ''}${h.pnl.toLocaleString()} ({h.pnlPercent.toFixed(2)}%)
+                            {fmtMoney(h.pnl, { sign: true })} ({h.pnlPercent.toFixed(2)}%)
                           </p>
                         </div>
                       </div>
@@ -532,7 +542,7 @@ export default function Dashboard() {
                           <p className="text-xs text-[#737373]">Available</p>
                         </div>
                       </div>
-                      <span className="text-sm text-[#E5E5E5]">{w.symbol}{w.balance.toLocaleString()}</span>
+                      <span className="text-sm text-[#E5E5E5]">{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
                     </div>
                   ))}
                 </div>
