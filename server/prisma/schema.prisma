@@ -15,6 +15,10 @@ model User {
   avatar       String?  // data URL or remote URL
   prefs        String?  // JSON blob: { currency, theme, notifications, ... }
   twoFactor    Boolean  @default(false)
+  role         String   @default("user")  // 'user' | 'admin'
+  suspended    Boolean  @default(false)
+  suspendedReason String?
+  tokenVersion Int      @default(0)        // bump to invalidate outstanding JWTs
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -26,6 +30,8 @@ model User {
   watchlist     Watchlist[]
   alerts        PriceAlert[]
   notifications Notification[]
+  adminAudits   AdminAudit[]   @relation("AdminActor")
+  audited       AdminAudit[]   @relation("AdminTarget")
 }
 
 model PasswordReset {
@@ -138,4 +144,18 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model AdminAudit {
+  id           String   @id @default(cuid())
+  actorId      String
+  actor        User     @relation("AdminActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUserId String?
+  target       User?    @relation("AdminTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  action       String   // 'user.update', 'wallet.set', 'transaction.create', ...
+  payload      String?  // JSON snapshot of what changed
+  createdAt    DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
 }

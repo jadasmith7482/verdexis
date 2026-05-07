@@ -9,6 +9,7 @@ const EXPIRES_IN = env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn']
 export interface AuthPayload {
   sub: string
   email: string
+  v?: number // tokenVersion at issue time
 }
 
 export function signToken(payload: AuthPayload): string {
@@ -23,9 +24,12 @@ export function verifyToken(token: string): AuthPayload | null {
   }
 }
 
+export type Role = 'user' | 'admin'
+
 export interface AuthedRequest extends Request {
   userId?: string
   userEmail?: string
+  userRole?: Role
 }
 
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
@@ -46,12 +50,33 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     return
   }
   // Cheap existence check; cache could be added later.
-  const user = await prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true, email: true } })
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { id: true, email: true, role: true, suspended: true, tokenVersion: true },
+  })
   if (!user) {
     res.status(401).json({ error: 'User not found' })
     return
   }
+  // tokenVersion lets admins force-revoke all sessions for a user.
+  if (typeof payload.v === 'number' && payload.v !== user.tokenVersion) {
+    res.status(401).json({ error: 'Session revoked. Please log in again.' })
+    return
+  }
+  if (user.suspended) {
+    res.status(403).json({ error: 'Account suspended' })
+    return
+  }
   req.userId = user.id
   req.userEmail = user.email
+  req.userRole = user.role === 'admin' ? 'admin' : 'user'
+  next()
+}
+
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  if (req.userRole !== 'admin') {
+    res.status(403).json({ error: 'Admin only' })
+    return
+  }
   next()
 }

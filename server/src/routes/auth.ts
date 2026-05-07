@@ -5,8 +5,11 @@ import { z } from 'zod'
 import rateLimit from 'express-rate-limit'
 import { prisma } from '../db.js'
 import { signToken, requireAuth, type AuthedRequest } from '../auth.js'
+import { env } from '../env.js'
 
 const router = Router()
+
+const ADMIN_EMAILS = env.ADMIN_EMAILS.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -35,7 +38,7 @@ const resetSchema = z.object({
   password: z.string().min(8).max(200),
 })
 
-function publicUser(u: { id: string; email: string; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean }) {
+function publicUser(u: { id: string; email: string; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean }) {
   let prefs: Record<string, unknown> = {}
   try {
     if (u.prefs) prefs = JSON.parse(u.prefs)
@@ -48,8 +51,17 @@ function publicUser(u: { id: string; email: string; name: string; avatar: string
     name: u.name,
     avatar: u.avatar,
     twoFactor: u.twoFactor,
+    role: (u.role === 'admin' ? 'admin' : 'user') as 'user' | 'admin',
+    suspended: !!u.suspended,
     prefs,
   }
+}
+
+async function autoPromoteIfAdminEmail(userId: string, email: string, currentRole: string): Promise<string> {
+  if (currentRole === 'admin') return 'admin'
+  if (!ADMIN_EMAILS.includes(email.toLowerCase())) return currentRole
+  await prisma.user.update({ where: { id: userId }, data: { role: 'admin' } })
+  return 'admin'
 }
 
 router.post('/signup', authLimiter, async (req, res) => {
@@ -70,13 +82,15 @@ router.post('/signup', authLimiter, async (req, res) => {
       email,
       name,
       passwordHash,
+      // First user signed up with an admin-listed email starts as admin.
+      role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
       // Seed a USD wallet so the user can deposit immediately.
       walletBalances: {
         create: [{ currency: 'USD', symbol: '$', balance: 0, available: 0 }],
       },
     },
   })
-  const token = signToken({ sub: user.id, email: user.email })
+  const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
   res.status(201).json({ token, user: publicUser(user) })
 })
 
@@ -97,8 +111,13 @@ router.post('/login', authLimiter, async (req, res) => {
     res.status(401).json({ error: 'Invalid credentials' })
     return
   }
-  const token = signToken({ sub: user.id, email: user.email })
-  res.json({ token, user: publicUser(user) })
+  if (user.suspended) {
+    res.status(403).json({ error: 'Account suspended' })
+    return
+  }
+  const role = await autoPromoteIfAdminEmail(user.id, user.email, user.role)
+  const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
+  res.json({ token, user: publicUser({ ...user, role }) })
 })
 
 router.post('/forgot', authLimiter, async (req, res) => {

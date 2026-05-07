@@ -29,6 +29,7 @@ export default function Navigation() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState('User')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [avatar, setAvatar] = useState<string | null>(null)
   const { isConnected: web3Connected, isConnecting: web3Connecting, shortAddress, connect: connectWeb3, error: web3Error } = useWeb3()
   const location = useLocation()
@@ -42,9 +43,13 @@ export default function Navigation() {
       try {
         const parsed = JSON.parse(auth)
         setUserName(parsed.name || 'User')
+        setIsAdmin(parsed.role === 'admin')
       } catch {
         setUserName('User')
+        setIsAdmin(false)
       }
+    } else {
+      setIsAdmin(false)
     }
     setAvatar(getAvatar())
   }
@@ -62,7 +67,8 @@ export default function Navigation() {
 
   const isPrivatePage = ['/dashboard', '/ai', '/wallet'].includes(location.pathname)
   const showPrivateNav = isAuthenticated || isPrivatePage
-  const navLinks = showPrivateNav ? privateLinks : publicLinks
+  const baseLinks = showPrivateNav ? privateLinks : publicLinks
+  const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/admin' }] : baseLinks
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)

@@ -4,6 +4,7 @@ import ScrollToTop from './components/ScrollToTop'
 import CookieBanner from './components/CookieBanner'
 import OfflineToast from './components/OfflineToast'
 import RequireAuth from './components/RequireAuth'
+import RequireAdmin from './components/RequireAdmin'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import AlertChecker from './components/AlertChecker'
@@ -26,6 +27,9 @@ const StatusPage = lazy(() => import('./pages/Status'))
 const Disclosures = lazy(() => import('./pages/Disclosures'))
 const AssetDetail = lazy(() => import('./pages/AssetDetail'))
 const AdminDeposits = lazy(() => import('./pages/AdminDeposits'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const AdminUsers = lazy(() => import('./pages/AdminUsers'))
+const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'))
 
 function PageFallback() {
   return (
@@ -56,7 +60,10 @@ export default function App() {
           <Route path="/disclosures" element={<Disclosures />} />
           <Route path="/asset/:id" element={<AssetDetail />} />
           <Route path="/coin/:id" element={<AssetDetail />} />
-          <Route path="/admin/deposits" element={<AdminDeposits />} />
+          <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+          <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+          <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserDetail /></RequireAdmin>} />
+          <Route path="/admin/deposits" element={<RequireAdmin><AdminDeposits /></RequireAdmin>} />
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

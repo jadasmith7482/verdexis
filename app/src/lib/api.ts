@@ -11,6 +11,8 @@ export interface ApiUser {
   avatar: string | null
   twoFactor: boolean
   prefs: Record<string, unknown>
+  role: 'user' | 'admin'
+  suspended: boolean
 }
 
 export interface ApiError {
@@ -38,7 +40,7 @@ export function setToken(token: string | null) {
 
 export function setStoredUser(user: ApiUser) {
   try {
-    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, name: user.name }))
+    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, name: user.name, role: user.role, suspended: user.suspended }))
     if (user.avatar) localStorage.setItem('verdexis_avatar', user.avatar)
     else localStorage.removeItem('verdexis_avatar')
     if (user.prefs && Object.keys(user.prefs).length) {

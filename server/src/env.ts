@@ -10,6 +10,8 @@ const schema = z.object({
   APP_BASE_URL: z.string().url().default('http://localhost:5173'),
   ALERT_POLL_ENABLED: z.coerce.boolean().default(true),
   ALERT_POLL_INTERVAL_MS: z.coerce.number().int().min(15_000).default(60_000),
+  // Comma-separated list of emails that auto-promote to admin on next login.
+  ADMIN_EMAILS: z.string().default(''),
 })
 
 const parsed = schema.safeParse(process.env)
