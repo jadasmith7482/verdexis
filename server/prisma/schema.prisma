@@ -18,6 +18,15 @@ model User {
   role         String   @default("user")  // 'user' | 'admin'
   suspended    Boolean  @default(false)
   suspendedReason String?
+  // Soft "hold" \u2014 less drastic than suspended. Login still works but
+  // money-movement endpoints (withdraw / transfer) are blocked when active.
+  // holdType controls scope: 'all' (block everything monetary), 'withdraw'
+  // (block only withdraws), or 'transfer' (block only transfers).
+  holdActive   Boolean  @default(false)
+  holdType     String?  // 'all' | 'withdraw' | 'transfer'
+  holdReason   String?  // canonical short code (see admin reasons list)
+  holdNote     String?  // optional free-form note from the admin who placed it
+  holdAt       DateTime?
   tokenVersion Int      @default(0)        // bump to invalidate outstanding JWTs
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

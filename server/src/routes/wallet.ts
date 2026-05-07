@@ -44,6 +44,30 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
   }
   const { kind, currency, symbol, amount, reference } = parsed.data
 
+  // Account-hold gate: even though `requireAuth` lets the user in, an admin
+  // may have placed a hold on money-movement. Block the relevant kinds.
+  if (kind === 'withdraw' || kind === 'transfer') {
+    const u = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { holdActive: true, holdType: true, holdReason: true, holdNote: true },
+    })
+    if (u?.holdActive) {
+      const blocks =
+        u.holdType === 'all' ||
+        (u.holdType === 'withdraw' && kind === 'withdraw') ||
+        (u.holdType === 'transfer' && kind === 'transfer')
+      if (blocks) {
+        res.status(423).json({
+          error: 'Account on hold',
+          reason: u.holdReason,
+          note: u.holdNote,
+          scope: u.holdType,
+        })
+        return
+      }
+    }
+  }
+
   // Atomically apply to balance + record transaction.
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.walletBalance.findUnique({

@@ -24,6 +24,7 @@ router.use(requireAdmin)
 function publicUser(u: {
   id: string; email: string; name: string; avatar: string | null; prefs: string | null;
   twoFactor: boolean; role: string; suspended: boolean; suspendedReason: string | null;
+  holdActive: boolean; holdType: string | null; holdReason: string | null; holdNote: string | null; holdAt: Date | null;
   tokenVersion: number; createdAt: Date; updatedAt: Date;
 }) {
   let prefs: Record<string, unknown> = {}
@@ -31,7 +32,10 @@ function publicUser(u: {
   return {
     id: u.id, email: u.email, name: u.name, avatar: u.avatar,
     twoFactor: u.twoFactor, role: u.role, suspended: u.suspended,
-    suspendedReason: u.suspendedReason, tokenVersion: u.tokenVersion,
+    suspendedReason: u.suspendedReason,
+    holdActive: u.holdActive, holdType: u.holdType, holdReason: u.holdReason,
+    holdNote: u.holdNote, holdAt: u.holdAt,
+    tokenVersion: u.tokenVersion,
     createdAt: u.createdAt, updatedAt: u.updatedAt, prefs,
   }
 }
@@ -113,6 +117,46 @@ router.get('/users', async (req, res) => {
     }),
   ])
   res.json({ users, total, page, limit })
+})
+
+// --- create user ---------------------------------------------------------
+
+const createUserSchema = z.object({
+  email: z.string().email().toLowerCase(),
+  name: z.string().min(1).max(80),
+  password: z.string().min(8).max(200),
+  role: z.enum(['user', 'admin']).default('user'),
+  initialUsdBalance: z.number().nonnegative().optional(),
+})
+
+router.post('/users', async (req: AuthedRequest, res) => {
+  const parsed = createUserSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const exists = await prisma.user.findUnique({ where: { email: parsed.data.email } })
+  if (exists) { res.status(409).json({ error: 'A user with that email already exists' }); return }
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12)
+  try {
+    const u = await prisma.user.create({
+      data: {
+        email: parsed.data.email,
+        name: parsed.data.name,
+        passwordHash,
+        role: parsed.data.role,
+      },
+    })
+    if (parsed.data.initialUsdBalance && parsed.data.initialUsdBalance > 0) {
+      await prisma.walletBalance.create({
+        data: { userId: u.id, currency: 'USD', symbol: '$', balance: parsed.data.initialUsdBalance, available: parsed.data.initialUsdBalance },
+      })
+      await prisma.transaction.create({
+        data: { userId: u.id, kind: 'deposit', currency: 'USD', amount: parsed.data.initialUsdBalance, status: 'completed', reference: 'Admin: opening balance' },
+      })
+    }
+    await audit(req.userId!, 'user.create', u.id, { email: parsed.data.email, role: parsed.data.role, initialUsdBalance: parsed.data.initialUsdBalance ?? 0 })
+    res.status(201).json({ user: publicUser(u) })
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message })
+  }
 })
 
 // --- single user (full profile) -----------------------------------------
@@ -271,7 +315,7 @@ router.delete('/wallet/:wid', async (req: AuthedRequest, res) => {
   res.json({ ok: true })
 })
 
-// --- transactions --------------------------------------------------------
+// --- deposit / deduct (atomic balance + transaction in one call) --------\n\n// Canonical reason codes the UI offers. Free-form `note` is also stored.\nconst DEPOSIT_REASONS = [\n  'manual_bank_wire', 'manual_crypto', 'promo_credit', 'refund', 'chargeback_reversal',\n  'bonus_referral', 'compensation', 'correction_undercharge', 'other',\n] as const\nconst DEDUCT_REASONS = [\n  'manual_bank_wire', 'manual_crypto', 'fee', 'chargeback', 'fraud_reversal',\n  'compliance_sanctions', 'correction_overcharge', 'court_order', 'other',\n] as const\n\nconst depositSchema = z.object({\n  currency: z.string().min(1).max(10).transform((s) => s.toUpperCase()),\n  symbol: z.string().min(1).max(10).optional(),\n  amount: z.number().positive(),\n  reason: z.enum(DEPOSIT_REASONS).default('manual_bank_wire'),\n  note: z.string().max(500).optional(),\n  status: z.enum(['pending', 'completed']).default('completed'),\n  notify: z.boolean().default(true),\n})\n\nrouter.post('/users/:id/deposit', async (req: AuthedRequest, res) => {\n  const parsed = depositSchema.safeParse(req.body)\n  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }\n  const userId = req.params.id\n  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })\n  if (!exists) { res.status(404).json({ error: 'User not found' }); return }\n  const symbol = parsed.data.symbol ?? (parsed.data.currency === 'USD' ? '$' : parsed.data.currency)\n  const reference = `Admin deposit (${parsed.data.reason})${parsed.data.note ? ': ' + parsed.data.note : ''}`\n  const result = await prisma.$transaction(async (tx) => {\n    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency: parsed.data.currency } } })\n    const nextBalance = (existing?.balance ?? 0) + parsed.data.amount\n    const nextAvailable = (existing?.available ?? 0) + (parsed.data.status === 'completed' ? parsed.data.amount : 0)\n    const balance = await tx.walletBalance.upsert({\n      where: { userId_currency: { userId, currency: parsed.data.currency } },\n      create: { userId, currency: parsed.data.currency, symbol, balance: nextBalance, available: nextAvailable },\n      update: { balance: nextBalance, available: nextAvailable, symbol },\n    })\n    const transaction = await tx.transaction.create({\n      data: { userId, kind: 'deposit', currency: parsed.data.currency, amount: parsed.data.amount, status: parsed.data.status, reference },\n    })\n    return { balance, transaction }\n  })\n  if (parsed.data.notify) {\n    await prisma.notification.create({\n      data: { userId, kind: 'deposit', title: `${symbol}${parsed.data.amount.toLocaleString()} ${parsed.data.currency} credited`, body: reference },\n    }).catch(() => { /* notification is best-effort */ })\n  }\n  await audit(req.userId!, 'wallet.deposit', userId, parsed.data)\n  res.status(201).json(result)\n})\n\nconst deductSchema = z.object({\n  currency: z.string().min(1).max(10).transform((s) => s.toUpperCase()),\n  symbol: z.string().min(1).max(10).optional(),\n  amount: z.number().positive(),\n  reason: z.enum(DEDUCT_REASONS).default('fee'),\n  note: z.string().max(500).optional(),\n  status: z.enum(['pending', 'completed', 'reversed']).default('completed'),\n  allowNegative: z.boolean().default(false),\n  notify: z.boolean().default(true),\n})\n\nrouter.post('/users/:id/deduct', async (req: AuthedRequest, res) => {\n  const parsed = deductSchema.safeParse(req.body)\n  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }\n  const userId = req.params.id\n  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })\n  if (!exists) { res.status(404).json({ error: 'User not found' }); return }\n  const symbol = parsed.data.symbol ?? (parsed.data.currency === 'USD' ? '$' : parsed.data.currency)\n  const reference = `Admin deduction (${parsed.data.reason})${parsed.data.note ? ': ' + parsed.data.note : ''}`\n  const result = await prisma.$transaction(async (tx) => {\n    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency: parsed.data.currency } } })\n    const currentAvail = existing?.available ?? 0\n    if (!parsed.data.allowNegative && currentAvail < parsed.data.amount) {\n      throw Object.assign(new Error(`Insufficient available balance (${currentAvail} ${parsed.data.currency})`), { status: 400 })\n    }\n    const nextBalance = (existing?.balance ?? 0) - parsed.data.amount\n    const nextAvailable = currentAvail - parsed.data.amount\n    const balance = await tx.walletBalance.upsert({\n      where: { userId_currency: { userId, currency: parsed.data.currency } },\n      create: { userId, currency: parsed.data.currency, symbol, balance: nextBalance, available: nextAvailable },\n      update: { balance: nextBalance, available: nextAvailable, symbol },\n    })\n    const transaction = await tx.transaction.create({\n      data: { userId, kind: 'withdraw', currency: parsed.data.currency, amount: parsed.data.amount, status: parsed.data.status, reference },\n    })\n    return { balance, transaction }\n  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))\n  if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }\n  if (parsed.data.notify) {\n    await prisma.notification.create({\n      data: { userId, kind: 'system', title: `${symbol}${parsed.data.amount.toLocaleString()} ${parsed.data.currency} debited`, body: reference },\n    }).catch(() => { /* best-effort */ })\n  }\n  await audit(req.userId!, 'wallet.deduct', userId, parsed.data)\n  res.status(201).json(result)\n})\n\n// --- account hold (less drastic than suspend) ----------------------------\n\nconst HOLD_REASONS = [\n  'aml_kyc_review', 'suspected_fraud', 'document_verification', 'court_order',\n  'sanctions_screening', 'chargeback_investigation', 'compliance_review',\n  'suspicious_activity', 'user_requested_freeze', 'pending_transfer_review', 'other',\n] as const\nconst HOLD_TYPES = ['all', 'withdraw', 'transfer'] as const\n\nconst holdSchema = z.object({\n  holdType: z.enum(HOLD_TYPES).default('all'),\n  reason: z.enum(HOLD_REASONS).default('compliance_review'),\n  note: z.string().max(500).optional(),\n  notify: z.boolean().default(true),\n})\n\nrouter.post('/users/:id/hold', async (req: AuthedRequest, res) => {\n  const parsed = holdSchema.safeParse(req.body)\n  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }\n  const userId = req.params.id\n  if (userId === req.userId) { res.status(400).json({ error: 'Cannot place a hold on your own account' }); return }\n  const u = await prisma.user.update({\n    where: { id: userId },\n    data: {\n      holdActive: true,\n      holdType: parsed.data.holdType,\n      holdReason: parsed.data.reason,\n      holdNote: parsed.data.note ?? null,\n      holdAt: new Date(),\n    },\n  })\n  if (parsed.data.notify) {\n    await prisma.notification.create({\n      data: { userId, kind: 'system', title: 'Account hold placed', body: `Scope: ${parsed.data.holdType}. Reason: ${parsed.data.reason}.${parsed.data.note ? ' Note: ' + parsed.data.note : ''}` },\n    }).catch(() => { /* best-effort */ })\n  }\n  await audit(req.userId!, 'user.hold.place', userId, parsed.data)\n  res.json({ user: publicUser(u) })\n})\n\nrouter.post('/users/:id/unhold', async (req: AuthedRequest, res) => {\n  const userId = req.params.id\n  const u = await prisma.user.update({\n    where: { id: userId },\n    data: { holdActive: false, holdType: null, holdReason: null, holdNote: null, holdAt: null },\n  })\n  await prisma.notification.create({\n    data: { userId, kind: 'system', title: 'Account hold released', body: 'Your account is no longer subject to a hold.' },\n  }).catch(() => { /* best-effort */ })\n  await audit(req.userId!, 'user.hold.release', userId, null)\n  res.json({ user: publicUser(u) })\n})\n\n// --- transactions --------------------------------------------------------
 
 const txSchema = z.object({
   kind: z.enum(['deposit', 'withdraw', 'transfer', 'dividend', 'interest']),

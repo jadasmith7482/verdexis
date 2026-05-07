@@ -6,11 +6,13 @@ import {
   adminApi, type AdminUserDetailResponse, type AdminHolding,
   type AdminWalletBalance, type AdminTransaction, type AdminTrade,
   type AdminPriceAlert, type AdminWatchItem, type AdminNotification,
+  DEPOSIT_REASONS, DEDUCT_REASONS, HOLD_REASONS, HOLD_TYPES,
 } from '../lib/adminApi'
 import {
   ArrowLeft, ShieldCheck, Ban, KeyRound, LogOut, Trash2,
   Save, Plus, AlertTriangle, User as UserIcon, Wallet, Briefcase,
   ArrowLeftRight, BarChart3, Eye, Bell, Mail, Download,
+  ArrowDownToLine, ArrowUpFromLine, Lock, Unlock,
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
 
@@ -66,6 +68,7 @@ export default function AdminUserDetail() {
           <h1 className="text-2xl font-light text-[#E5E5E5]">{u.name}</h1>
           {u.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded"><ShieldCheck className="w-3 h-3" />Admin</span>}
           {u.suspended && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>}
+          {u.holdActive && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded"><Lock className="w-3 h-3" />Hold: {u.holdType}</span>}
         </div>
         <p className="text-xs text-[#737373] mb-6">{u.email} · ID {u.id} · joined {new Date(u.createdAt).toLocaleDateString()}</p>
 
@@ -162,6 +165,7 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
       </form>
 
       <div className="space-y-6">
+        <HoldPanel user={u} onChange={onChange} />
         <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
           <h2 className="text-sm font-medium text-[#E5E5E5] mb-4 flex items-center gap-2"><KeyRound className="w-4 h-4 text-[#0C8B44]" />Reset password</h2>
           <p className="text-xs text-[#A0A0A0] mb-3">Set a new password for this user. All existing sessions will be revoked.</p>
@@ -199,35 +203,39 @@ function WalletTab({ userId, balances, onChange }: { userId: string; balances: A
     await adminApi.deleteWallet(id); toast.success('Removed'); onChange()
   }
   return (
-    <div className="grid lg:grid-cols-3 gap-6">
-      <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
-        <h2 className="text-sm font-medium text-[#E5E5E5]">Set / upsert balance</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Currency" value={currency} onChange={(v) => setCurrency(v.toUpperCase())} />
-          <Input label="Symbol" value={symbol} onChange={setSymbol} />
+    <div className="space-y-6">
+      <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
+      <div className="grid lg:grid-cols-3 gap-6">
+        <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
+          <h2 className="text-sm font-medium text-[#E5E5E5]">Set / upsert balance (raw)</h2>
+          <p className="text-[11px] text-[#737373] -mt-2">Overwrites the row directly. Doesn't create a transaction record — use Deposit/Deduct above for an audited change.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Currency" value={currency} onChange={(v) => setCurrency(v.toUpperCase())} />
+            <Input label="Symbol" value={symbol} onChange={setSymbol} />
+          </div>
+          <Input label="Balance" value={balance} onChange={setBalance} type="number" />
+          <Input label="Available" value={available} onChange={setAvailable} type="number" />
+          <button type="submit" className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Plus className="w-4 h-4" />Save balance</button>
+        </form>
+        <div className="lg:col-span-2 rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-[#1a1a1a]/40 text-[10px] uppercase tracking-[0.05em] text-[#737373]">
+              <tr><th className="text-left px-4 py-3 font-normal">Currency</th><th className="text-right px-4 py-3 font-normal">Balance</th><th className="text-right px-4 py-3 font-normal">Available</th><th className="text-right px-4 py-3 font-normal">Updated</th><th /></tr>
+            </thead>
+            <tbody>
+              {balances.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-[#737373]">No balances</td></tr>}
+              {balances.map((b) => (
+                <tr key={b.id} className="border-t border-[#ffffff05]">
+                  <td className="px-4 py-3 text-[#E5E5E5]">{b.symbol} {b.currency}</td>
+                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.balance.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
+                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.available.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
+                  <td className="px-4 py-3 text-right text-[11px] text-[#737373]">{new Date(b.updatedAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right"><IconButton onClick={() => del(b.id)} aria-label="Delete balance"><Trash2 className="w-4 h-4" /></IconButton></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <Input label="Balance" value={balance} onChange={setBalance} type="number" />
-        <Input label="Available" value={available} onChange={setAvailable} type="number" />
-        <button type="submit" className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Plus className="w-4 h-4" />Save balance</button>
-      </form>
-      <div className="lg:col-span-2 rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-[#1a1a1a]/40 text-[10px] uppercase tracking-[0.05em] text-[#737373]">
-            <tr><th className="text-left px-4 py-3 font-normal">Currency</th><th className="text-right px-4 py-3 font-normal">Balance</th><th className="text-right px-4 py-3 font-normal">Available</th><th className="text-right px-4 py-3 font-normal">Updated</th><th /></tr>
-          </thead>
-          <tbody>
-            {balances.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-[#737373]">No balances</td></tr>}
-            {balances.map((b) => (
-              <tr key={b.id} className="border-t border-[#ffffff05]">
-                <td className="px-4 py-3 text-[#E5E5E5]">{b.symbol} {b.currency}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.balance.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.available.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                <td className="px-4 py-3 text-right text-[11px] text-[#737373]">{new Date(b.updatedAt).toLocaleString()}</td>
-                <td className="px-4 py-3 text-right"><IconButton onClick={() => del(b.id)} aria-label="Delete balance"><Trash2 className="w-4 h-4" /></IconButton></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   )
@@ -556,6 +564,145 @@ function DangerTab({ userId, onDeleted }: { userId: string; onDeleted: () => voi
         <button type="button" onClick={del} className="inline-flex items-center gap-2 px-4 py-2 bg-[#f44336] text-white text-sm rounded-lg hover:bg-[#d32f2f]"><Trash2 className="w-4 h-4" />Delete account</button>
       </div>
     </div>
+  )
+}
+
+// ---------- Hold panel (in Profile tab) ----------
+function HoldPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; onChange: () => void }) {
+  const [holdType, setHoldType] = useState<'all' | 'withdraw' | 'transfer'>(user.holdType ?? 'all')
+  const [reason, setReason] = useState(user.holdReason ?? 'compliance_review')
+  const [note, setNote] = useState(user.holdNote ?? '')
+  const [notify, setNotify] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  async function place() {
+    setBusy(true)
+    try {
+      await adminApi.placeHold(user.id, { holdType, reason, note: note || undefined, notify })
+      toast.success('Hold placed')
+      onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  async function release() {
+    if (!confirm('Release the hold on this account?')) return
+    setBusy(true)
+    try {
+      await adminApi.releaseHold(user.id)
+      toast.success('Hold released')
+      onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-2 flex items-center gap-2">
+        {user.holdActive ? <Lock className="w-4 h-4 text-[#F57C00]" /> : <Unlock className="w-4 h-4 text-[#0C8B44]" />}
+        Account hold
+      </h2>
+      <p className="text-xs text-[#A0A0A0] mb-4">Holds block money-movement (withdrawals/transfers) without blocking sign-in. Use a hold for AML / KYC review, suspected fraud, court orders, etc.</p>
+      {user.holdActive && (
+        <div className="mb-4 p-3 rounded-lg bg-[#F57C00]/10 border border-[#F57C00]/20 text-xs text-[#F57C00]">
+          <div className="font-medium">Active hold — scope: {user.holdType}</div>
+          <div className="text-[#E5E5E5]/80 mt-1">Reason: {HOLD_REASONS.find((r) => r.value === user.holdReason)?.label ?? user.holdReason}</div>
+          {user.holdNote && <div className="text-[#A0A0A0] mt-1">Note: {user.holdNote}</div>}
+          {user.holdAt && <div className="text-[#737373] mt-1">Since {new Date(user.holdAt).toLocaleString()}</div>}
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Scope" value={holdType} onChange={(v) => setHoldType(v as typeof holdType)} options={HOLD_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+        <Select label="Reason" value={reason} onChange={setReason} options={HOLD_REASONS} />
+      </div>
+      <Textarea label="Internal note (optional)" value={note} onChange={setNote} rows={2} />
+      <label className="flex items-center gap-2 text-xs text-[#A0A0A0] mt-2 cursor-pointer">
+        <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#0C8B44]" />
+        Notify the user in-app
+      </label>
+      <div className="flex gap-2 mt-4">
+        <button type="button" disabled={busy} onClick={place} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#F57C00] text-white text-sm rounded-lg hover:bg-[#e36e00] disabled:opacity-50"><Lock className="w-4 h-4" />{user.holdActive ? 'Update hold' : 'Place hold'}</button>
+        {user.holdActive && (
+          <button type="button" disabled={busy} onClick={release} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#0C8B44] rounded-lg hover:border-[#0C8B44]/40 disabled:opacity-50"><Unlock className="w-4 h-4" />Release hold</button>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// ---------- Deposit / Deduct panel (in Wallet tab) ----------
+function DepositDeductPanel({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
+  const [mode, setMode] = useState<'deposit' | 'deduct'>('deposit')
+  const [currency, setCurrency] = useState('USD')
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('manual_bank_wire')
+  const [note, setNote] = useState('')
+  const [status, setStatus] = useState<'pending' | 'completed'>('completed')
+  const [allowNegative, setAllowNegative] = useState(false)
+  const [notify, setNotify] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const reasonOptions = mode === 'deposit' ? DEPOSIT_REASONS : DEDUCT_REASONS
+  const currencyOptions = balances.length
+    ? balances.map((b) => ({ value: b.currency, label: `${b.symbol} ${b.currency} (${b.available.toLocaleString(undefined, { maximumFractionDigits: 4 })} available)` }))
+    : [{ value: 'USD', label: '$ USD' }]
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(amount)
+    if (!isFinite(amt) || amt <= 0) { toast.error('Amount must be greater than 0'); return }
+    setBusy(true)
+    try {
+      if (mode === 'deposit') {
+        await adminApi.deposit(userId, { currency, amount: amt, reason, note: note || undefined, status, notify })
+        toast.success(`Credited ${amt} ${currency}`)
+      } else {
+        await adminApi.deduct(userId, { currency, amount: amt, reason, note: note || undefined, status, allowNegative, notify })
+        toast.success(`Debited ${amt} ${currency}`)
+      }
+      setAmount(''); setNote('')
+      onChange()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><ArrowDownToLine className="w-4 h-4 text-[#0C8B44]" />Move money</h2>
+        <div className="flex rounded-lg bg-[#0a0f11] border border-[#ffffff10] p-0.5 text-xs">
+          <button type="button" onClick={() => { setMode('deposit'); setReason('manual_bank_wire') }} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded ${mode === 'deposit' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0]'}`}><ArrowDownToLine className="w-3.5 h-3.5" />Deposit</button>
+          <button type="button" onClick={() => { setMode('deduct'); setReason('fee') }} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded ${mode === 'deduct' ? 'bg-[#f44336] text-white' : 'text-[#A0A0A0]'}`}><ArrowUpFromLine className="w-3.5 h-3.5" />Deduct</button>
+        </div>
+      </div>
+      <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Select label="Currency" value={currency} onChange={setCurrency} options={currencyOptions} />
+        <Input label="Amount" value={amount} onChange={setAmount} type="number" placeholder="0.00" />
+        <Select label="Reason" value={reason} onChange={setReason} options={reasonOptions} />
+        <Select label="Status" value={status} onChange={(v) => setStatus(v as 'pending' | 'completed')} options={[{ value: 'completed', label: 'Completed (apply now)' }, { value: 'pending', label: 'Pending (record only)' }]} />
+        <div className="md:col-span-2">
+          <Textarea label="Note (free-form, shown in transaction reference)" value={note} onChange={setNote} rows={2} />
+        </div>
+        <div className="md:col-span-2 flex flex-wrap items-center gap-4 text-xs text-[#A0A0A0]">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#0C8B44]" />
+            Notify the user
+          </label>
+          {mode === 'deduct' && (
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={allowNegative} onChange={(e) => setAllowNegative(e.target.checked)} className="accent-[#f44336]" />
+              Allow negative balance
+            </label>
+          )}
+        </div>
+        <div className="md:col-span-2">
+          <button type="submit" disabled={busy} className={`w-full inline-flex items-center justify-center gap-2 py-2.5 text-white text-sm rounded-lg disabled:opacity-50 ${mode === 'deposit' ? 'bg-[#0C8B44] hover:bg-[#0a7539]' : 'bg-[#f44336] hover:bg-[#d32f2f]'}`}>
+            {mode === 'deposit' ? <ArrowDownToLine className="w-4 h-4" /> : <ArrowUpFromLine className="w-4 h-4" />}
+            {busy ? 'Working…' : mode === 'deposit' ? 'Deposit funds' : 'Deduct funds'}
+          </button>
+        </div>
+      </form>
+    </section>
   )
 }
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
 import { adminApi, type AdminUserSummary } from '../lib/adminApi'
-import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight, UserPlus, X } from 'lucide-react'
 
 const PAGE_SIZE = 25
 
@@ -15,6 +15,7 @@ export default function AdminUsers() {
   const [role, setRole] = useState<'user' | 'admin' | 'all'>('all')
   const [suspended, setSuspended] = useState<'true' | 'false' | 'all'>('all')
   const [loading, setLoading] = useState(true)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -46,6 +47,9 @@ export default function AdminUsers() {
             <h1 className="text-2xl font-light text-[#E5E5E5]">Users</h1>
             <p className="text-xs text-[#737373]">{total.toLocaleString()} total · page {page} of {totalPages}</p>
           </div>
+          <button onClick={() => setCreateOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] transition-colors">
+            <UserPlus className="w-4 h-4" />Add user
+          </button>
         </div>
 
         {/* Filters */}
@@ -138,6 +142,81 @@ export default function AdminUsers() {
           </button>
         </div>
       </div>
+      {createOpen && <CreateUserModal onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setPage(1); load() }} />}
     </div>
+  )
+}
+
+function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'user' | 'admin'>('user')
+  const [initialUsdBalance, setInitialUsdBalance] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim() || !name.trim() || password.length < 8) {
+      toast.error('Email, name and an 8+ char password are required')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const initial = parseFloat(initialUsdBalance)
+      await adminApi.createUser({
+        email: email.trim(),
+        name: name.trim(),
+        password,
+        role,
+        initialUsdBalance: isFinite(initial) && initial > 0 ? initial : undefined,
+      })
+      toast.success(`Created ${email}`)
+      onCreated()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to create user')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-[#0f1619] border border-[#ffffff10] p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-light text-[#E5E5E5]">Create user</h2>
+          <button onClick={onClose} aria-label="Close" className="text-[#737373] hover:text-[#E5E5E5]"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Email"><input autoFocus type="email" required placeholder="user@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
+          <Field label="Name"><input required placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
+          <Field label="Initial password (8+ chars)"><input type="text" required minLength={8} placeholder="Initial password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Role">
+              <select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value as 'user' | 'admin')} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </Field>
+            <Field label="Opening USD balance (optional)">
+              <input type="number" min="0" step="0.01" value={initialUsdBalance} onChange={(e) => setInitialUsdBalance(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" />
+            </Field>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#A0A0A0] rounded-lg hover:border-[#ffffff20]">Cancel</button>
+            <button type="submit" disabled={submitting} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><UserPlus className="w-4 h-4" />{submitting ? 'Creating…' : 'Create user'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5 block">{label}</span>
+      {children}
+    </label>
   )
 }
