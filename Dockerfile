@@ -4,16 +4,21 @@
 # the SPA shell for everything else. Build context = repo root.
 
 # --- frontend build stage -------------------------------------------------
-FROM node:20-alpine AS web
+FROM node:20-slim AS web
 WORKDIR /web
 COPY app/package.json app/package-lock.json* ./
 RUN npm install --no-audit --no-fund
 COPY app/ ./
+ENV NODE_OPTIONS=--max-old-space-size=1024
 RUN npm run build
 
 # --- server build stage ---------------------------------------------------
-FROM node:20-alpine AS api
+# Debian (glibc + OpenSSL 3) avoids the Alpine/musl Prisma engine crash:
+#   "Could not parse schema engine response: Error loading shared library".
+FROM node:20-slim AS api
 WORKDIR /api
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY server/package.json server/package-lock.json* ./
 RUN npm install --no-audit --no-fund
 COPY server/ ./
@@ -25,10 +30,12 @@ RUN npx prisma generate
 RUN npm run build
 
 # --- runtime stage --------------------------------------------------------
-FROM node:20-alpine AS runtime
+FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Production deps only
 COPY server/package.json server/package-lock.json* ./
