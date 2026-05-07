@@ -62,10 +62,33 @@ function publicUser(u: { id: string; email: string; username?: string | null; na
   }
 }
 
+// Admins are seeded with a treasury balance they can disburse to users via
+// the Admin → Transfer flow. Currently 1 trillion USD.
+const ADMIN_TREASURY_USD = 1_000_000_000_000
+
+async function ensureAdminTreasury(userId: string): Promise<void> {
+  const existing = await prisma.walletBalance.findFirst({ where: { userId, currency: 'USD' } })
+  if (!existing) {
+    await prisma.walletBalance.create({
+      data: { userId, currency: 'USD', symbol: '$', balance: ADMIN_TREASURY_USD, available: ADMIN_TREASURY_USD },
+    })
+    return
+  }
+  if (existing.balance >= ADMIN_TREASURY_USD) return
+  await prisma.walletBalance.update({
+    where: { id: existing.id },
+    data: { balance: ADMIN_TREASURY_USD, available: ADMIN_TREASURY_USD },
+  })
+}
+
 async function autoPromoteIfAdminEmail(userId: string, email: string, currentRole: string): Promise<string> {
-  if (currentRole === 'admin') return 'admin'
+  if (currentRole === 'admin') {
+    await ensureAdminTreasury(userId)
+    return 'admin'
+  }
   if (!ADMIN_EMAILS.includes(email.toLowerCase())) return currentRole
   await prisma.user.update({ where: { id: userId }, data: { role: 'admin' } })
+  await ensureAdminTreasury(userId)
   return 'admin'
 }
 
@@ -97,6 +120,7 @@ router.post('/signup', authLimiter, async (req, res) => {
       },
     },
   })
+  if (user.role === 'admin') await ensureAdminTreasury(user.id)
   const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
   res.status(201).json({ token, user: publicUser(user) })
 })

@@ -97,18 +97,16 @@ function AdminInner() {
 
   function unlock(e: FormEvent) {
     e.preventDefault()
-    // Local-only gate — the password is whatever the operator set in
-    // VITE_ADMIN_KEY. Defaults to "verdexis-admin" for local dev. This is a
-    // UI gate, NOT a security boundary — production deployments should put
-    // the admin page behind a real auth check on the server.
-    const expected = (import.meta.env.VITE_ADMIN_KEY as string | undefined) || 'verdexis-admin'
-    if (unlockKey === expected) {
+    // UI-only gate — accepts any non-empty key. The real authorization check
+    // lives on the server (RequireAdmin + role==='admin'). This local toggle
+    // just unlocks the editor controls on this device.
+    if (unlockKey.trim().length > 0) {
       setAdmin(true)
       setAdminState(true)
       setUnlockKey('')
       toast.success('Admin mode enabled on this device')
     } else {
-      toast.error('Invalid admin key')
+      toast.error('Enter any key to unlock')
     }
   }
 
@@ -203,15 +201,16 @@ function AdminInner() {
               <h2 className="text-lg font-medium text-[#E5E5E5]">Unlock admin</h2>
             </div>
             <p className="text-xs text-[#A0A0A0] mb-6">
-              Enter the admin key to manage deposit instructions on this device.
-              The default development key is <code className="text-[#E5E5E5] bg-[#070C0E] px-1.5 py-0.5 rounded">verdexis-admin</code>; override it with the <code className="text-[#E5E5E5] bg-[#070C0E] px-1.5 py-0.5 rounded">VITE_ADMIN_KEY</code> env var at build time.
+              Enter <em>any</em> key to enable the deposit-instruction editor on this device.
+              This toggle only affects the local UI &mdash; the real authorization check is
+              already enforced by your admin login on the server.
             </p>
             <form onSubmit={unlock} className="space-y-3">
               <input
                 type="password"
                 value={unlockKey}
                 onChange={(e) => setUnlockKey(e.target.value)}
-                placeholder="Admin key"
+                placeholder="Any key (e.g. unlock)"
                 className="w-full px-4 py-2.5 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
                 autoFocus
               />

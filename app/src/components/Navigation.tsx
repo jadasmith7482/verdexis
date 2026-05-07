@@ -37,8 +37,7 @@ export default function Navigation() {
   // Check auth state from localStorage
   const checkAuth = () => {
     const auth = localStorage.getItem('verdexis_auth')
-    const holdings = localStorage.getItem('verdexis_holdings')
-    setIsAuthenticated(!!auth && !!holdings)
+    setIsAuthenticated(!!auth)
     if (auth) {
       try {
         const parsed = JSON.parse(auth)

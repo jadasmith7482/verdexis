@@ -65,7 +65,9 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       onClose()
       window.dispatchEvent(new Event('storage'))
       window.dispatchEvent(new Event('verdexis:profile'))
-      navigate('/dashboard', { replace: true })
+      // Admins land on the admin console; everyone else on dashboard.
+      const dest = res.user?.role === 'admin' ? '/admin' : '/dashboard'
+      navigate(dest, { replace: true })
       return
     } catch (err) {
       const e = err as ApiError
