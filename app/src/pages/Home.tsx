@@ -6,7 +6,7 @@ import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { marketData, type CryptoQuote } from '../lib/marketData'
-import { formatPrice, formatUsd, formatUsdCompact } from '@/lib/utils'
+import { formatPrice, formatUsdCompact } from '@/lib/utils'
 import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
   Zap, BarChart3, PieChart, Activity, Bot,
