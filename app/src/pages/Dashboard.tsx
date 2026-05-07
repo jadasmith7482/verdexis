@@ -558,31 +558,31 @@ export default function Dashboard() {
                   <div className="w-8 h-8 border-2 border-[#0C8B44]/30 border-t-[#0C8B44] rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                   {cryptoData.slice(0, 6).map((crypto) => {
                     const sparklinePrices = crypto.sparkline_in_7d?.price.slice(-20) || []
                     const isUp = crypto.price_change_percentage_24h >= 0
                     return (
-                      <div key={crypto.id} className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                      <div key={crypto.id} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0 overflow-hidden">
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             {getCryptoLogo(crypto.id) ? (
-                              <img src={getCryptoLogo(crypto.id)!} alt={crypto.name} className="w-6 h-6 rounded-full object-cover" />
+                              <img src={getCryptoLogo(crypto.id)!} alt={crypto.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
                             ) : (
-                              <div className="w-6 h-6 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44]">{crypto.symbol.toUpperCase()[0]}</div>
+                              <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{crypto.symbol.toUpperCase()[0]}</div>
                             )}
-                            <span className="text-sm font-medium text-[#E5E5E5]">{crypto.symbol.toUpperCase()}</span>
+                            <span className="text-xs font-medium text-[#E5E5E5] truncate">{crypto.symbol.toUpperCase()}</span>
                           </div>
-                          {isUp ? <TrendingUp className="w-3.5 h-3.5 text-[#4CAF50]" /> : <TrendingDown className="w-3.5 h-3.5 text-[#f44336]" />}
+                          {isUp ? <TrendingUp className="w-3 h-3 text-[#4CAF50] shrink-0" /> : <TrendingDown className="w-3 h-3 text-[#f44336] shrink-0" />}
                         </div>
-                        <p className="text-lg font-light text-[#E5E5E5]">${crypto.current_price.toLocaleString()}</p>
-                        <p className={`text-xs mt-0.5 ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                        <p className="text-base font-light text-[#E5E5E5] truncate">${crypto.current_price.toLocaleString()}</p>
+                        <p className={`text-[11px] mt-0.5 truncate ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                           {isUp ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
                         </p>
                         {/* SVG Sparkline */}
                         {sparklinePrices.length > 0 && (
-                          <div className="mt-2 h-8">
-                            <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                          <div className="mt-2 h-7">
+                            <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-full">
                               <path
                                 d={getSparklinePath(sparklinePrices, 100, 30)}
                                 fill="none"
