@@ -1,5 +1,6 @@
 import { marketData } from './marketData'
 import { portfolioStore } from './portfolioStore'
+import { api } from './api'
 
 export type PersonaId = 'verdexis' | 'buffett' | 'graham' | 'lynch' | 'munger' | 'klarman' | 'wood'
 
@@ -109,9 +110,39 @@ class AIService {
   }
 
   async processQuery(query: string, persona: PersonaId = 'verdexis'): Promise<string> {
+    // Try the backend LLM proxy first. It returns 503 when no key is configured;
+    // any error falls through to the rule-based answer so the UI still works
+    // offline / without an OPENAI_API_KEY on the server.
+    try {
+      const context = this.buildPortfolioContext()
+      const r = await api.aiChat({ query, persona, context })
+      if (r.answer) return r.answer
+    } catch {
+      /* fall back to local rules */
+    }
     const lowerQuery = query.toLowerCase()
     const baseAnswer = await this.baseAnswer(lowerQuery)
     return this.flavour(baseAnswer, persona)
+  }
+
+  private buildPortfolioContext(): string {
+    try {
+      const holdings = portfolioStore.getHoldings()
+      const wallet = portfolioStore.getWallet()
+      const cash = wallet.find((w) => w.currency === 'USD')?.balance ?? 0
+      const positions = holdings.reduce((s, h) => s + h.value, 0)
+      const total = cash + positions
+      const pnl = holdings.reduce((s, h) => s + h.pnl, 0)
+      const lines = [
+        `Total value: $${total.toFixed(2)} (positions $${positions.toFixed(2)}, cash $${cash.toFixed(2)})`,
+        `Unrealized P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`,
+        'Holdings:',
+        ...holdings.map((h) => `  - ${h.symbol} ${h.quantity} @ avg $${h.avgBuyPrice.toFixed(2)} | now $${h.currentPrice.toFixed(2)} | value $${h.value.toFixed(2)} | ${h.allocation}%`),
+      ]
+      return lines.join('\n')
+    } catch {
+      return ''
+    }
   }
 
   private flavour(answer: string, persona: PersonaId): string {

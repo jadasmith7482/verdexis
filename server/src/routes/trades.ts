@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import { requireAuth, type AuthedRequest } from '../auth.js'
+import { brokerEnabled, submitPaperOrder } from '../broker.js'
 
 const router = Router()
 
@@ -29,7 +30,20 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'Invalid input' })
     return
   }
-  const { symbol, name, side, amount, price, type } = parsed.data
+  let { symbol, name, side, amount, price, type } = parsed.data
+
+  // Optional: forward to Alpaca paper. If it fills, use the actual fill
+  // price/qty so the local books match the broker. Failures fall through
+  // silently to the existing local-only path.
+  let brokerOrderId: string | null = null
+  if (brokerEnabled()) {
+    const fill = await submitPaperOrder({ symbol, side, qty: amount, type })
+    if (fill) {
+      brokerOrderId = fill.id
+      if (fill.filledQty > 0) amount = fill.filledQty
+      if (fill.filledPrice && fill.filledPrice > 0) price = fill.filledPrice
+    }
+  }
   const total = amount * price
 
   const result = await prisma.$transaction(async (tx) => {
@@ -95,7 +109,7 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
     res.status(result.status || 500).json({ error: result.error })
     return
   }
-  res.status(201).json(result)
+  res.status(201).json({ ...result, broker: brokerOrderId ? { id: brokerOrderId, venue: 'alpaca-paper' } : null })
 })
 
 export default router

@@ -12,6 +12,7 @@ import tradesRoutes from './routes/trades.js'
 import watchlistRoutes from './routes/watchlist.js'
 import alertsRoutes from './routes/alerts.js'
 import notificationsRoutes from './routes/notifications.js'
+import aiRoutes from './routes/ai.js'
 
 const app = express()
 const PORT = env.PORT
@@ -34,6 +35,7 @@ app.use('/api/trades', tradesRoutes)
 app.use('/api/watchlist', watchlistRoutes)
 app.use('/api/alerts', alertsRoutes)
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/ai', aiRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path })

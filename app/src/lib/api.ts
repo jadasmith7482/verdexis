@@ -153,6 +153,11 @@ export const api = {
   listNotifications: () => request<{ notifications: { id: string; kind: string; title: string; body: string | null; read: boolean; createdAt: string }[]; unread: number }>('/api/notifications'),
   markAllRead: () => request('/api/notifications/read', { method: 'POST' }),
   removeNotification: (id: string) => request(`/api/notifications/${id}`, { method: 'DELETE' }),
+
+  // AI chat (LLM proxy). Returns 503 when no key is configured server-side
+  // so the caller can fall back to its rule-based answer.
+  aiChat: (payload: { query: string; persona?: string; context?: string }) =>
+    request<{ answer: string; model: string }>('/api/ai/chat', { method: 'POST', body: JSON.stringify(payload) }),
 }
 
 /**
