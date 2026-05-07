@@ -343,21 +343,39 @@ class PortfolioStoreImpl {
   }
 
   addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', amount: number, currency: string, description: string): WalletTransaction {
+    // User deposits require admin approval on the server (status='pending',
+    // no balance credit) unless the actor is an admin. Mirror that locally
+    // so the UI doesn't show inflated balances or "completed" badges for
+    // requests that haven't actually settled. See server/src/routes/wallet.ts.
+    let role: 'user' | 'admin' = 'user'
+    try {
+      const raw = localStorage.getItem('verdexis_auth')
+      if (raw) {
+        const u = JSON.parse(raw) as { role?: string }
+        if (u?.role === 'admin') role = 'admin'
+      }
+    } catch { /* ignore */ }
+    const requiresApproval = type === 'deposit' && role !== 'admin'
+
     const tx: WalletTransaction = {
       id: Date.now().toString(),
       type, amount, currency, description,
       timestamp: new Date(),
-      status: 'completed',
+      status: requiresApproval ? 'pending' : 'completed',
     }
 
     this.transactions.push(tx)
     this.save(STORAGE_KEYS.transactions, this.transactions)
 
-    const walletEntry = this.wallet.find((w) => w.currency === currency)
-    if (walletEntry) {
-      walletEntry.balance += amount
-      walletEntry.available += amount
-      this.save(STORAGE_KEYS.wallet, this.wallet)
+    // Pending deposits do NOT credit the local wallet — server won't either,
+    // and the funds only land after an admin approves.
+    if (!requiresApproval) {
+      const walletEntry = this.wallet.find((w) => w.currency === currency)
+      if (walletEntry) {
+        walletEntry.balance += amount
+        walletEntry.available += amount
+        this.save(STORAGE_KEYS.wallet, this.wallet)
+      }
     }
 
     if (getToken()) {
@@ -389,4 +407,10 @@ export const PORTFOLIO_EVENT_NAME = PORTFOLIO_EVENT
 if (typeof window !== 'undefined') {
   setTimeout(() => { void portfolioStore.hydrate() }, 0)
   window.addEventListener('verdexis:profile', () => { void portfolioStore.hydrate(true) })
+  // Pull fresh server state when the user returns to the tab so admin-approved
+  // deposits, transfers, etc. show up without a manual reload.
+  window.addEventListener('focus', () => { if (getToken()) void portfolioStore.hydrate(true) })
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && getToken()) void portfolioStore.hydrate(true)
+  })
 }

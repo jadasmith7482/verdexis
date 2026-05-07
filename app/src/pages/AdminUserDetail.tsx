@@ -406,7 +406,7 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
         <Select label="Kind" value={kind} onChange={(v) => setKind(v as typeof kind)} options={[{ value: 'deposit', label: 'Deposit' }, { value: 'withdraw', label: 'Withdraw' }, { value: 'transfer', label: 'Transfer' }, { value: 'dividend', label: 'Dividend' }, { value: 'interest', label: 'Interest' }]} />
         <Input label="Currency" value={currency} onChange={(v) => setCurrency(v.toUpperCase())} />
         <Input label="Amount" value={amount} onChange={setAmount} type="number" />
-        <Select label="Status" value={status} onChange={(v) => setStatus(v as typeof status)} options={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }, { value: 'failed', label: 'Failed' }, { value: 'reversed', label: 'Reversed' }]} />
+        <Select label="Status" value={status} onChange={(v) => setStatus(v as typeof status)} options={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }, { value: 'failed', label: 'Failed (rejected)' }, { value: 'reversed', label: 'Reversed' }]} />
         <Input label="Reference" value={reference} onChange={setReference} />
         <button type="submit" className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Plus className="w-4 h-4" />Add transaction</button>
       </form>
@@ -1179,7 +1179,7 @@ function ReferenceEditor({ value, onSave }: { value: string; onSave: (v: string)
         if (e.key === 'Escape') { setV(value); setDirty(false); (e.target as HTMLInputElement).blur() }
       }}
       onBlur={() => { if (dirty) { onSave(v.trim()); setDirty(false) } }}
-      placeholder="—"
+      placeholder="ï¿½"
       aria-label="Edit transaction description"
       className="w-full bg-transparent border border-transparent hover:border-[#ffffff10] focus:border-[#0C8B44] focus:bg-[#0a0f11] rounded px-2 py-1 text-[11px] text-[#A0A0A0] focus:text-[#E5E5E5] outline-none transition-colors"
     />

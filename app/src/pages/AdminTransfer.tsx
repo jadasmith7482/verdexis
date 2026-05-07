@@ -16,6 +16,7 @@ export default function AdminTransfer() {
   const [allowNegative, setAllowNegative] = useState(false)
   const [notify, setNotify] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [fromError, setFromError] = useState<string | null>(null)
 
   // Source account is always the signed-in admin — it is never user-selectable.
   // This is enforced both here and on the server.
@@ -34,7 +35,11 @@ export default function AdminTransfer() {
           createdAt: new Date().toISOString(),
         } as AdminUserSummary)
       })
-      .catch(() => { /* nav guards already require admin auth */ })
+      .catch(() => {
+        if (cancelled) return
+        setFromError('Could not load your admin profile. Please re-login.')
+        toast.error('Could not load admin profile — please re-login')
+      })
     return () => { cancelled = true }
   }, [])
 
@@ -78,8 +83,8 @@ export default function AdminTransfer() {
             <Field label="From (signed-in admin — locked)">
               <div className="flex items-center justify-between px-3 py-2 bg-[#0a0f11] border border-[#0C8B44]/40 rounded-lg">
                 <div className="min-w-0">
-                  <p className="text-sm text-[#E5E5E5] truncate">{from?.name || 'Loading…'}</p>
-                  <p className="text-[11px] text-[#737373] truncate">{from?.email || ''}</p>
+                  <p className="text-sm text-[#E5E5E5] truncate">{from?.name || (fromError ? 'Unavailable' : 'Loading…')}</p>
+                  <p className={`text-[11px] truncate ${fromError ? 'text-[#f44336]' : 'text-[#737373]'}`}>{fromError || from?.email || ''}</p>
                 </div>
                 <span className="inline-flex items-center gap-1 text-[10px] text-[#0C8B44] uppercase tracking-wider"><Lock className="w-3 h-3" /> Locked</span>
               </div>

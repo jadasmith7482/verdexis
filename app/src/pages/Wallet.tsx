@@ -454,6 +454,10 @@ export default function WalletPage() {
   const getStatusIcon = (status: string) => {
     return status === 'completed' ? <CheckCircle className="w-4 h-4 text-[#4CAF50]" /> : <Clock className="w-4 h-4 text-[#F57C00]" />
   }
+  const getStatusText = (status: string) => {
+    if (status === 'pending') return 'Awaiting approval'
+    return status
+  }
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -921,7 +925,7 @@ export default function WalletPage() {
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}
-                        <span className="text-xs text-[#737373] capitalize">{tx.status}</span>
+                        <span className={`text-xs capitalize ${tx.status === 'pending' ? 'text-[#F57C00]' : 'text-[#737373]'}`}>{getStatusText(tx.status)}</span>
                       </div>
                     </div>
                   </div>
