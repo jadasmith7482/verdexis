@@ -95,8 +95,9 @@ export default function WalletPage() {
   )
   const web3 = useWeb3()
   const [web3TransferAmount, setWeb3TransferAmount] = useState('')
+  const [web3Recipient, setWeb3Recipient] = useState('')
   const [web3Sending, setWeb3Sending] = useState(false)
-  const [web3LastTx, setWeb3LastTx] = useState<{ hash: string; amount: number } | null>(null)
+  const [web3LastTx, setWeb3LastTx] = useState<{ hash: string; amount: number; to: string } | null>(null)
 
   // Best-effort etherscan link for the connected chain.
   function explorerTxUrl(hash: string, chainId: string | null): string {
@@ -116,25 +117,46 @@ export default function WalletPage() {
 
   async function handleWeb3Transfer() {
     const amt = parseFloat(web3TransferAmount)
-    if (!Number.isFinite(amt) || amt <= 0) { toast.error('Enter a valid ETH amount'); return }
-    if (web3.balanceEth != null && amt > web3.balanceEth) { toast.error(`Insufficient balance (${web3.balanceEth.toFixed(4)} ETH available)`); return }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setTransferStatus({ kind: 'error', title: 'Web3 transfer declined', message: 'Enter a valid ETH amount.' })
+      return
+    }
+    if (web3.balanceEth != null && amt > web3.balanceEth) {
+      setTransferStatus({ kind: 'error', title: 'Web3 transfer declined', message: `Insufficient balance (${web3.balanceEth.toFixed(4)} ETH available).` })
+      return
+    }
+    const recipientRaw = web3Recipient.trim()
+    const sendingToOther = recipientRaw.length > 0
+    if (sendingToOther && !/^0x[a-fA-F0-9]{40}$/.test(recipientRaw)) {
+      setTransferStatus({ kind: 'error', title: 'Web3 transfer declined', message: 'Invalid recipient address. Must be a 0x… EVM address.' })
+      return
+    }
     setWeb3Sending(true)
     try {
-      const hash = await web3.sendTransaction({ valueEth: amt })
+      const hash = await web3.sendTransaction({ valueEth: amt, ...(sendingToOther ? { to: recipientRaw } : {}) })
       const short = `${hash.slice(0, 10)}…${hash.slice(-6)}`
+      const toLabel = sendingToOther ? `${recipientRaw.slice(0, 6)}…${recipientRaw.slice(-4)}` : 'dashboard'
       portfolioStore.addTransaction(
-        'deposit', amt, 'ETH',
-        `On-chain ETH from ${web3.shortAddress} · tx ${short}`
+        sendingToOther ? 'transfer' : 'deposit',
+        sendingToOther ? -amt : amt,
+        'ETH',
+        sendingToOther
+          ? `On-chain ETH to ${toLabel} · tx ${short}`
+          : `On-chain ETH from ${web3.shortAddress} · tx ${short}`,
       )
-      setWeb3LastTx({ hash, amount: amt })
+      setWeb3LastTx({ hash, amount: amt, to: sendingToOther ? recipientRaw : (web3.address ?? '') })
       setWeb3TransferAmount('')
-      toast.success(`Sent ${amt} ETH · credited to dashboard`, {
-        description: short,
-        action: { label: 'View tx', onClick: () => window.open(explorerTxUrl(hash, web3.chainId), '_blank', 'noopener') },
+      setWeb3Recipient('')
+      setTransferStatus({
+        kind: 'success',
+        title: sendingToOther ? 'Web3 transfer sent' : 'Credited to dashboard',
+        message: sendingToOther
+          ? `Sent ${amt} ETH to ${toLabel}. Tx ${short}.`
+          : `Sent ${amt} ETH from your wallet — credited to your Verdexis dashboard. Tx ${short}.`,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Transfer failed'
-      toast.error(msg)
+      setTransferStatus({ kind: 'error', title: 'Web3 transfer declined', message: msg })
     } finally {
       setWeb3Sending(false)
     }
@@ -688,44 +710,69 @@ export default function WalletPage() {
               </div>
             </div>
 
-            {/* Transfer to Dashboard — visible only when connected */}
+            {/* Send ETH — visible only when connected */}
             {web3.isConnected && (
               <div className="mt-5 pt-5 border-t border-[#ffffff10]">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-sm font-medium text-[#E5E5E5]">Transfer to Dashboard</p>
-                    <p className="text-[11px] text-[#737373]">Sign an on-chain ETH transfer to credit your Verdexis portfolio.</p>
+                    <p className="text-sm font-medium text-[#E5E5E5]">{web3Recipient.trim() ? 'Send ETH' : 'Transfer to Dashboard'}</p>
+                    <p className="text-[11px] text-[#737373]">
+                      {web3Recipient.trim()
+                        ? 'Sign an on-chain ETH transfer to the recipient address below.'
+                        : 'Leave the address empty to credit your Verdexis dashboard, or paste any 0x… address to send to another wallet.'}
+                    </p>
                   </div>
                   <button
                     onClick={() => web3.balanceEth != null && setWeb3TransferAmount(Math.max(0, web3.balanceEth - 0.001).toFixed(4))}
                     className="text-[10px] uppercase tracking-wider text-[#0C8B44] hover:underline"
                   >Max</button>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="flex-1 flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
                     <input
-                      type="number"
-                      step="0.0001"
-                      min="0"
-                      value={web3TransferAmount}
-                      onChange={(e) => setWeb3TransferAmount(e.target.value)}
-                      placeholder="0.0000"
-                      aria-label="ETH amount to transfer"
-                      className="flex-1 bg-transparent text-[#E5E5E5] text-sm focus:outline-none"
+                      type="text"
+                      value={web3Recipient}
+                      onChange={(e) => setWeb3Recipient(e.target.value)}
+                      placeholder="Recipient address (0x…) — leave empty to credit dashboard"
+                      aria-label="Recipient wallet address"
+                      spellCheck={false}
+                      className="flex-1 bg-transparent text-[#E5E5E5] text-sm font-mono focus:outline-none placeholder:font-sans placeholder:text-[#555]"
                     />
-                    <span className="text-xs text-[#737373] font-mono">ETH</span>
-                  </div>
-                  <button
-                    onClick={handleWeb3Transfer}
-                    disabled={web3Sending || !web3TransferAmount}
-                    className="px-5 py-2.5 text-sm text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:min-w-[180px]"
-                  >
-                    {web3Sending ? (
-                      <><Clock className="w-4 h-4 animate-spin" /> Awaiting signature…</>
-                    ) : (
-                      <><ArrowDownRight className="w-4 h-4" /> Transfer to Dashboard</>
+                    {web3Recipient && (
+                      <button
+                        onClick={() => setWeb3Recipient('')}
+                        className="text-[10px] uppercase tracking-wider text-[#737373] hover:text-[#E5E5E5]"
+                      >Clear</button>
                     )}
-                  </button>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={web3TransferAmount}
+                        onChange={(e) => setWeb3TransferAmount(e.target.value)}
+                        placeholder="0.0000"
+                        aria-label="ETH amount to transfer"
+                        className="flex-1 bg-transparent text-[#E5E5E5] text-sm focus:outline-none"
+                      />
+                      <span className="text-xs text-[#737373] font-mono">ETH</span>
+                    </div>
+                    <button
+                      onClick={handleWeb3Transfer}
+                      disabled={web3Sending || !web3TransferAmount}
+                      className="px-5 py-2.5 text-sm text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:min-w-[180px]"
+                    >
+                      {web3Sending ? (
+                        <><Clock className="w-4 h-4 animate-spin" /> Awaiting signature…</>
+                      ) : web3Recipient.trim() ? (
+                        <><ArrowUpRight className="w-4 h-4" /> Send ETH</>
+                      ) : (
+                        <><ArrowDownRight className="w-4 h-4" /> Transfer to Dashboard</>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 {web3LastTx && (
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-[#A0A0A0]">
@@ -740,7 +787,7 @@ export default function WalletPage() {
                   </div>
                 )}
                 <p className="text-[10px] text-[#737373] mt-2">
-                  Network fees apply. Funds settle to your dashboard once the transaction is broadcast — your wallet remains in self-custody.
+                  Network fees apply. Verdexis never holds your keys — your wallet remains in self-custody.
                 </p>
               </div>
             )}
