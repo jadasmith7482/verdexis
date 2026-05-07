@@ -476,11 +476,21 @@ export default function Home() {
             </div>
             {/* Real certification badges (official trademarked logos) */}
             <div className="flex flex-col items-center justify-center gap-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center justify-items-center bg-white/95 rounded-2xl p-6 border border-[#ffffff10]">
-                <img src="/assets/badge-soc2.png" alt="AICPA SOC 2 Type II Certified" className="h-16 w-auto object-contain" />
-                <img src="/assets/9_Iso_27001_Certified_Logo_PNG_Images.png" alt="ISO 27001 Certified" className="h-16 w-auto object-contain" />
-                <img src="/assets/badge-pci.png" alt="PCI DSS Compliant" className="h-12 w-auto object-contain" />
-                <img src="/assets/badge-gdpr.png" alt="EU GDPR Compliant" className="h-16 w-auto object-contain" />
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                {[
+                  { src: '/assets/badge-soc2.png', alt: 'AICPA SOC 2 Type II Certified' },
+                  { src: '/assets/9_Iso_27001_Certified_Logo_PNG_Images.png', alt: 'ISO 27001 Certified' },
+                  { src: '/assets/badge-pci.png', alt: 'PCI DSS Compliant' },
+                  { src: '/assets/badge-gdpr.png', alt: 'EU GDPR Compliant' },
+                ].map((b) => (
+                  <div
+                    key={b.alt}
+                    className="w-28 h-28 rounded-2xl bg-white flex items-center justify-center p-3 ring-1 ring-[#ffffff10] shadow-[0_4px_20px_rgba(0,0,0,0.35)] hover:ring-[#0C8B44]/40 transition"
+                    title={b.alt}
+                  >
+                    <img src={b.src} alt={b.alt} className="max-h-full max-w-full object-contain" />
+                  </div>
+                ))}
               </div>
               <div className="flex items-center gap-3 text-xs text-[#737373]">
                 <Shield className="w-4 h-4 text-[#0C8B44]" />
