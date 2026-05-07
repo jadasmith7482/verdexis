@@ -71,22 +71,16 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       return
     } catch (err) {
       const e = err as ApiError
-      // Network/server unreachable -> fall back to localStorage-only auth so the
-      // user can still navigate the app while the API is down. We do NOT seed any
-      // fake holdings/balances — they would look like real money to the user.
-      const offline = !e.status || e.status === 0 || e.status >= 500
-      if (!offline) {
-        setError(e.error || 'Authentication failed')
-        setLoading(false)
-        return
-      }
-      console.warn('[verdexis] API offline, using local mock auth')
-      localStorage.setItem('verdexis_auth', JSON.stringify({ email: form.email, name: form.firstName || 'User' }))
+      // Surface a helpful message instead of a silent landing-page redirect.
+      // (We previously stored a half-broken "offline" session that lacked a token,
+      // which caused RequireAuth to bounce the user back to '/'.)
+      const msg = e.error
+        || (e.status >= 500 ? 'Server is waking up — please try again in a moment.'
+        : !e.status ? 'Network error — check your connection and try again.'
+        : 'Authentication failed')
+      setError(msg)
       setLoading(false)
-      onClose()
-      window.dispatchEvent(new Event('storage'))
-      window.dispatchEvent(new Event('verdexis:profile'))
-      navigate('/dashboard', { replace: true })
+      return
     }
   }
 

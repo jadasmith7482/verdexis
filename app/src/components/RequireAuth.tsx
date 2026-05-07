@@ -13,8 +13,8 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const hasToken = !!getToken()
-    const hasDemo = !!localStorage.getItem('verdexis_holdings')
-    setCheck(hasToken || hasDemo ? 'ok' : 'redirect')
+    const hasAuth = !!localStorage.getItem('verdexis_auth')
+    setCheck(hasToken || hasAuth ? 'ok' : 'redirect')
   }, [])
 
   if (check === 'pending') {
