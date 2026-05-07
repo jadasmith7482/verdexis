@@ -9,6 +9,7 @@ import { portfolioStore, type PortfolioHolding, type Trade } from '../lib/portfo
 import { cryptoIconFor } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
 import { Toaster, toast } from 'sonner'
+import { api, getToken } from '../lib/api'
 import {
   ArrowLeft, Star, TrendingUp, TrendingDown,
   ArrowDownUp, Wallet, Activity, BarChart3,
@@ -46,6 +47,7 @@ export default function AssetDetail() {
   const [holding, setHolding] = useState<PortfolioHolding | null>(null)
   const [trades, setTrades] = useState<Trade[]>([])
   const [watch, setWatch] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Sync URL ?action=buy|sell|swap with tab
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function AssetDetail() {
   const numAmount = Number(amount) || 0
   const total = numAmount * price
 
-  const handleTrade = () => {
+  const handleTrade = async () => {
     if (!numAmount || numAmount <= 0) {
       toast.error('Enter an amount first')
       return
@@ -122,19 +124,35 @@ export default function AssetDetail() {
       toast.error('Market data not loaded')
       return
     }
-    const isAuth = !!localStorage.getItem('verdexis_holdings') || !!localStorage.getItem('verdexis_token')
-    if (!isAuth) {
+    if (!getToken()) {
       toast.error('Sign in to place real orders')
       return
     }
-    if (tab === 'swap') {
-      portfolioStore.executeTrade(symbol, name, 'sell', price, numAmount, 'market')
-      toast.success(`Swapped ${numAmount} ${symbol} → ${swapTo} @ $${fmtPrice(price)}`)
-    } else {
-      portfolioStore.executeTrade(symbol, name, tab, price, numAmount, 'market')
-      toast.success(`${tab === 'buy' ? 'Bought' : 'Sold'} ${numAmount} ${symbol} @ $${fmtPrice(price)}`)
+    // Swap = sell the current asset; the destination credit is handled
+    // separately by the user (out of scope for the Trade endpoint).
+    const side: 'buy' | 'sell' = tab === 'swap' ? 'sell' : tab
+    setSubmitting(true)
+    try {
+      const result = await api.postTrade({
+        symbol, name, side, amount: numAmount, price, type: 'crypto',
+      })
+      const fillQty = result.trade.amount
+      const fillPrice = result.trade.price
+      if (tab === 'swap') {
+        toast.success(`Swapped ${fillQty} ${symbol} → ${swapTo} @ $${fmtPrice(fillPrice)}`)
+      } else {
+        toast.success(`${side === 'buy' ? 'Bought' : 'Sold'} ${fillQty} ${symbol} @ $${fmtPrice(fillPrice)}`, {
+          description: `Total $${(fillQty * fillPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${result.broker ? ` · ${result.broker.venue}` : ''}`,
+        })
+      }
+      await portfolioStore.hydrate(true)
+      setAmount('')
+    } catch (e) {
+      const err = e as { error?: string }
+      toast.error('Trade rejected', { description: err.error || 'Server error' })
+    } finally {
+      setSubmitting(false)
     }
-    setAmount('')
   }
 
   const setPercent = (pct: number) => {
@@ -395,9 +413,10 @@ export default function AssetDetail() {
 
                 <button
                   onClick={handleTrade}
-                  className={`w-full py-3 rounded-lg text-white text-sm font-medium uppercase tracking-wider transition-colors ${sideColor.bg} ${sideColor.hover}`}
+                  disabled={submitting}
+                  className={`w-full py-3 rounded-lg text-white text-sm font-medium uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${sideColor.bg} ${sideColor.hover}`}
                 >
-                  {tab === 'buy' ? `Buy ${symbol}` : tab === 'sell' ? `Sell ${symbol}` : `Swap to ${swapTo}`}
+                  {submitting ? 'Submitting…' : tab === 'buy' ? `Buy ${symbol}` : tab === 'sell' ? `Sell ${symbol}` : `Swap to ${swapTo}`}
                 </button>
 
                 <p className="mt-3 text-[10px] text-[#737373] text-center">
