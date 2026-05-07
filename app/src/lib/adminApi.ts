@@ -223,8 +223,34 @@ export const adminApi = {
   createUser: (input: { email: string; name: string; password: string; role?: 'user' | 'admin'; initialUsdBalance?: number }) =>
     request<{ user: AdminUserFull }>(`/api/admin/users`, { method: 'POST', body: JSON.stringify(input) }),
 
-  deposit: (userId: string, input: { currency: string; symbol?: string; amount: number; reason: string; note?: string; status?: 'pending' | 'completed'; notify?: boolean }) =>
-    request<{ balance: AdminWalletBalance; transaction: AdminTransaction }>(`/api/admin/users/${userId}/deposit`, { method: 'POST', body: JSON.stringify(input) }),
+  deposit: (
+    userId: string,
+    input: {
+      currency: string
+      symbol?: string
+      amount: number
+      reason: string
+      note?: string
+      status?: 'pending' | 'completed'
+      notify?: boolean
+      // ISO-8601 timestamp the deposit should be recorded at (admin backdate).
+      occurredAt?: string
+      // Optional: invest the deposit into a real asset at the historical
+      // spot price for `occurredAt`. Server creates/updates a Holding so the
+      // dashboard's profit/loss reflects the real market move since then.
+      investAs?: { symbol: string; name: string; type: 'crypto' | 'stock' | 'etf' }
+    },
+  ) =>
+    request<{
+      balance?: AdminWalletBalance
+      holding?: { id: string; symbol: string; name: string; amount: number; avgPrice: number; type: string }
+      transaction: AdminTransaction
+      historicalPrice?: number
+      quantity?: number
+      currentPrice?: number | null
+      unrealizedPnl?: number | null
+      unrealizedPnlPct?: number | null
+    }>(`/api/admin/users/${userId}/deposit`, { method: 'POST', body: JSON.stringify(input) }),
 
   deduct: (userId: string, input: { currency: string; symbol?: string; amount: number; reason: string; note?: string; status?: 'pending' | 'completed' | 'reversed'; allowNegative?: boolean; notify?: boolean }) =>
     request<{ balance: AdminWalletBalance; transaction: AdminTransaction }>(`/api/admin/users/${userId}/deduct`, { method: 'POST', body: JSON.stringify(input) }),

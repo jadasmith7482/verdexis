@@ -12,6 +12,10 @@ const schema = z.object({
   ALERT_POLL_INTERVAL_MS: z.coerce.number().int().min(15_000).default(60_000),
   // Comma-separated list of emails that auto-promote to admin on next login.
   ADMIN_EMAILS: z.string().default(''),
+  // Optional Alpha Vantage API key for historical stock prices used by the
+  // admin "deposit + invest as <stock>" flow. Crypto prices come from the
+  // free CoinGecko endpoints and don't need a key.
+  ALPHA_VANTAGE_KEY: z.string().optional(),
 })
 
 const parsed = schema.safeParse(process.env)

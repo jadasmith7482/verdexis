@@ -670,6 +670,25 @@ function HoldPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; 
 }
 
 // ---------- Deposit / Deduct panel (in Wallet tab) ----------
+// Tradeable assets the admin can pick when "Invest as" is on. Symbol must
+// match the server's coin-id table (server/src/historicalPrice.ts).
+const INVEST_ASSETS: { symbol: string; name: string; type: 'crypto' | 'stock' | 'etf' }[] = [
+  { symbol: 'BTC', name: 'Bitcoin', type: 'crypto' },
+  { symbol: 'ETH', name: 'Ethereum', type: 'crypto' },
+  { symbol: 'SOL', name: 'Solana', type: 'crypto' },
+  { symbol: 'BNB', name: 'BNB', type: 'crypto' },
+  { symbol: 'XRP', name: 'XRP', type: 'crypto' },
+  { symbol: 'ADA', name: 'Cardano', type: 'crypto' },
+  { symbol: 'DOGE', name: 'Dogecoin', type: 'crypto' },
+  { symbol: 'MATIC', name: 'Polygon', type: 'crypto' },
+  { symbol: 'AVAX', name: 'Avalanche', type: 'crypto' },
+  { symbol: 'LINK', name: 'Chainlink', type: 'crypto' },
+  { symbol: 'DOT', name: 'Polkadot', type: 'crypto' },
+  { symbol: 'LTC', name: 'Litecoin', type: 'crypto' },
+]
+
+function todayIsoDate(): string { return new Date().toISOString().slice(0, 10) }
+
 function DepositDeductPanel({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
   const [mode, setMode] = useState<'deposit' | 'deduct'>('deposit')
   const [currency, setCurrency] = useState('USD')
@@ -679,6 +698,11 @@ function DepositDeductPanel({ userId, balances, onChange }: { userId: string; ba
   const [status, setStatus] = useState<'pending' | 'completed'>('completed')
   const [allowNegative, setAllowNegative] = useState(false)
   const [notify, setNotify] = useState(true)
+  // Backdate (deposit-only). Empty string = "now".
+  const [backdate, setBackdate] = useState('')
+  // Invest-as (deposit-only). Empty symbol = classic cash deposit.
+  const [investEnabled, setInvestEnabled] = useState(false)
+  const [investSymbol, setInvestSymbol] = useState('BTC')
   const [busy, setBusy] = useState(false)
 
   const reasonOptions = mode === 'deposit' ? DEPOSIT_REASONS : DEDUCT_REASONS
@@ -693,13 +717,30 @@ function DepositDeductPanel({ userId, balances, onChange }: { userId: string; ba
     setBusy(true)
     try {
       if (mode === 'deposit') {
-        await adminApi.deposit(userId, { currency, amount: amt, reason, note: note || undefined, status, notify })
-        toast.success(`Credited ${amt} ${currency}`)
+        const occurredAt = backdate ? new Date(backdate + 'T12:00:00Z').toISOString() : undefined
+        const investAs = investEnabled
+          ? INVEST_ASSETS.find((a) => a.symbol === investSymbol) ?? undefined
+          : undefined
+        const r = await adminApi.deposit(userId, {
+          currency, amount: amt, reason, note: note || undefined, status, notify,
+          occurredAt, investAs,
+        })
+        if (investAs && r.quantity && r.historicalPrice) {
+          const pnlMsg = typeof r.unrealizedPnlPct === 'number'
+            ? ` Current P/L: ${r.unrealizedPnlPct >= 0 ? '+' : ''}${r.unrealizedPnlPct.toFixed(2)}%`
+            : ''
+          toast.success(
+            `Bought ${r.quantity.toFixed(6)} ${investAs.symbol} @ $${r.historicalPrice.toFixed(2)} for $${amt.toLocaleString()}.${pnlMsg}`,
+            { duration: 8000 },
+          )
+        } else {
+          toast.success(`Credited ${amt} ${currency}${occurredAt ? ` (backdated to ${backdate})` : ''}`)
+        }
       } else {
         await adminApi.deduct(userId, { currency, amount: amt, reason, note: note || undefined, status, allowNegative, notify })
         toast.success(`Debited ${amt} ${currency}`)
       }
-      setAmount(''); setNote('')
+      setAmount(''); setNote(''); setBackdate(''); setInvestEnabled(false)
       onChange()
     } catch (err) {
       toast.error((err as { error?: string }).error || 'Failed')
@@ -720,6 +761,40 @@ function DepositDeductPanel({ userId, balances, onChange }: { userId: string; ba
         <Input label="Amount" value={amount} onChange={setAmount} type="number" placeholder="0.00" />
         <Select label="Reason" value={reason} onChange={setReason} options={reasonOptions} />
         <Select label="Status" value={status} onChange={(v) => setStatus(v as 'pending' | 'completed')} options={[{ value: 'completed', label: 'Completed (apply now)' }, { value: 'pending', label: 'Pending (record only)' }]} />
+        {mode === 'deposit' && (
+          <>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">Backdate to (optional)</span>
+              <input
+                type="date"
+                value={backdate}
+                max={todayIsoDate()}
+                onChange={(e) => setBackdate(e.target.value)}
+                className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+              />
+              <span className="block mt-1 text-[10px] text-[#737373]">Leave empty to use today. Past dates appear in transaction history with the original date.</span>
+            </label>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">Invest as (optional)</span>
+              <div className="flex gap-2">
+                <select
+                  value={investEnabled ? investSymbol : ''}
+                  onChange={(e) => {
+                    if (!e.target.value) { setInvestEnabled(false); return }
+                    setInvestEnabled(true); setInvestSymbol(e.target.value)
+                  }}
+                  className="flex-1 px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                >
+                  <option value="">— Cash deposit (credit wallet) —</option>
+                  {INVEST_ASSETS.map((a) => (
+                    <option key={a.symbol} value={a.symbol}>{a.symbol} — {a.name}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="block mt-1 text-[10px] text-[#737373]">If set, the deposit buys this asset at the historical price for the backdate. Profit/loss till today is computed from the real market price.</span>
+            </label>
+          </>
+        )}
         <div className="md:col-span-2">
           <Textarea label="Note (free-form, shown in transaction reference)" value={note} onChange={setNote} rows={2} />
         </div>
