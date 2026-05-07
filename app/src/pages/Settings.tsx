@@ -1,41 +1,101 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { Toaster, toast } from 'sonner'
 import {
   User, Shield, Bell, Palette, Globe, Key, LogOut, Mail,
   Smartphone, Check, ChevronRight, Trash2, Camera, Download, AtSign,
+  Building2, Wallet as WalletIcon, Eye, EyeOff, TrendingUp, Plug, Lock,
+  Phone, FileText, Plus,
 } from 'lucide-react'
 import { fileToAvatarDataUrl, getAvatar, updateProfile } from '../lib/userProfile'
 import { applyTheme } from '../lib/themeApplier'
 import { api, clearStoredAuth, getToken, setStoredUser, setToken } from '../lib/api'
+import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
+import LinkBankModal from '../components/LinkBankModal'
 
-type Section = 'profile' | 'security' | 'preferences' | 'notifications'
+type Section = 'profile' | 'security' | 'trading' | 'connections' | 'notifications' | 'preferences' | 'privacy'
+
+type OrderType = 'market' | 'limit' | 'stop'
+type LandingPage = 'home' | 'dashboard' | 'trading' | 'wallet'
+type DateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'
+type Language = 'en' | 'es' | 'fr' | 'de' | 'pt' | 'ja' | 'zh'
+type Visibility = 'public' | 'private'
 
 interface UserPrefs {
   email: string
   username: string
   name: string
+  phone: string
+  country: string
+  bio: string
   twoFactorEnabled: boolean
+  // Notifications
   emailAlerts: boolean
   pushAlerts: boolean
   priceAlerts: boolean
   newsDigest: boolean
+  smsAlerts: boolean
+  marketingEmails: boolean
+  quietHoursEnabled: boolean
+  quietHoursStart: string  // "22:00"
+  quietHoursEnd: string    // "07:00"
+  // Display
   currency: 'USD' | 'EUR' | 'GBP' | 'JPY'
   theme: 'dark' | 'light' | 'auto'
+  language: Language
+  timezone: string
+  dateFormat: DateFormat
+  defaultLandingPage: LandingPage
+  compactDensity: boolean
+  reducedMotion: boolean
+  // Trading
+  hideBalances: boolean
+  hideSmallBalances: boolean
+  requireTradeConfirmation: boolean
+  defaultOrderType: OrderType
+  slippageTolerance: number   // percent
+  maxSingleTrade: number      // USD
+  // Privacy
+  analyticsOptOut: boolean
+  profileVisibility: Visibility
+  blurOnFocusLoss: boolean
 }
 
 const DEFAULT_PREFS: UserPrefs = {
   email: '',
   username: '',
   name: 'User',
+  phone: '',
+  country: '',
+  bio: '',
   twoFactorEnabled: false,
   emailAlerts: true,
   pushAlerts: true,
   priceAlerts: true,
   newsDigest: false,
+  smsAlerts: false,
+  marketingEmails: false,
+  quietHoursEnabled: false,
+  quietHoursStart: '22:00',
+  quietHoursEnd: '07:00',
   currency: 'USD',
   theme: 'dark',
+  language: 'en',
+  timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC',
+  dateFormat: 'MM/DD/YYYY',
+  defaultLandingPage: 'dashboard',
+  compactDensity: false,
+  reducedMotion: false,
+  hideBalances: false,
+  hideSmallBalances: false,
+  requireTradeConfirmation: true,
+  defaultOrderType: 'market',
+  slippageTolerance: 0.5,
+  maxSingleTrade: 0,
+  analyticsOptOut: false,
+  profileVisibility: 'private',
+  blurOnFocusLoss: false,
 }
 
 function loadPrefs(): UserPrefs {
@@ -81,6 +141,9 @@ export default function Settings() {
       applyTheme(value as UserPrefs['theme'])
       window.dispatchEvent(new Event('verdexis:prefs'))
     }
+    if (key === 'reducedMotion') document.documentElement.classList.toggle('reduce-motion', !!value)
+    if (key === 'compactDensity') document.documentElement.classList.toggle('compact-ui', !!value)
+    if (key === 'hideBalances') document.documentElement.classList.toggle('hide-balances', !!value)
     // Best-effort sync to API; ignore if offline.
     if (getToken()) {
       const patch: Record<string, unknown> = {}
@@ -94,6 +157,30 @@ export default function Settings() {
     }
     if (key !== 'username') toast.success('Saved')
   }
+
+  // Apply visual prefs once on mount so a reload still respects them.
+  useEffect(() => {
+    document.documentElement.classList.toggle('reduce-motion', prefs.reducedMotion)
+    document.documentElement.classList.toggle('compact-ui', prefs.compactDensity)
+    document.documentElement.classList.toggle('hide-balances', prefs.hideBalances)
+  }, [prefs.reducedMotion, prefs.compactDensity, prefs.hideBalances])
+
+  // Blur the whole app when the window loses focus (privacy in screenshares).
+  useEffect(() => {
+    if (!prefs.blurOnFocusLoss) {
+      document.documentElement.style.removeProperty('filter')
+      return
+    }
+    const onBlur = () => { document.documentElement.style.filter = 'blur(8px)' }
+    const onFocus = () => { document.documentElement.style.removeProperty('filter') }
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('focus', onFocus)
+      document.documentElement.style.removeProperty('filter')
+    }
+  }, [prefs.blurOnFocusLoss])
 
   const handleAvatarPick = async (file?: File | null) => {
     if (!file) return
@@ -175,8 +262,11 @@ export default function Settings() {
   const sections: Array<{ key: Section; label: string; icon: typeof User }> = [
     { key: 'profile', label: 'Profile', icon: User },
     { key: 'security', label: 'Security', icon: Shield },
+    { key: 'trading', label: 'Trading', icon: TrendingUp },
+    { key: 'connections', label: 'Connections', icon: Plug },
     { key: 'notifications', label: 'Notifications', icon: Bell },
     { key: 'preferences', label: 'Preferences', icon: Palette },
+    { key: 'privacy', label: 'Privacy', icon: Lock },
   ]
 
   return (
@@ -307,6 +397,47 @@ export default function Settings() {
                     />
                   </Field>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Phone" hint="For SMS alerts and account recovery">
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
+                        <input
+                          type="tel"
+                          aria-label="Phone number"
+                          placeholder="+1 555 123 4567"
+                          defaultValue={prefs.phone}
+                          onBlur={(e) => e.target.value !== prefs.phone && update('phone', e.target.value)}
+                          className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg pl-10 pr-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="Country">
+                      <select
+                        aria-label="Country"
+                        value={prefs.country}
+                        onChange={(e) => update('country', e.target.value)}
+                        className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none"
+                      >
+                        <option value="">Select country…</option>
+                        {['United States','United Kingdom','Canada','Australia','Germany','France','Spain','Netherlands','Switzerland','Singapore','Japan','South Korea','Brazil','Mexico','India','South Africa','Other'].map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+
+                  <Field label="Bio" hint="Optional, max 280 characters. Visible only to you unless your profile is public.">
+                    <textarea
+                      aria-label="Bio"
+                      rows={3}
+                      maxLength={280}
+                      placeholder="A short note about your investing style…"
+                      defaultValue={prefs.bio}
+                      onBlur={(e) => e.target.value !== prefs.bio && update('bio', e.target.value)}
+                      className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none resize-none"
+                    />
+                  </Field>
+
                   <div className="pt-6 border-t border-[#ffffff08]">
                     <h3 className="text-sm font-medium text-[#f44336] mb-2">Danger zone</h3>
                     <p className="text-xs text-[#737373] mb-4">Permanently delete your account and all stored data.</p>
@@ -334,10 +465,97 @@ export default function Settings() {
 
                   <ChangePasswordCard email={prefs.email} />
 
+                  <RecoveryCodesCard />
+
                   <ActiveSessionsCard />
 
                   <DataExportCard />
                 </div>
+              )}
+
+              {section === 'trading' && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-light text-[#E5E5E5]">Trading</h2>
+
+                  <Toggle
+                    icon={prefs.hideBalances ? <EyeOff className="w-5 h-5 text-[#0C8B44]" /> : <Eye className="w-5 h-5 text-[#0C8B44]" />}
+                    title="Hide balances"
+                    description="Mask account values across the app — useful in screenshares."
+                    enabled={prefs.hideBalances}
+                    onChange={(v) => update('hideBalances', v)}
+                  />
+
+                  <Toggle
+                    icon={<Eye className="w-5 h-5 text-[#737373]" />}
+                    title="Hide small balances"
+                    description="Hide assets worth less than $1 in your portfolio views."
+                    enabled={prefs.hideSmallBalances}
+                    onChange={(v) => update('hideSmallBalances', v)}
+                  />
+
+                  <Toggle
+                    icon={<Check className="w-5 h-5 text-[#0C8B44]" />}
+                    title="Require trade confirmation"
+                    description="Show a final review modal before every buy or sell."
+                    enabled={prefs.requireTradeConfirmation}
+                    onChange={(v) => update('requireTradeConfirmation', v)}
+                  />
+
+                  <Field label="Default order type">
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['market','limit','stop'] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => update('defaultOrderType', t)}
+                          className={`py-2.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                            prefs.defaultOrderType === t
+                              ? 'bg-[#0C8B44] text-white'
+                              : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  <Field label="Slippage tolerance" hint="Maximum acceptable price slippage on market orders.">
+                    <div className="grid grid-cols-4 gap-2">
+                      {[0.1, 0.5, 1, 2].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => update('slippageTolerance', s)}
+                          className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            prefs.slippageTolerance === s
+                              ? 'bg-[#0C8B44] text-white'
+                              : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'
+                          }`}
+                        >
+                          {s}%
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  <Field label="Max single-trade size (USD)" hint="Block trades larger than this. Set to 0 to disable.">
+                    <input
+                      type="number"
+                      min={0}
+                      step={100}
+                      aria-label="Maximum single trade size"
+                      defaultValue={prefs.maxSingleTrade}
+                      onBlur={(e) => {
+                        const v = Math.max(0, Number(e.target.value) || 0)
+                        if (v !== prefs.maxSingleTrade) update('maxSingleTrade', v)
+                      }}
+                      className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none"
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {section === 'connections' && (
+                <ConnectionsSection />
               )}
 
               {section === 'notifications' && (
@@ -371,6 +589,49 @@ export default function Settings() {
                     enabled={prefs.newsDigest}
                     onChange={(v) => update('newsDigest', v)}
                   />
+                  <Toggle
+                    icon={<Smartphone className="w-5 h-5 text-[#2196F3]" />}
+                    title="SMS alerts"
+                    description={prefs.phone ? `Texts sent to ${prefs.phone}.` : 'Add a phone number on the Profile tab first.'}
+                    enabled={prefs.smsAlerts}
+                    onChange={(v) => {
+                      if (v && !prefs.phone) { toast.error('Add a phone number first'); return }
+                      update('smsAlerts', v)
+                    }}
+                  />
+                  <Toggle
+                    icon={<Mail className="w-5 h-5 text-[#737373]" />}
+                    title="Marketing emails"
+                    description="Product updates, promotions, and partner offers."
+                    enabled={prefs.marketingEmails}
+                    onChange={(v) => update('marketingEmails', v)}
+                  />
+
+                  <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08] space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-[#E5E5E5]">Quiet hours</p>
+                        <p className="text-xs text-[#737373] mt-0.5">Mute push & SMS alerts during these hours.</p>
+                      </div>
+                      <button
+                        onClick={() => update('quietHoursEnabled', !prefs.quietHoursEnabled)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${prefs.quietHoursEnabled ? 'bg-[#0C8B44]' : 'bg-[#1a1a1a] border border-[#ffffff15]'}`}
+                        aria-label="Toggle quiet hours"
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${prefs.quietHoursEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                    {prefs.quietHoursEnabled && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="text-xs text-[#737373]">From
+                          <input type="time" value={prefs.quietHoursStart} onChange={(e) => update('quietHoursStart', e.target.value)} className="mt-1 w-full bg-[#0f1619] border border-[#ffffff10] rounded-lg px-3 py-2 text-sm text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none" />
+                        </label>
+                        <label className="text-xs text-[#737373]">To
+                          <input type="time" value={prefs.quietHoursEnd} onChange={(e) => update('quietHoursEnd', e.target.value)} className="mt-1 w-full bg-[#0f1619] border border-[#ffffff10] rounded-lg px-3 py-2 text-sm text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none" />
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -414,12 +675,65 @@ export default function Settings() {
                     </div>
                   </Field>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Language">
+                      <select aria-label="Language" value={prefs.language} onChange={(e) => update('language', e.target.value as Language)} className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none">
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="pt">Português</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh">中文</option>
+                      </select>
+                    </Field>
+                    <Field label="Date format">
+                      <select aria-label="Date format" value={prefs.dateFormat} onChange={(e) => update('dateFormat', e.target.value as DateFormat)} className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none">
+                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                        <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <Field label="Timezone" hint="Used for charts, alerts and history timestamps.">
+                    <select aria-label="Timezone" value={prefs.timezone} onChange={(e) => update('timezone', e.target.value)} className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none">
+                      {commonTimezones.map((tz) => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Default landing page" hint="Where to send you after sign-in.">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(['home','dashboard','trading','wallet'] as const).map((p) => (
+                        <button key={p} onClick={() => update('defaultLandingPage', p)} className={`py-2.5 rounded-lg text-sm font-medium capitalize transition-colors ${prefs.defaultLandingPage === p ? 'bg-[#0C8B44] text-white' : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}>{p}</button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  <Toggle
+                    icon={<Palette className="w-5 h-5 text-[#0C8B44]" />}
+                    title="Compact mode"
+                    description="Tighten spacing and shrink controls for more on-screen data."
+                    enabled={prefs.compactDensity}
+                    onChange={(v) => update('compactDensity', v)}
+                  />
+
+                  <Toggle
+                    icon={<Palette className="w-5 h-5 text-[#737373]" />}
+                    title="Reduce motion"
+                    description="Disable non-essential animations and transitions."
+                    enabled={prefs.reducedMotion}
+                    onChange={(v) => update('reducedMotion', v)}
+                  />
+
                   <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
                     <div className="flex items-center gap-3 mb-2">
                       <Globe className="w-5 h-5 text-[#0C8B44]" />
-                      <p className="text-sm font-medium text-[#E5E5E5]">Region</p>
+                      <p className="text-sm font-medium text-[#E5E5E5]">Detected region</p>
                     </div>
-                    <p className="text-xs text-[#737373]">Auto-detected from your browser. Region cannot be changed manually.</p>
+                    <p className="text-xs text-[#737373]">{prefs.timezone || 'Unknown'} — auto-detected from your browser.</p>
                   </div>
 
                   <Link
@@ -427,6 +741,49 @@ export default function Settings() {
                     className="flex items-center justify-between p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08] hover:border-[#0C8B44]/30 transition-colors"
                   >
                     <span className="text-sm text-[#A0A0A0]">Privacy &amp; Terms</span>
+                    <ChevronRight className="w-4 h-4 text-[#737373]" />
+                  </Link>
+                </div>
+              )}
+
+              {section === 'privacy' && (
+                <div className="space-y-4">
+                  <h2 className="text-xl font-light text-[#E5E5E5] mb-2">Privacy</h2>
+
+                  <Field label="Profile visibility" hint="Public profiles can be discovered by username.">
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['private','public'] as const).map((v) => (
+                        <button key={v} onClick={() => update('profileVisibility', v)} className={`py-2.5 rounded-lg text-sm font-medium capitalize transition-colors ${prefs.profileVisibility === v ? 'bg-[#0C8B44] text-white' : 'bg-[#0a0e10] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}>{v}</button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  <Toggle
+                    icon={<Shield className="w-5 h-5 text-[#0C8B44]" />}
+                    title="Opt out of usage analytics"
+                    description="Stop sending anonymized telemetry that helps us improve the app."
+                    enabled={prefs.analyticsOptOut}
+                    onChange={(v) => update('analyticsOptOut', v)}
+                  />
+
+                  <Toggle
+                    icon={<EyeOff className="w-5 h-5 text-[#FF9800]" />}
+                    title="Blur app when window loses focus"
+                    description="Automatically blur sensitive data when you switch tabs or share your screen."
+                    enabled={prefs.blurOnFocusLoss}
+                    onChange={(v) => update('blurOnFocusLoss', v)}
+                  />
+
+                  <Toggle
+                    icon={prefs.hideBalances ? <EyeOff className="w-5 h-5 text-[#0C8B44]" /> : <Eye className="w-5 h-5 text-[#0C8B44]" />}
+                    title="Hide balances by default"
+                    description="Replace dollar amounts with '••••' until you tap to reveal."
+                    enabled={prefs.hideBalances}
+                    onChange={(v) => update('hideBalances', v)}
+                  />
+
+                  <Link to="/legal#cookies" className="flex items-center justify-between p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08] hover:border-[#0C8B44]/30 transition-colors">
+                    <span className="text-sm text-[#A0A0A0]">Cookie preferences</span>
                     <ChevronRight className="w-4 h-4 text-[#737373]" />
                   </Link>
                 </div>
@@ -445,6 +802,148 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <label className="block text-xs uppercase tracking-wider text-[#737373] mb-2">{label}</label>
       {children}
       {hint && <p className="text-xs text-[#737373] mt-2">{hint}</p>}
+    </div>
+  )
+}
+
+const commonTimezones = [
+  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Toronto', 'America/Mexico_City', 'America/Sao_Paulo',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Madrid', 'Europe/Amsterdam',
+  'Europe/Zurich', 'Europe/Stockholm', 'Europe/Moscow',
+  'Africa/Johannesburg', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore',
+  'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul',
+  'Australia/Sydney', 'Pacific/Auckland',
+]
+
+function RecoveryCodesCard() {
+  const [codes, setCodes] = useState<string[] | null>(null)
+  const [open, setOpen] = useState(false)
+
+  function generate() {
+    const out: string[] = []
+    for (let i = 0; i < 10; i++) {
+      const bytes = new Uint8Array(5)
+      crypto.getRandomValues(bytes)
+      out.push(Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').match(/.{1,5}/g)!.join('-'))
+    }
+    setCodes(out)
+    setOpen(true)
+    toast.success('New recovery codes generated', { description: 'Save them somewhere safe.' })
+  }
+
+  function downloadCodes() {
+    if (!codes) return
+    const blob = new Blob([`Verdexis recovery codes (generated ${new Date().toISOString()})\n\n${codes.join('\n')}\n`], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'verdexis-recovery-codes.txt'
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
+      <div className="flex items-start gap-3">
+        <FileText className="w-5 h-5 text-[#A0A0A0] mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-[#E5E5E5]">Recovery codes</p>
+          <p className="text-xs text-[#737373] mt-1">One-time codes to sign in if you lose access to your 2FA device. Each code works once.</p>
+        </div>
+        <button onClick={generate} className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors">
+          {codes ? 'Regenerate' : 'Generate'}
+        </button>
+      </div>
+      {open && codes && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2 p-4 bg-[#0f1619] rounded-lg font-mono text-xs text-[#E5E5E5]">
+            {codes.map((c) => <div key={c}>{c}</div>)}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={downloadCodes} className="px-3 py-1.5 text-xs text-[#A0A0A0] border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44]">Download .txt</button>
+            <button onClick={() => { navigator.clipboard.writeText(codes.join('\n')); toast.success('Copied to clipboard') }} className="px-3 py-1.5 text-xs text-[#A0A0A0] border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44]">Copy</button>
+            <button onClick={() => setOpen(false)} className="ml-auto px-3 py-1.5 text-xs text-[#737373] hover:text-[#E5E5E5]">Hide</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ConnectionsSection() {
+  const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
+  const [linkOpen, setLinkOpen] = useState(false)
+
+  useEffect(() => onBanksChanged(() => setBanks(listBanks())), [])
+
+  const verifiedCount = useMemo(() => banks.filter((b) => b.status === 'verified').length, [banks])
+
+  function disconnect(b: BankAccount) {
+    if (!confirm(`Disconnect ${b.institution} (••${b.accountMask})?`)) return
+    removeBank(b.id)
+    toast.success('Bank disconnected')
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-light text-[#E5E5E5]">Connections</h2>
+
+      <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-[#0C8B44]" />
+            <div>
+              <p className="text-sm font-medium text-[#E5E5E5]">Linked bank accounts</p>
+              <p className="text-xs text-[#737373] mt-0.5">{banks.length === 0 ? 'No banks linked yet.' : `${banks.length} linked · ${verifiedCount} verified`}</p>
+            </div>
+          </div>
+          <button onClick={() => setLinkOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#0C8B44] border border-[#0C8B44]/30 rounded-lg hover:bg-[#0C8B44]/10">
+            <Plus className="w-3.5 h-3.5" /> Link bank
+          </button>
+        </div>
+        {banks.length > 0 && (
+          <ul className="space-y-2">
+            {banks.map((b) => (
+              <li key={b.id} className="flex items-center justify-between p-3 bg-[#0f1619] rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#E5E5E5] truncate">{b.institution}</p>
+                  <p className="text-xs text-[#737373]">{b.type} · ••{b.accountMask} · {b.status}</p>
+                </div>
+                <button onClick={() => disconnect(b)} className="text-xs text-[#737373] hover:text-[#f44336] px-2 py-1">Disconnect</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <Link to="/wallet" className="flex items-center justify-between p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08] hover:border-[#0C8B44]/30 transition-colors">
+        <div className="flex items-center gap-3">
+          <WalletIcon className="w-5 h-5 text-[#FF9800]" />
+          <div>
+            <p className="text-sm font-medium text-[#E5E5E5]">Crypto wallets</p>
+            <p className="text-xs text-[#737373] mt-0.5">Manage MetaMask, Coinbase Wallet, and other Web3 connections.</p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-[#737373]" />
+      </Link>
+
+      <Link to="/dashboard" className="flex items-center justify-between p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08] hover:border-[#0C8B44]/30 transition-colors">
+        <div className="flex items-center gap-3">
+          <Plug className="w-5 h-5 text-[#2196F3]" />
+          <div>
+            <p className="text-sm font-medium text-[#E5E5E5]">Connected accounts overview</p>
+            <p className="text-xs text-[#737373] mt-0.5">See bank + wallet status in one place on your dashboard.</p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-[#737373]" />
+      </Link>
+
+      <LinkBankModal
+        isOpen={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        onLinked={() => { setBanks(listBanks()); setLinkOpen(false); toast.success('Bank linked') }}
+      />
     </div>
   )
 }
