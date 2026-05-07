@@ -46,16 +46,7 @@ const partnerLogos = [
   { name: 'Finnhub', image: '/assets/logo-finnhub.png' },
 ]
 
-const cryptoLogos: Record<string, string> = {
-  bitcoin: '/assets/logo-btc.png',
-  ethereum: '/assets/logo-eth.png',
-  solana: '/assets/logo-sol.png',
-  cardano: '/assets/logo-ada.png',
-  ripple: '/assets/logo-xrp.png',
-  binancecoin: '/assets/logo-bnb.png',
-  dogecoin: '/assets/logo-doge.png',
-  tron: '/assets/logo-trx.png',
-}
+import { cryptoIconFor } from '../lib/cryptoIcon'
 
 const securityFeatures = [
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit' },
@@ -98,7 +89,7 @@ export default function Home() {
   const topCryptos = cryptoData.slice(0, 5)
   const totalValue = 2847293.5
 
-  const getCryptoLogo = (id: string) => cryptoLogos[id] || null
+  const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
   return (
     <div className="min-h-screen bg-[#070C0E]">

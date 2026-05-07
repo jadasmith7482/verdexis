@@ -140,13 +140,24 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
         <div className="p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0C8B44] to-[#00E676] flex items-center justify-center mx-auto mb-4 overflow-hidden">
               {mode === 'login' ? (
                 <Fingerprint className="w-8 h-8 text-white" />
               ) : mode === 'forgot' ? (
                 <KeyRound className="w-8 h-8 text-white" />
               ) : (
-                <Shield className="w-8 h-8 text-white" />
+                <img
+                  src="/assets/logo-icon-transparent.png"
+                  alt="Verdexis"
+                  className="w-10 h-10 object-contain"
+                  onError={(e) => {
+                    const img = e.currentTarget
+                    img.onerror = null
+                    img.style.display = 'none'
+                    const parent = img.parentElement
+                    if (parent) parent.innerHTML = '<span class="text-white text-2xl font-light tracking-tight">V</span>'
+                  }}
+                />
               )}
             </div>
             <h2 className="text-2xl font-light tracking-[-0.02em] text-[#E5E5E5]">

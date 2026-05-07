@@ -8,40 +8,11 @@ import { portfolioStore } from '../lib/portfolioStore'
 import WatchlistPanel from '../components/WatchlistPanel'
 import { Toaster, toast } from 'sonner'
 import {
-  Search, Star, RefreshCw, BarChart3, Clock, Layers,
+  Search, Star, BarChart3, Clock, Layers,
 } from 'lucide-react'
+import { cryptoIconFor } from '../lib/cryptoIcon'
 
-const cryptoLogos: Record<string, string> = {
-  bitcoin: '/assets/logo-btc.png',
-  ethereum: '/assets/logo-eth.png',
-  solana: '/assets/logo-sol.png',
-  cardano: '/assets/logo-ada.png',
-  ripple: '/assets/logo-xrp.png',
-  binancecoin: '/assets/logo-bnb.png',
-  dogecoin: '/assets/logo-doge.png',
-  tron: '/assets/logo-trx.png',
-  tether: '/assets/logo-usdt.png',
-  'usd-coin': '/assets/logo-usdc.png',
-  polkadot: '/assets/logo-dot.png',
-  chainlink: '/assets/logo-link.png',
-  avalanche: '/assets/logo-avax.png',
-  // Symbol aliases
-  btc: '/assets/logo-btc.png',
-  eth: '/assets/logo-eth.png',
-  sol: '/assets/logo-sol.png',
-  ada: '/assets/logo-ada.png',
-  xrp: '/assets/logo-xrp.png',
-  bnb: '/assets/logo-bnb.png',
-  doge: '/assets/logo-doge.png',
-  trx: '/assets/logo-trx.png',
-  usdt: '/assets/logo-usdt.png',
-  usdc: '/assets/logo-usdc.png',
-  dot: '/assets/logo-dot.png',
-  link: '/assets/logo-link.png',
-  avax: '/assets/logo-avax.png',
-}
-
-const getCryptoLogo = (id: string) => cryptoLogos[id] || null
+const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
 type OrderType = 'market' | 'limit' | 'stop'
 type OrderSide = 'buy' | 'sell'
@@ -73,7 +44,7 @@ export default function Trading() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 30000)
+    const interval = setInterval(fetchData, 5000)
     return () => clearInterval(interval)
   }, [])
 
@@ -230,9 +201,10 @@ export default function Trading() {
                 </button>
               ))}
             </div>
-            <button onClick={fetchData} className="flex items-center gap-2 px-4 py-3 glass-card text-sm text-[#A0A0A0] hover:text-[#0C8B44] transition-colors">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
+            <div className="flex items-center gap-2 text-xs text-[#737373]">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0C8B44] animate-pulse" />
+              {loading ? 'Updating…' : 'Live'}
+            </div>
           </div>
 
           {/* Main Content */}

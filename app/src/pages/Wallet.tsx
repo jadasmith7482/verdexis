@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
+import Footer from '../components/Footer'
 import { portfolioStore } from '../lib/portfolioStore'
 import { Toaster, toast } from 'sonner'
 import {
@@ -226,9 +227,10 @@ export default function WalletPage() {
               <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">Wallet</h1>
               <p className="text-sm text-[#737373] mt-1">Manage your assets</p>
             </div>
-            <button onClick={() => setShowBalance(!showBalance)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-sm text-[#A0A0A0] hover:text-[#E5E5E5] transition-colors">
-              {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {showBalance ? 'Hide' : 'Show'} Balance
+            <button onClick={() => setShowBalance(!showBalance)} aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+              className="inline-flex items-center gap-1.5 self-start px-2.5 py-1.5 rounded-md bg-[#1a1a1a] border border-[#ffffff08] text-xs text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#0C8B44]/30 transition-colors">
+              {showBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{showBalance ? 'Hide' : 'Show'}</span>
             </button>
           </div>
 
@@ -595,6 +597,7 @@ export default function WalletPage() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

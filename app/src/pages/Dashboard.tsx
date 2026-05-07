@@ -2,49 +2,21 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
+import Footer from '../components/Footer'
 import RiskMetricsCard from '../components/RiskMetricsCard'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, type WalletTransaction } from '../lib/portfolioStore'
+import { cryptoIconFor } from '../lib/cryptoIcon'
 import { Toaster } from 'sonner'
 import {
   TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight,
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
-  PieChart, Activity, ChevronRight, RefreshCw, Lock,
+  PieChart, Activity, ChevronRight, Lock,
   ArrowRight, CircleDollarSign, Gem, Layers,
 } from 'lucide-react'
 
-const cryptoLogos: Record<string, string> = {
-  bitcoin: '/assets/logo-btc.png',
-  ethereum: '/assets/logo-eth.png',
-  solana: '/assets/logo-sol.png',
-  cardano: '/assets/logo-ada.png',
-  ripple: '/assets/logo-xrp.png',
-  binancecoin: '/assets/logo-bnb.png',
-  dogecoin: '/assets/logo-doge.png',
-  tron: '/assets/logo-trx.png',
-  tether: '/assets/logo-usdt.png',
-  'usd-coin': '/assets/logo-usdc.png',
-  polkadot: '/assets/logo-dot.png',
-  chainlink: '/assets/logo-link.png',
-  avalanche: '/assets/logo-avax.png',
-  // Symbol aliases
-  btc: '/assets/logo-btc.png',
-  eth: '/assets/logo-eth.png',
-  sol: '/assets/logo-sol.png',
-  ada: '/assets/logo-ada.png',
-  xrp: '/assets/logo-xrp.png',
-  bnb: '/assets/logo-bnb.png',
-  doge: '/assets/logo-doge.png',
-  trx: '/assets/logo-trx.png',
-  usdt: '/assets/logo-usdt.png',
-  usdc: '/assets/logo-usdc.png',
-  dot: '/assets/logo-dot.png',
-  link: '/assets/logo-link.png',
-  avax: '/assets/logo-avax.png',
-}
-
-const getCryptoLogo = (id: string) => cryptoLogos[id] || null
+const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
   if (!prices || prices.length === 0) return ''
@@ -74,8 +46,8 @@ export default function Dashboard() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const isAuthenticated = !!localStorage.getItem('verdexis_holdings')
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true)
     const [crypto, aiInsights] = await Promise.all([
       marketData.getCryptoList(),
       aiService.getPortfolioInsights(),
@@ -99,12 +71,20 @@ export default function Dashboard() {
     setWallet(portfolioStore.getWallet())
     setTransactions(portfolioStore.getTransactions().slice(0, 5))
     setLastUpdated(new Date())
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 60000)
+    // Slow market data fetch (CoinGecko ratelimit-friendly)
+    const marketInterval = setInterval(() => fetchData(true), 30000)
+    // Fast tick: re-read local portfolio + bump 'last updated' every second
+    const fastTick = setInterval(() => {
+      setHoldings(portfolioStore.getHoldings())
+      setWallet(portfolioStore.getWallet())
+      setTransactions(portfolioStore.getTransactions().slice(0, 5))
+      setLastUpdated(new Date())
+    }, 1000)
     const refresh = () => {
       setHoldings(portfolioStore.getHoldings())
       setTrades(portfolioStore.getTrades().slice(0, 5))
@@ -113,7 +93,8 @@ export default function Dashboard() {
     }
     window.addEventListener('verdexis:portfolio', refresh)
     return () => {
-      clearInterval(interval)
+      clearInterval(marketInterval)
+      clearInterval(fastTick)
       window.removeEventListener('verdexis:portfolio', refresh)
     }
   }, [])
@@ -160,12 +141,11 @@ export default function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">Dashboard</h1>
-              <p className="text-sm text-[#737373] mt-1">Last updated: {lastUpdated.toLocaleTimeString()}</p>
+              <p className="text-sm text-[#737373] mt-1 flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0C8B44] animate-pulse" />
+                Live · Last updated {lastUpdated.toLocaleTimeString()}
+              </p>
             </div>
-            <button onClick={fetchData}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-sm text-[#A0A0A0] hover:text-[#0C8B44] hover:border-[#0C8B44]/30 transition-colors">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
           </div>
 
           {/* Top Stats Row */}
@@ -177,15 +157,15 @@ export default function Dashboard() {
                 { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
                 { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
               ].map((stat) => (
-                <div key={stat.label} className="p-5 rounded-xl bg-[#0f1619]/50 border border-[#ffffff05]">
+                <div key={stat.label} className="p-5 rounded-xl bg-[#0f1619]/50 border border-[#ffffff05] min-w-0">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#0C8B44]/10 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-[#0C8B44]/10 flex items-center justify-center shrink-0">
                       <stat.icon className="w-4 h-4 text-[#0C8B44]" />
                     </div>
-                    <span className="text-xs text-[#737373]">{stat.label}</span>
+                    <span className="text-xs text-[#737373] truncate">{stat.label}</span>
                   </div>
-                  <p className="text-xl font-light text-[#E5E5E5] tracking-[-0.02em]">{stat.value}</p>
-                  <p className={`text-xs mt-1 ${stat.positive ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{stat.change}</p>
+                  <p className="text-lg md:text-xl font-light text-[#E5E5E5] tracking-[-0.02em] truncate">{stat.value}</p>
+                  <p className={`text-xs mt-1 truncate ${stat.positive ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{stat.change}</p>
                 </div>
               ))}
             </div>
@@ -275,7 +255,7 @@ export default function Dashboard() {
 
               {isAuthenticated ? (
                 <>
-                  <p className="text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6">
+                  <p className="text-4xl sm:text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6 break-all">
                     ${totalValue.toLocaleString()}
                   </p>
                   {/* SVG Area Chart */}
@@ -295,6 +275,34 @@ export default function Dashboard() {
                     <span>30 days ago</span>
                     <span>Today</span>
                   </div>
+
+                  {/* Recent Activity - moved here under Total Net Worth */}
+                  {transactions.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-[#ffffff08]">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-[#E5E5E5]">Recent Activity</h4>
+                        <Link to="/wallet" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
+                      </div>
+                      <div className="space-y-1">
+                        {transactions.slice(0, 5).map((tx) => (
+                          <div key={tx.id} className="flex items-center justify-between py-2">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
+                                {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>
+                                <p className="text-[11px] text-[#737373] capitalize">{tx.type}</p>
+                              </div>
+                            </div>
+                            <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                              {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()} {tx.currency}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12">
@@ -528,22 +536,6 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-                {transactions.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-[#ffffff08]">
-                    <h4 className="text-xs font-medium text-[#737373] mb-2">Recent Activity</h4>
-                    {transactions.slice(0, 3).map((tx) => (
-                      <div key={tx.id} className="flex items-center justify-between py-1.5">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${tx.type === 'deposit' ? 'bg-[#4CAF50]/20 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/20 text-[#f44336]' : 'bg-[#FF9800]/20 text-[#FF9800]'}`}>
-                            {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
-                          </div>
-                          <span className="text-xs text-[#A0A0A0]">{tx.description}</span>
-                        </div>
-                        <span className={`text-xs ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()} {tx.currency}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -612,6 +604,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }
