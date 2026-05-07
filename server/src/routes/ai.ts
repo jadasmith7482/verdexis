@@ -61,7 +61,10 @@ router.post('/chat', async (req, res) => {
     if (!r.ok) {
       const text = await r.text()
       console.warn('[ai] OpenAI', r.status, text.slice(0, 200))
-      res.status(502).json({ error: 'LLM upstream error' })
+      // Treat auth/quota failures the same as "not configured" so the client
+      // falls back to its built-in rule-based answer instead of erroring.
+      const fallback = r.status === 401 || r.status === 403 || r.status === 429
+      res.status(fallback ? 503 : 502).json({ error: fallback ? 'LLM unavailable' : 'LLM upstream error' })
       return
     }
     const data = await r.json() as { choices?: Array<{ message?: { content?: string } }> }
