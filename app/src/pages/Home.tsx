@@ -6,7 +6,7 @@ import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { marketData, type CryptoQuote } from '../lib/marketData'
-import { formatPrice, formatUsd } from '@/lib/utils'
+import { formatPrice, formatUsd, formatUsdCompact } from '@/lib/utils'
 import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
   Zap, BarChart3, PieChart, Activity, Bot,
@@ -280,11 +280,11 @@ export default function Home() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-[#A0A0A0] mb-1">Top 5 Crypto Market Cap</p>
-                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">{totalValue > 0 ? formatUsd(totalValue) : '—'}</p>
+                  <p className="text-5xl font-light tracking-[-0.03em] text-[#E5E5E5]">{totalValue > 0 ? formatUsdCompact(totalValue) : '—'}</p>
                   {totalValue > 0 && (
                     <p className={`text-sm mt-1 flex items-center gap-1 ${change24hAbs >= 0 ? 'text-[#4CAF50]' : 'text-[#E53935]'}`}>
                       {change24hAbs >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                      {change24hAbs >= 0 ? '+' : ''}{formatUsd(change24hAbs)} ({change24hPct >= 0 ? '+' : ''}{change24hPct.toFixed(2)}%)
+                      {change24hAbs >= 0 ? '+' : ''}{formatUsdCompact(change24hAbs)} ({change24hPct >= 0 ? '+' : ''}{change24hPct.toFixed(2)}%)
                     </p>
                   )}
                 </div>

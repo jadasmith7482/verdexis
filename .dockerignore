@@ -10,8 +10,6 @@
 **/.env.*
 !**/.env.example
 **/coverage
-app/public/assets/*.png
-app/public/assets/*.jpg
 server/dev.db
 server/dev.db-*
 server/prisma/dev.db*

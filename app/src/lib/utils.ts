@@ -26,6 +26,28 @@ export function formatUsd(n: number, opts: { sign?: boolean } = {}): string {
 }
 
 /**
+ * Compact USD formatter for headline numbers that can span many magnitudes
+ * (e.g. crypto market caps in the trillions). Uses K / M / B / T suffixes
+ * with up to 2 decimals.
+ *   1_234        -> "$1.23K"
+ *   2_246_287_409_172 -> "$2.25T"
+ */
+export function formatUsdCompact(n: number, opts: { sign?: boolean } = {}): string {
+  if (!Number.isFinite(n)) return '$0'
+  const abs = Math.abs(n)
+  const sign = n < 0 ? '-' : opts.sign ? '+' : ''
+  const fmt = (v: number, suffix: string) => {
+    const s = v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    return `${sign}$${s}${suffix}`
+  }
+  if (abs >= 1e12) return fmt(abs / 1e12, 'T')
+  if (abs >= 1e9) return fmt(abs / 1e9, 'B')
+  if (abs >= 1e6) return fmt(abs / 1e6, 'M')
+  if (abs >= 1e3) return fmt(abs / 1e3, 'K')
+  return `${sign}$${abs.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+/**
  * Format a non-USD currency amount with sensible decimals. Fiat (USD/EUR/GBP)
  * gets 2 decimals; crypto gets up to 8 decimals but trims trailing zeros.
  * Returns just the number portion (no symbol) so callers can prefix the
