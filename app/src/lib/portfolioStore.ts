@@ -49,34 +49,41 @@ const STORAGE_KEYS = {
   transactions: 'verdexis_transactions',
 }
 
-const DEFAULT_HOLDINGS: PortfolioHolding[] = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', quantity: 2.45, avgBuyPrice: 67432, currentPrice: 67432, value: 165208, pnl: 12450, pnlPercent: 8.15, allocation: 45 },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', quantity: 15.23, avgBuyPrice: 3521, currentPrice: 3521, value: 53625, pnl: 3210, pnlPercent: 6.37, allocation: 27 },
-  { id: 'solana', symbol: 'SOL', name: 'Solana', quantity: 234.5, avgBuyPrice: 178.45, currentPrice: 178.45, value: 41842, pnl: -1240, pnlPercent: -2.87, allocation: 18 },
-  { id: 'cardano', symbol: 'ADA', name: 'Cardano', quantity: 5000, avgBuyPrice: 0.52, currentPrice: 0.52, value: 2600, pnl: 180, pnlPercent: 7.43, allocation: 5 },
-  { id: 'usd-coin', symbol: 'USDC', name: 'USD Coin', quantity: 125430, avgBuyPrice: 1, currentPrice: 1, value: 125430, pnl: 0, pnlPercent: 0, allocation: 5 },
-]
+// One-time purge of the legacy mock seed data (BTC 2.45 / USDC 125,430 /
+// $5,000 "Bank Transfer from Chase" etc.) that earlier builds wrote to
+// localStorage on first visit. Bumping this key forces a re-evaluation:
+// any browser still holding the seed will be cleared once and start fresh.
+const STORAGE_RESET_FLAG = 'verdexis_storage_reset_v2'
+function purgeLegacyMockSeeds() {
+  if (typeof window === 'undefined') return
+  try {
+    if (localStorage.getItem(STORAGE_RESET_FLAG) === '1') return
+    localStorage.removeItem(STORAGE_KEYS.holdings)
+    localStorage.removeItem(STORAGE_KEYS.trades)
+    localStorage.removeItem(STORAGE_KEYS.wallet)
+    localStorage.removeItem(STORAGE_KEYS.transactions)
+    localStorage.setItem(STORAGE_RESET_FLAG, '1')
+  } catch { /* ignore */ }
+}
+purgeLegacyMockSeeds()
 
-const DEFAULT_TRADES: Trade[] = [
-  { id: '1', symbol: 'BTC', name: 'Bitcoin', side: 'buy', type: 'market', price: 67432, quantity: 0.5, total: 33716, timestamp: new Date(Date.now() - 86400000) },
-  { id: '2', symbol: 'ETH', name: 'Ethereum', side: 'buy', type: 'limit', price: 3521, quantity: 2.0, total: 7042, timestamp: new Date(Date.now() - 172800000) },
-  { id: '3', symbol: 'SOL', name: 'Solana', side: 'sell', type: 'market', price: 178.45, quantity: 10, total: 1784.5, timestamp: new Date(Date.now() - 259200000) },
-]
+// Empty defaults: real holdings/trades/balances come from the server (loadFromApi)
+// once the user is authenticated. Showing seeded mock numbers like $125,430.50 or
+// a $5,000 "Bank Transfer from Chase" creates the impression that the app is
+// faking balances. Anonymous / pre-login views start at zero and reflect actual
+// activity from there.
+const DEFAULT_HOLDINGS: PortfolioHolding[] = []
+
+const DEFAULT_TRADES: Trade[] = []
 
 const DEFAULT_WALLET: WalletBalance[] = [
-  { currency: 'USD', symbol: '$', balance: 125430.50, available: 125430.50 },
-  { currency: 'BTC', symbol: 'B', balance: 2.4538, available: 2.4538 },
-  { currency: 'ETH', symbol: 'E', balance: 15.2341, available: 15.2341 },
-  { currency: 'SOL', symbol: 'S', balance: 234.56, available: 234.56 },
+  { currency: 'USD', symbol: '$', balance: 0, available: 0 },
+  { currency: 'BTC', symbol: 'B', balance: 0, available: 0 },
+  { currency: 'ETH', symbol: 'E', balance: 0, available: 0 },
+  { currency: 'SOL', symbol: 'S', balance: 0, available: 0 },
 ]
 
-const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
-  { id: '1', type: 'deposit', amount: 5000, currency: 'USD', description: 'Bank Transfer from Chase', timestamp: new Date(Date.now() - 3600000), status: 'completed' },
-  { id: '2', type: 'withdraw', amount: -1200, currency: 'ETH', description: 'ETH Purchase', timestamp: new Date(Date.now() - 86400000), status: 'completed' },
-  { id: '3', type: 'transfer', amount: -500, currency: 'USD', description: 'Sent to John Doe', timestamp: new Date(Date.now() - 172800000), status: 'completed' },
-  { id: '4', type: 'withdraw', amount: -9.99, currency: 'USD', description: 'Spotify Subscription', timestamp: new Date(Date.now() - 259200000), status: 'completed' },
-  { id: '5', type: 'deposit', amount: 25000, currency: 'USD', description: 'Wire Transfer Received', timestamp: new Date(Date.now() - 604800000), status: 'completed' },
-]
+const DEFAULT_TRANSACTIONS: WalletTransaction[] = []
 
 interface ApiHolding { id: string; symbol: string; name: string; amount: number; avgPrice: number; type: string }
 interface ApiBalance { currency: string; symbol: string; balance: number; available: number }

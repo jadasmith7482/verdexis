@@ -54,33 +54,12 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
 
     setLoading(true)
 
-    const seedDemoData = () => {
-      if (!localStorage.getItem('verdexis_holdings')) {
-        localStorage.setItem('verdexis_holdings', JSON.stringify([
-          { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', quantity: 2.45, avgBuyPrice: 67432, currentPrice: 97432, value: 238708, pnl: 12450, pnlPercent: 8.15, allocation: 45 },
-          { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', quantity: 15.23, avgBuyPrice: 3521, currentPrice: 3847, value: 58625, pnl: 3210, pnlPercent: 6.37, allocation: 27 },
-          { id: 'solana', symbol: 'SOL', name: 'Solana', quantity: 234.5, avgBuyPrice: 178.45, currentPrice: 248.73, value: 58327, pnl: -1240, pnlPercent: -2.87, allocation: 18 },
-          { id: 'cardano', symbol: 'ADA', name: 'Cardano', quantity: 5000, avgBuyPrice: 0.52, currentPrice: 1.0478, value: 5239, pnl: 180, pnlPercent: 7.43, allocation: 5 },
-          { id: 'usd-coin', symbol: 'USDC', name: 'USD Coin', quantity: 125430, avgBuyPrice: 1, currentPrice: 1, value: 125430, pnl: 0, pnlPercent: 0, allocation: 5 },
-        ]))
-      }
-      if (!localStorage.getItem('verdexis_wallet')) {
-        localStorage.setItem('verdexis_wallet', JSON.stringify([
-          { currency: 'USD', symbol: '$', balance: 125430.50, available: 125430.50 },
-          { currency: 'BTC', symbol: '₿', balance: 2.4538, available: 2.4538 },
-          { currency: 'ETH', symbol: 'Ξ', balance: 15.2341, available: 15.2341 },
-          { currency: 'SOL', symbol: '◎', balance: 234.56, available: 234.56 },
-        ]))
-      }
-    }
-
     try {
       const res = mode === 'signup'
         ? await api.signup(form.email, form.password, `${form.firstName} ${form.lastName}`.trim() || 'User')
         : await api.login(form.email, form.password)
       setToken(res.token)
       setStoredUser(res.user)
-      seedDemoData()
       toast.success(mode === 'signup' ? 'Account created' : 'Welcome back')
       setLoading(false)
       onClose()
@@ -90,7 +69,9 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       return
     } catch (err) {
       const e = err as ApiError
-      // Network/server unreachable -> fall back to localStorage-only mock so the demo still works.
+      // Network/server unreachable -> fall back to localStorage-only auth so the
+      // user can still navigate the app while the API is down. We do NOT seed any
+      // fake holdings/balances — they would look like real money to the user.
       const offline = !e.status || e.status === 0 || e.status >= 500
       if (!offline) {
         setError(e.error || 'Authentication failed')
@@ -99,7 +80,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       }
       console.warn('[verdexis] API offline, using local mock auth')
       localStorage.setItem('verdexis_auth', JSON.stringify({ email: form.email, name: form.firstName || 'User' }))
-      seedDemoData()
       setLoading(false)
       onClose()
       window.dispatchEvent(new Event('storage'))
