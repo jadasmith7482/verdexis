@@ -215,24 +215,34 @@ class MarketDataService {
     }
   }
 
-  async getMarketNews(): Promise<MarketNews[]> {
+  async getMarketNews(opts: { category?: string; force?: boolean } = {}): Promise<MarketNews[]> {
     if (!FINNHUB_KEY) return []
 
-    const cacheKey = 'news'
-    const cached = this.getCached<MarketNews[]>(cacheKey)
-    if (cached) return cached
+    const category = (opts.category || 'general').toLowerCase()
+    // Map UI categories to Finnhub-supported buckets.
+    const finnhubCategory =
+      category === 'stocks' ? 'general'
+      : category === 'macro' ? 'forex'
+      : category === 'defi' ? 'crypto'
+      : category === 'all' ? 'general'
+      : category
+    const cacheKey = `news:${finnhubCategory}`
+    if (!opts.force) {
+      const cached = this.getCached<MarketNews[]>(cacheKey, 60_000)
+      if (cached) return cached
+    }
 
     try {
       const response = await fetch(
-        `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`,
-        { signal: AbortSignal.timeout(5000) }
+        `https://finnhub.io/api/v1/news?category=${encodeURIComponent(finnhubCategory)}&token=${FINNHUB_KEY}&_=${Date.now()}`,
+        { signal: AbortSignal.timeout(5000), cache: 'no-store' }
       )
-      const data = await response.json()
-      const result = data.slice(0, 10)
+      const data: MarketNews[] = await response.json()
+      const result = (Array.isArray(data) ? data : []).slice(0, 30)
       this.setCache(cacheKey, result)
       return result
     } catch {
-      return []
+      return this.getCached<MarketNews[]>(cacheKey, 10 * 60_000) ?? []
     }
   }
 

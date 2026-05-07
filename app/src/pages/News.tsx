@@ -1,37 +1,68 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Navigation from '../components/Navigation'
 import { marketData, type MarketNews } from '../lib/marketData'
-import { Clock, ExternalLink, TrendingUp, AlertCircle, Zap } from 'lucide-react'
+import { Clock, ExternalLink, TrendingUp, AlertCircle, Zap, RefreshCw } from 'lucide-react'
 import { Toaster } from 'sonner'
 
 const categories = ['All', 'Crypto', 'Stocks', 'Macro', 'DeFi']
 
+const REFRESH_MS = 60_000
+
 export default function News() {
   const [news, setNews] = useState<MarketNews[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [activeCategory, setActiveCategory] = useState('All')
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null)
+  const [tick, setTick] = useState(0)
+  const inFlight = useRef(false)
 
+  const loadNews = useCallback(async (opts: { force?: boolean; silent?: boolean } = {}) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    if (!opts.silent) (opts.force ? setRefreshing : setLoading)(true)
+    try {
+      const data = await marketData.getMarketNews({ category: activeCategory, force: opts.force })
+      setNews(data)
+      setLastUpdated(Date.now())
+    } finally {
+      inFlight.current = false
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [activeCategory])
+
+  // Initial + on category change
+  useEffect(() => { loadNews({ force: true }) }, [loadNews])
+
+  // Background auto-refresh every REFRESH_MS while page is visible.
   useEffect(() => {
-    loadNews()
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadNews({ force: true, silent: true })
+    }, REFRESH_MS)
+    const onVis = () => { if (document.visibilityState === 'visible') loadNews({ force: true, silent: true }) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
+  }, [loadNews])
+
+  // Re-render every 30s so "Updated Xm ago" stays fresh.
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 30_000)
+    return () => window.clearInterval(id)
   }, [])
 
-  const loadNews = async () => {
-    setLoading(true)
-    const data = await marketData.getMarketNews()
-    setNews(data)
-    setLoading(false)
-  }
-
-  const filteredNews = activeCategory === 'All'
-    ? news
-    : news.filter((n) => n.category?.toLowerCase() === activeCategory.toLowerCase())
+  const filteredNews = news
 
   const formatTime = (timestamp: number) => {
+    void tick // keep linter happy; re-renders pull fresh "now"
     const seconds = Math.floor((Date.now() / 1000) - timestamp)
+    if (seconds < 60) return 'just now'
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
     return `${Math.floor(seconds / 86400)}d ago`
   }
+
+  const updatedLabel = lastUpdated ? formatTime(Math.floor(lastUpdated / 1000)) : '—'
 
   const getCategoryIcon = (cat: string) => {
     switch (cat?.toLowerCase()) {
@@ -51,10 +82,16 @@ export default function News() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">Market News</h1>
-              <p className="text-sm text-[#737373] mt-1">Real-time financial news and analysis</p>
+              <p className="text-sm text-[#737373] mt-1 flex items-center gap-2">
+                Real-time financial news and analysis
+                <span className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0C8B44] animate-pulse" />
+                  Updated {updatedLabel}
+                </span>
+              </p>
             </div>
-            <button onClick={loadNews} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-sm text-[#A0A0A0] hover:text-[#0C8B44] transition-colors">
-              <Clock className="w-4 h-4" /> Refresh
+            <button onClick={() => loadNews({ force: true })} disabled={refreshing || loading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-sm text-[#A0A0A0] hover:text-[#0C8B44] transition-colors disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
 
@@ -78,6 +115,12 @@ export default function News() {
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="w-8 h-8 border-2 border-[#0C8B44]/30 border-t-[#0C8B44] rounded-full animate-spin" />
+            </div>
+          ) : filteredNews.length === 0 ? (
+            <div className="liquid-card p-12 text-center">
+              <Clock className="w-8 h-8 text-[#737373] mx-auto mb-3" />
+              <p className="text-sm text-[#A0A0A0]">No news available right now.</p>
+              <p className="text-xs text-[#737373] mt-1">Either the upstream feed is down or no API key is configured.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

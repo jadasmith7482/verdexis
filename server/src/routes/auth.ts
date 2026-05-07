@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit'
 import { prisma } from '../db.js'
 import { signToken, requireAuth, type AuthedRequest } from '../auth.js'
 import { env } from '../env.js'
+import { generateInvestmentId } from '../investmentId.js'
 
 const router = Router()
 
@@ -25,9 +26,11 @@ const signupSchema = z.object({
 })
 
 const loginSchema = z.object({
-  email: z.string().email().toLowerCase().trim(),
+  // Accepts either an email or a username (3+ chars).
+  identifier: z.string().min(3).max(200).trim().toLowerCase().optional(),
+  email: z.string().min(3).max(200).trim().toLowerCase().optional(),
   password: z.string().min(1).max(200),
-})
+}).refine((d) => !!(d.identifier || d.email), { message: 'identifier or email required' })
 
 const forgotSchema = z.object({
   email: z.string().email().toLowerCase().trim(),
@@ -38,7 +41,7 @@ const resetSchema = z.object({
   password: z.string().min(8).max(200),
 })
 
-function publicUser(u: { id: string; email: string; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean }) {
+function publicUser(u: { id: string; email: string; username?: string | null; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean; investmentId?: string | null }) {
   let prefs: Record<string, unknown> = {}
   try {
     if (u.prefs) prefs = JSON.parse(u.prefs)
@@ -48,11 +51,13 @@ function publicUser(u: { id: string; email: string; name: string; avatar: string
   return {
     id: u.id,
     email: u.email,
+    username: u.username ?? null,
     name: u.name,
     avatar: u.avatar,
     twoFactor: u.twoFactor,
     role: (u.role === 'admin' ? 'admin' : 'user') as 'user' | 'admin',
     suspended: !!u.suspended,
+    investmentId: u.investmentId ?? null,
     prefs,
   }
 }
@@ -77,11 +82,13 @@ router.post('/signup', authLimiter, async (req, res) => {
     return
   }
   const passwordHash = await bcrypt.hash(password, 12)
+  const investmentId = await generateInvestmentId()
   const user = await prisma.user.create({
     data: {
       email,
       name,
       passwordHash,
+      investmentId,
       // First user signed up with an admin-listed email starts as admin.
       role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
       // Seed a USD wallet so the user can deposit immediately.
@@ -100,8 +107,13 @@ router.post('/login', authLimiter, async (req, res) => {
     res.status(400).json({ error: 'Invalid input' })
     return
   }
-  const { email, password } = parsed.data
-  const user = await prisma.user.findUnique({ where: { email } })
+  const { password } = parsed.data
+  const id = (parsed.data.identifier || parsed.data.email || '').trim().toLowerCase()
+  // If it parses as an email, look up by email; otherwise treat as username.
+  const isEmail = /.+@.+\..+/.test(id)
+  const user = isEmail
+    ? await prisma.user.findUnique({ where: { email: id } })
+    : await prisma.user.findUnique({ where: { username: id } })
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' })
     return
@@ -180,6 +192,62 @@ router.post('/logout', (_req, res) => {
   // any client still has it lying around.
   res.clearCookie('verdexis_token')
   res.json({ ok: true })
+})
+
+// Authenticated password change (requires current password).
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(8).max(200),
+})
+router.post('/change-password', requireAuth, authLimiter, async (req: AuthedRequest, res) => {
+  const parsed = changePasswordSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
+  const user = await prisma.user.findUnique({ where: { id: req.userId! } })
+  if (!user) { res.status(404).json({ error: 'Not found' }); return }
+  const ok = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash)
+  if (!ok) { res.status(401).json({ error: 'Current password is incorrect' }); return }
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12)
+  // Bump tokenVersion so all other sessions are invalidated.
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  })
+  // Issue a fresh token for the current session so the user stays signed in here.
+  const token = signToken({ sub: updated.id, email: updated.email, v: updated.tokenVersion })
+  res.json({ ok: true, token })
+})
+
+// Sign out of every other device by bumping tokenVersion.
+router.post('/logout-all', requireAuth, async (req: AuthedRequest, res) => {
+  const updated = await prisma.user.update({
+    where: { id: req.userId! },
+    data: { tokenVersion: { increment: 1 } },
+  })
+  const token = signToken({ sub: updated.id, email: updated.email, v: updated.tokenVersion })
+  res.json({ ok: true, token })
+})
+
+// Full data export for the authenticated user (GDPR-style).
+router.get('/export', requireAuth, async (req: AuthedRequest, res) => {
+  const id = req.userId!
+  const [user, holdings, walletBalances, transactions, trades, watchlist, alerts, notifications] = await Promise.all([
+    prisma.user.findUnique({ where: { id } }),
+    prisma.holding.findMany({ where: { userId: id } }),
+    prisma.walletBalance.findMany({ where: { userId: id } }),
+    prisma.transaction.findMany({ where: { userId: id } }),
+    prisma.trade.findMany({ where: { userId: id } }),
+    prisma.watchlist.findMany({ where: { userId: id } }),
+    prisma.priceAlert.findMany({ where: { userId: id } }),
+    prisma.notification.findMany({ where: { userId: id } }),
+  ])
+  if (!user) { res.status(404).json({ error: 'Not found' }); return }
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="verdexis-export-${id}.json"`)
+  res.json({
+    exportedAt: new Date().toISOString(),
+    user: publicUser(user),
+    holdings, walletBalances, transactions, trades, watchlist, alerts, notifications,
+  })
 })
 
 export default router

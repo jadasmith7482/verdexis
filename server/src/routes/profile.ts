@@ -7,6 +7,7 @@ const router = Router()
 
 const profileSchema = z.object({
   name: z.string().min(1).max(80).optional(),
+  username: z.string().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/).toLowerCase().nullable().optional(),
   avatar: z.string().nullable().optional(), // data URL or null to remove
   prefs: z.record(z.unknown()).optional(),
   twoFactor: z.boolean().optional(),
@@ -20,12 +21,20 @@ router.patch('/', requireAuth, async (req: AuthedRequest, res) => {
   }
   const data: {
     name?: string
+    username?: string | null
     avatar?: string | null
     prefs?: string
     twoFactor?: boolean
   } = {}
 
   if (parsed.data.name !== undefined) data.name = parsed.data.name
+  if (parsed.data.username !== undefined) {
+    if (parsed.data.username) {
+      const taken = await prisma.user.findFirst({ where: { username: parsed.data.username, NOT: { id: req.userId! } } })
+      if (taken) { res.status(409).json({ error: 'That username is already taken' }); return }
+    }
+    data.username = parsed.data.username
+  }
   if (parsed.data.avatar !== undefined) {
     if (parsed.data.avatar && parsed.data.avatar.length > 1_000_000) {
       res.status(413).json({ error: 'Avatar too large (>1 MB encoded)' })
@@ -47,6 +56,7 @@ router.patch('/', requireAuth, async (req: AuthedRequest, res) => {
     user: {
       id: user.id,
       email: user.email,
+      username: user.username,
       name: user.name,
       avatar: user.avatar,
       twoFactor: user.twoFactor,

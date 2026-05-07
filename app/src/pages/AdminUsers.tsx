@@ -153,6 +153,7 @@ export default function AdminUsers() {
                 <tr>
                   <th className="text-left px-3 py-3 font-normal w-8"><input type="checkbox" aria-label="Select all on page" checked={allChecked} onChange={toggleAll} className="accent-[#0C8B44]" /></th>
                   <th className="text-left px-4 py-3 font-normal">User</th>
+                  <th className="text-left px-4 py-3 font-normal">Investment ID</th>
                   <th className="text-left px-4 py-3 font-normal">Role</th>
                   <th className="text-left px-4 py-3 font-normal">Status</th>
                   <th className="text-right px-4 py-3 font-normal">Holdings</th>
@@ -164,15 +165,22 @@ export default function AdminUsers() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-[#737373]">Loading…</td></tr>
+                  <tr><td colSpan={10} className="text-center py-12 text-[#737373]">Loading…</td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-[#737373]">No users found.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-12 text-[#737373]">No users found.</td></tr>
                 ) : users.map((u) => (
                   <tr key={u.id} className="border-t border-[#ffffff05] hover:bg-[#0C8B44]/5 transition-colors">
                     <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${u.email}`} checked={selected.has(u.id)} onChange={() => toggle(u.id)} className="accent-[#0C8B44]" /></td>
                     <td className="px-4 py-3">
                       <p className="text-[#E5E5E5]">{u.name}</p>
                       <p className="text-[11px] text-[#737373]">{u.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.investmentId ? (
+                        <span className="font-mono text-[11px] text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded">{u.investmentId}</span>
+                      ) : (
+                        <span className="text-[11px] text-[#737373]">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {u.role === 'admin' ? (
@@ -220,6 +228,7 @@ export default function AdminUsers() {
 
 function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'user' | 'admin'>('user')
@@ -232,17 +241,24 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       toast.error('Email, name and an 8+ char password are required')
       return
     }
+    const u = username.trim().toLowerCase()
+    if (u && !/^[a-z0-9_.-]{3,40}$/.test(u)) {
+      toast.error('Username must be 3-40 chars: letters, numbers, _, ., -')
+      return
+    }
     setSubmitting(true)
     try {
       const initial = parseFloat(initialUsdBalance)
-      await adminApi.createUser({
+      const result = await adminApi.createUser({
         email: email.trim(),
+        username: u || undefined,
         name: name.trim(),
         password,
         role,
         initialUsdBalance: isFinite(initial) && initial > 0 ? initial : undefined,
       })
-      toast.success(`Created ${email}`)
+      const invId = result?.user?.investmentId
+      toast.success(invId ? `Created ${email} · Investment ID ${invId}` : `Created ${email}`)
       onCreated()
     } catch (err) {
       toast.error((err as { error?: string }).error || 'Failed to create user')
@@ -260,6 +276,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </div>
         <form onSubmit={submit} className="space-y-3">
           <Field label="Email"><input autoFocus type="email" required placeholder="user@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
+          <Field label="Username (optional, used for sign-in)"><input type="text" placeholder="e.g. janedoe" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
           <Field label="Name"><input required placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
           <Field label="Initial password (8+ chars)"><input type="text" required minLength={8} placeholder="Initial password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]" /></Field>
           <div className="grid grid-cols-2 gap-3">

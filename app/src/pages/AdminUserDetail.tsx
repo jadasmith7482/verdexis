@@ -86,7 +86,21 @@ export default function AdminUserDetail() {
           <div className="flex-1" />
           <button onClick={impersonate} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#ffffff10] text-xs text-[#0C8B44] rounded-lg hover:border-[#0C8B44]/40"><UserCog className="w-3.5 h-3.5" />Impersonate (15m)</button>
         </div>
-        <p className="text-xs text-[#737373] mb-6">{u.email} · ID {u.id} · joined {new Date(u.createdAt).toLocaleDateString()}</p>
+        <p className="text-xs text-[#737373] mb-2">{u.email} · ID {u.id} · joined {new Date(u.createdAt).toLocaleDateString()}</p>
+        {u.investmentId && (
+          <p className="text-xs text-[#737373] mb-6">
+            Investment ID:{' '}
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard?.writeText(u.investmentId!); toast.success('Investment ID copied') }}
+              className="font-mono text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded hover:bg-[#0C8B44]/20 transition-colors"
+              title="Click to copy"
+            >
+              {u.investmentId}
+            </button>
+          </p>
+        )}
+        {!u.investmentId && <div className="mb-6" />}
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-1 mb-6 border-b border-[#ffffff05] pb-1">

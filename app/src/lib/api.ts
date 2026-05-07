@@ -7,12 +7,14 @@ const USER_KEY = 'verdexis_auth' // existing key, now stores { id, email, name }
 export interface ApiUser {
   id: string
   email: string
+  username: string | null
   name: string
   avatar: string | null
   twoFactor: boolean
   prefs: Record<string, unknown>
   role: 'user' | 'admin'
   suspended: boolean
+  investmentId: string | null
 }
 
 export interface ApiError {
@@ -40,7 +42,7 @@ export function setToken(token: string | null) {
 
 export function setStoredUser(user: ApiUser) {
   try {
-    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, name: user.name, role: user.role, suspended: user.suspended }))
+    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, username: user.username, name: user.name, role: user.role, suspended: user.suspended, investmentId: user.investmentId }))
     if (user.avatar) localStorage.setItem('verdexis_avatar', user.avatar)
     else localStorage.removeItem('verdexis_avatar')
     if (user.prefs && Object.keys(user.prefs).length) {
@@ -98,10 +100,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     }),
-  login: (email: string, password: string) =>
+  login: (identifier: string, password: string) =>
     request<{ token: string; user: ApiUser }>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     }),
   forgot: (email: string) =>
     request<{ ok: boolean; message: string }>('/api/auth/forgot', {
@@ -115,9 +117,24 @@ export const api = {
     }),
   me: () => request<{ user: ApiUser }>('/api/auth/me'),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  logoutAll: () => request<{ ok: boolean; token: string }>('/api/auth/logout-all', { method: 'POST' }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean; token: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  exportData: () => {
+    const headers: Record<string, string> = {}
+    const t = getToken()
+    if (t) headers.Authorization = `Bearer ${t}`
+    return fetch(`${BASE}/api/auth/export`, { headers }).then(async (r) => {
+      if (!r.ok) throw await r.json().catch(() => ({ error: r.statusText }))
+      return r.blob()
+    })
+  },
 
   // Profile
-  patchProfile: (patch: Partial<{ name: string; avatar: string | null; prefs: Record<string, unknown>; twoFactor: boolean }>) =>
+  patchProfile: (patch: Partial<{ name: string; username: string | null; avatar: string | null; prefs: Record<string, unknown>; twoFactor: boolean }>) =>
     request<{ user: ApiUser }>('/api/profile', { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteAccount: () => request<{ ok: boolean }>('/api/profile', { method: 'DELETE' }),
 

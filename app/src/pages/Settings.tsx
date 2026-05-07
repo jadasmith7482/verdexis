@@ -4,16 +4,17 @@ import Navigation from '../components/Navigation'
 import { Toaster, toast } from 'sonner'
 import {
   User, Shield, Bell, Palette, Globe, Key, LogOut, Mail,
-  Smartphone, Check, ChevronRight, Trash2, Camera,
+  Smartphone, Check, ChevronRight, Trash2, Camera, Download, AtSign,
 } from 'lucide-react'
 import { fileToAvatarDataUrl, getAvatar, updateProfile } from '../lib/userProfile'
 import { applyTheme } from '../lib/themeApplier'
-import { api, clearStoredAuth, getToken, setStoredUser } from '../lib/api'
+import { api, clearStoredAuth, getToken, setStoredUser, setToken } from '../lib/api'
 
 type Section = 'profile' | 'security' | 'preferences' | 'notifications'
 
 interface UserPrefs {
   email: string
+  username: string
   name: string
   twoFactorEnabled: boolean
   emailAlerts: boolean
@@ -26,6 +27,7 @@ interface UserPrefs {
 
 const DEFAULT_PREFS: UserPrefs = {
   email: '',
+  username: '',
   name: 'User',
   twoFactorEnabled: false,
   emailAlerts: true,
@@ -40,7 +42,7 @@ function loadPrefs(): UserPrefs {
   try {
     const auth = JSON.parse(localStorage.getItem('verdexis_auth') || '{}')
     const stored = JSON.parse(localStorage.getItem('verdexis_prefs') || '{}')
-    return { ...DEFAULT_PREFS, ...stored, email: auth.email || '', name: auth.name || stored.name || 'User' }
+    return { ...DEFAULT_PREFS, ...stored, email: auth.email || '', username: auth.username || stored.username || '', name: auth.name || stored.name || 'User' }
   } catch {
     return DEFAULT_PREFS
   }
@@ -70,7 +72,7 @@ export default function Settings() {
     const next = { ...prefs, [key]: value }
     setPrefs(next)
     localStorage.setItem('verdexis_prefs', JSON.stringify(next))
-    if (key === 'name' || key === 'email') {
+    if (key === 'name' || key === 'email' || key === 'username') {
       const auth = JSON.parse(localStorage.getItem('verdexis_auth') || '{}')
       localStorage.setItem('verdexis_auth', JSON.stringify({ ...auth, [key]: value }))
       window.dispatchEvent(new Event('verdexis:profile'))
@@ -83,11 +85,14 @@ export default function Settings() {
     if (getToken()) {
       const patch: Record<string, unknown> = {}
       if (key === 'name') patch.name = value
+      else if (key === 'username') patch.username = (value as string).trim().toLowerCase() || null
       else if (key === 'twoFactorEnabled') patch.twoFactor = value
       else patch.prefs = next
-      api.patchProfile(patch).catch(() => { /* offline ok */ })
+      api.patchProfile(patch).catch((err) => {
+        if (key === 'username') toast.error((err as { error?: string }).error || 'Username unavailable')
+      })
     }
-    toast.success('Saved')
+    if (key !== 'username') toast.success('Saved')
   }
 
   const handleAvatarPick = async (file?: File | null) => {
@@ -265,6 +270,32 @@ export default function Settings() {
                     />
                   </Field>
 
+                  <Field label="Username" hint="3-40 chars: letters, numbers, _, ., -. You can sign in with this instead of your email.">
+                    <div className="relative">
+                      <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
+                      <input
+                        type="text"
+                        aria-label="Username"
+                        placeholder="janedoe"
+                        defaultValue={prefs.username}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim().toLowerCase()
+                          if (v === prefs.username) return
+                          if (v && !/^[a-z0-9_.-]{3,40}$/.test(v)) {
+                            toast.error('Invalid username')
+                            e.target.value = prefs.username
+                            return
+                          }
+                          update('username', v)
+                        }}
+                        className="w-full bg-[#0a0e10] border border-[#ffffff10] rounded-lg pl-10 pr-4 py-3 text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                      />
+                    </div>
+                  </Field>
+
                   <Field label="Email" hint="Used for sign-in and security alerts">
                     <input
                       type="email"
@@ -301,43 +332,11 @@ export default function Settings() {
                     onChange={(v) => update('twoFactorEnabled', v)}
                   />
 
-                  <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
-                    <div className="flex items-start gap-3">
-                      <Key className="w-5 h-5 text-[#A0A0A0] mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-[#E5E5E5]">Password</p>
-                        <p className="text-xs text-[#737373] mt-1">Last changed: never</p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          if (!getToken()) {
-                            toast.info('Sign in with the API to enable password reset')
-                            return
-                          }
-                          try {
-                            await api.forgot(prefs.email)
-                            toast.success('Reset link sent', { description: `Check ${prefs.email}` })
-                          } catch {
-                            toast.error('Could not send reset link')
-                          }
-                        }}
-                        className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  </div>
+                  <ChangePasswordCard email={prefs.email} />
 
-                  <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
-                    <p className="text-sm font-medium text-[#E5E5E5] mb-2">Active sessions</p>
-                    <p className="text-xs text-[#737373] mb-4">1 device — this browser</p>
-                    <button
-                      onClick={() => toast.success('Other sessions revoked')}
-                      className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors"
-                    >
-                      Sign out all other sessions
-                    </button>
-                  </div>
+                  <ActiveSessionsCard />
+
+                  <DataExportCard />
                 </div>
               )}
 
@@ -446,6 +445,125 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <label className="block text-xs uppercase tracking-wider text-[#737373] mb-2">{label}</label>
       {children}
       {hint && <p className="text-xs text-[#737373] mt-2">{hint}</p>}
+    </div>
+  )
+}
+
+function ChangePasswordCard({ email }: { email: string }) {
+  const [open, setOpen] = useState(false)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (next.length < 8) { toast.error('New password must be at least 8 characters'); return }
+    if (next !== confirm) { toast.error('Passwords do not match'); return }
+    if (!getToken()) { toast.error('Sign in to change your password'); return }
+    setBusy(true)
+    try {
+      const res = await api.changePassword(current, next)
+      if (res.token) setToken(res.token)
+      toast.success('Password changed', { description: 'Other devices have been signed out.' })
+      setOpen(false); setCurrent(''); setNext(''); setConfirm('')
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Could not change password')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
+      <div className="flex items-start gap-3">
+        <Key className="w-5 h-5 text-[#A0A0A0] mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-[#E5E5E5]">Password</p>
+          <p className="text-xs text-[#737373] mt-1">Use a strong password unique to Verdexis.</p>
+        </div>
+        <button onClick={() => setOpen((v) => !v)} className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors">
+          {open ? 'Cancel' : 'Change'}
+        </button>
+      </div>
+      {open && (
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <input type="password" autoComplete="current-password" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} required className="w-full bg-[#0f1619] border border-[#ffffff10] rounded-lg px-4 py-2.5 text-sm text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none" />
+          <input type="password" autoComplete="new-password" placeholder="New password (8+ chars)" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} className="w-full bg-[#0f1619] border border-[#ffffff10] rounded-lg px-4 py-2.5 text-sm text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none" />
+          <input type="password" autoComplete="new-password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} className="w-full bg-[#0f1619] border border-[#ffffff10] rounded-lg px-4 py-2.5 text-sm text-[#E5E5E5] focus:border-[#0C8B44] focus:outline-none" />
+          <div className="flex items-center gap-2">
+            <button type="submit" disabled={busy} className="px-4 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50">{busy ? 'Updating…' : 'Update password'}</button>
+            <button type="button" onClick={async () => {
+              if (!email) { toast.error('Set an email first'); return }
+              try { await api.forgot(email); toast.success(`Reset link sent to ${email}`) } catch { toast.error('Could not send reset link') }
+            }} className="text-xs text-[#737373] hover:text-[#0C8B44]">Forgot current password?</button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+function ActiveSessionsCard() {
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
+      <p className="text-sm font-medium text-[#E5E5E5] mb-2">Active sessions</p>
+      <p className="text-xs text-[#737373] mb-4">Signing out other sessions invalidates every other device that's signed in to your account.</p>
+      <button
+        disabled={busy}
+        onClick={async () => {
+          if (!getToken()) { toast.error('Not signed in'); return }
+          setBusy(true)
+          try {
+            const res = await api.logoutAll()
+            if (res.token) setToken(res.token)
+            toast.success('Other sessions signed out')
+          } catch (err) {
+            toast.error((err as { error?: string }).error || 'Could not sign out other sessions')
+          } finally { setBusy(false) }
+        }}
+        className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors disabled:opacity-50"
+      >
+        {busy ? 'Signing out…' : 'Sign out all other sessions'}
+      </button>
+    </div>
+  )
+}
+
+function DataExportCard() {
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="p-5 rounded-xl bg-[#0a0e10] border border-[#ffffff08]">
+      <div className="flex items-start gap-3">
+        <Download className="w-5 h-5 text-[#A0A0A0] mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-[#E5E5E5]">Download your data</p>
+          <p className="text-xs text-[#737373] mt-1">A single JSON file with your profile, holdings, transactions, trades, watchlist, alerts and notifications.</p>
+        </div>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            if (!getToken()) { toast.error('Sign in to export'); return }
+            setBusy(true)
+            try {
+              const blob = await api.exportData()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `verdexis-export-${new Date().toISOString().slice(0, 10)}.json`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+              toast.success('Export downloaded')
+            } catch (err) {
+              toast.error((err as { error?: string }).error || 'Export failed')
+            } finally { setBusy(false) }
+          }}
+          className="text-sm text-[#0C8B44] hover:text-[#00E676] transition-colors disabled:opacity-50"
+        >
+          {busy ? 'Preparing…' : 'Export'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -218,16 +218,19 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
             )}
 
             <div>
-              <label className="text-xs text-[#737373] mb-1.5 block">Email</label>
+              <label className="text-xs text-[#737373] mb-1.5 block">{mode === 'login' ? 'Email or username' : 'Email'}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
                 <input
-                  type="email"
+                  type={mode === 'login' ? 'text' : 'email'}
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full pl-10 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] transition-colors"
-                  placeholder="you@example.com"
+                  placeholder={mode === 'login' ? 'you@example.com or janedoe' : 'you@example.com'}
                   required
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               </div>
             </div>

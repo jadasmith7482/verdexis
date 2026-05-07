@@ -29,6 +29,7 @@ export interface AdminUserSummary {
   role: 'user' | 'admin'
   suspended: boolean
   twoFactor: boolean
+  investmentId: string | null
   createdAt: string
   updatedAt: string
   _count: { holdings: number; trades: number; transactions: number; alerts: number }
@@ -57,6 +58,7 @@ export interface AdminUserFull {
   dailyTransferLimit: number | null
   monthlyTransferLimit: number | null
   ipAllowlist: string | null
+  investmentId: string | null
   tokenVersion: number
   createdAt: string
   updatedAt: string
@@ -220,7 +222,7 @@ export const adminApi = {
 
   getUser: (id: string) => request<AdminUserDetailResponse>(`/api/admin/users/${id}`),
 
-  createUser: (input: { email: string; name: string; password: string; role?: 'user' | 'admin'; initialUsdBalance?: number }) =>
+  createUser: (input: { email: string; username?: string; name: string; password: string; role?: 'user' | 'admin'; initialUsdBalance?: number }) =>
     request<{ user: AdminUserFull }>(`/api/admin/users`, { method: 'POST', body: JSON.stringify(input) }),
 
   deposit: (

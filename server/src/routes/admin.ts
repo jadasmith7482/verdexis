@@ -7,6 +7,7 @@ import { prisma } from '../db.js'
 import { requireAuth, requireAdmin, type AuthedRequest } from '../auth.js'
 import { env } from '../env.js'
 import { getHistoricalPrice, getCurrentCryptoPrice } from '../historicalPrice.js'
+import { generateInvestmentId } from '../investmentId.js'
 
 const router = Router()
 
@@ -32,6 +33,7 @@ function publicUser(u: {
   dailyWithdrawLimit: number | null; monthlyWithdrawLimit: number | null;
   dailyTransferLimit: number | null; monthlyTransferLimit: number | null;
   ipAllowlist: string | null;
+  investmentId?: string | null;
   tokenVersion: number; createdAt: Date; updatedAt: Date;
 }) {
   let prefs: Record<string, unknown> = {}
@@ -46,6 +48,7 @@ function publicUser(u: {
     dailyWithdrawLimit: u.dailyWithdrawLimit, monthlyWithdrawLimit: u.monthlyWithdrawLimit,
     dailyTransferLimit: u.dailyTransferLimit, monthlyTransferLimit: u.monthlyTransferLimit,
     ipAllowlist: u.ipAllowlist,
+    investmentId: u.investmentId ?? null,
     tokenVersion: u.tokenVersion,
     createdAt: u.createdAt, updatedAt: u.updatedAt, prefs,
   }
@@ -119,6 +122,7 @@ router.get('/users', async (req, res) => {
       { email: { contains: q } },
       { name: { contains: q } },
       { id: { equals: q } },
+      { investmentId: { equals: q } },
     ]
   }
   if (role !== 'all') where.role = role
@@ -130,7 +134,7 @@ router.get('/users', async (req, res) => {
       skip: (page - 1) * limit, take: limit,
       select: {
         id: true, email: true, name: true, role: true, suspended: true,
-        twoFactor: true, createdAt: true, updatedAt: true,
+        twoFactor: true, createdAt: true, updatedAt: true, investmentId: true,
         _count: { select: { holdings: true, trades: true, transactions: true, alerts: true } },
       },
     }),
@@ -142,6 +146,7 @@ router.get('/users', async (req, res) => {
 
 const createUserSchema = z.object({
   email: z.string().email().toLowerCase(),
+  username: z.string().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/, 'Username must be 3-40 chars: letters, numbers, _, ., -').toLowerCase().optional(),
   name: z.string().min(1).max(80),
   password: z.string().min(8).max(200),
   role: z.enum(['user', 'admin']).default('user'),
@@ -153,14 +158,21 @@ router.post('/users', async (req: AuthedRequest, res) => {
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const exists = await prisma.user.findUnique({ where: { email: parsed.data.email } })
   if (exists) { res.status(409).json({ error: 'A user with that email already exists' }); return }
+  if (parsed.data.username) {
+    const u2 = await prisma.user.findUnique({ where: { username: parsed.data.username } })
+    if (u2) { res.status(409).json({ error: 'That username is already taken' }); return }
+  }
   const passwordHash = await bcrypt.hash(parsed.data.password, 12)
   try {
+    const investmentId = await generateInvestmentId()
     const u = await prisma.user.create({
       data: {
         email: parsed.data.email,
+        username: parsed.data.username ?? null,
         name: parsed.data.name,
         passwordHash,
         role: parsed.data.role,
+        investmentId,
       },
     })
     if (parsed.data.initialUsdBalance && parsed.data.initialUsdBalance > 0) {
@@ -171,7 +183,7 @@ router.post('/users', async (req: AuthedRequest, res) => {
         data: { userId: u.id, kind: 'deposit', currency: 'USD', amount: parsed.data.initialUsdBalance, status: 'completed', reference: 'Admin: opening balance' },
       })
     }
-    await audit(req.userId!, 'user.create', u.id, { email: parsed.data.email, role: parsed.data.role, initialUsdBalance: parsed.data.initialUsdBalance ?? 0 })
+    await audit(req.userId!, 'user.create', u.id, { email: parsed.data.email, role: parsed.data.role, investmentId: u.investmentId, initialUsdBalance: parsed.data.initialUsdBalance ?? 0 })
     res.status(201).json({ user: publicUser(u) })
   } catch (e) {
     res.status(400).json({ error: (e as Error).message })

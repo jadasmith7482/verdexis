@@ -452,7 +452,11 @@ export default function Trading() {
                 <div className="mt-4 p-4 rounded-xl bg-[#1a1a1a]/50">
                   <p className="text-xs text-[#737373] mb-1">Available Balance</p>
                   <p className="text-sm text-[#E5E5E5]">${(portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</p>
-                  <p className="text-xs text-[#737373] mt-1">{selectedCrypto?.symbol.toUpperCase() || 'BTC'}: {portfolioStore.getWallet().find(w => w.currency === selectedCrypto?.symbol.toUpperCase())?.balance.toFixed(4) || '0.0000'}</p>
+                  {(() => {
+                    const sym = selectedCrypto?.symbol.toUpperCase() || 'BTC'
+                    const held = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)?.amount ?? 0
+                    return <p className="text-xs text-[#737373] mt-1">{sym}: {held.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</p>
+                  })()}
                 </div>
               ) : (
                 <div className="mt-4 p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#0C8B44]/20">
