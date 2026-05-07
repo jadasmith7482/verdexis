@@ -1,15 +1,10 @@
 // Greeting header — replaces "Dashboard" title with "Good evening, Phillip"
-// plus a streak badge and a live status dot.
+// plus a live status dot.
 
-import { useEffect, useMemo, useState } from 'react'
-import { Flame } from 'lucide-react'
-import { recordVisit, greetingFor } from '../../lib/streak'
+import { useMemo } from 'react'
+import { greetingFor } from '../../lib/streak'
 
 export default function GreetingHeader({ name, lastUpdated }: { name: string; lastUpdated: Date }) {
-  const [streak, setStreak] = useState(() => recordVisit())
-
-  useEffect(() => { setStreak(recordVisit()) }, [])
-
   const greeting = useMemo(() => greetingFor(name || 'there'), [name])
 
   return (
@@ -21,15 +16,6 @@ export default function GreetingHeader({ name, lastUpdated }: { name: string; la
           Live · Last updated {lastUpdated.toLocaleTimeString()}
         </p>
       </div>
-      {streak.count > 0 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF9800]/10 border border-[#FF9800]/20 self-start md:self-auto">
-          <Flame className="w-3.5 h-3.5 text-[#FF9800]" />
-          <span className="text-xs text-[#E5E5E5]">{streak.count}-day streak</span>
-          {streak.best > streak.count && (
-            <span className="text-[10px] text-[#737373]">· best {streak.best}</span>
-          )}
-        </div>
-      )}
     </div>
   )
 }

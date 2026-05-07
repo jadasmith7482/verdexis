@@ -17,6 +17,7 @@ import CurrencySelector from '../components/dashboard/CurrencySelector'
 import ExportMenu from '../components/dashboard/ExportMenu'
 import CustomizeWidgets from '../components/dashboard/CustomizeWidgets'
 import AdminQuickPanel from '../components/dashboard/AdminQuickPanel'
+import AdminConsoleEmbed from '../components/dashboard/AdminConsoleEmbed'
 import TimeRangePicker, { type ChartRange } from '../components/dashboard/TimeRangePicker'
 import NetWorthChart from '../components/NetWorthChart'
 import EmptyStateCta from '../components/dashboard/EmptyStateCta'
@@ -337,6 +338,7 @@ export default function Dashboard() {
 
           {/* Inline admin tools — visible only when the server confirms admin role. */}
           <AdminQuickPanel />
+          <AdminConsoleEmbed />
 
           {/* Total Net Worth — hero card placed directly under the greeting so it's the first thing users see after "Good afternoon". Includes the Highcharts area chart, range picker, vs-BTC benchmark toggle, and recent activity. Logged-out users see the lock CTA in the same slot. */}
           <div className="liquid-card p-8 mb-6" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>

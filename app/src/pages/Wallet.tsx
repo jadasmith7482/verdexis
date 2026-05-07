@@ -275,8 +275,8 @@ export default function WalletPage() {
         portfolioStore.addTransaction('deposit', amt, 'USD', `Wire to ${wireInstructions.bankName} · ${ref}`)
         setTransferStatus({
           kind: 'success',
-          title: 'Wire deposit initiated',
-          message: `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire to ${wireInstructions.bankName}. Funds credit on receipt (typically 1 business day).`,
+          title: 'Wire deposit submitted',
+          message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wire to ${wireInstructions.bankName}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
         })
         setAmount('')
         setTransactions(portfolioStore.getTransactions())
@@ -296,8 +296,8 @@ export default function WalletPage() {
       portfolioStore.addTransaction('deposit', amt, 'USD', description)
       setTransferStatus({
         kind: 'success',
-        title: 'ACH deposit initiated',
-        message: `Initiated $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${bank.institution} ····${bank.accountMask}. Funds typically settle in 1–3 business days.`,
+        title: 'ACH deposit submitted',
+        message: `Submitted $${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${bank.institution} ····${bank.accountMask}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
       })
       setAmount('')
       setTransactions(portfolioStore.getTransactions())
@@ -310,8 +310,8 @@ export default function WalletPage() {
     portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`)
     setTransferStatus({
       kind: 'success',
-      title: 'Deposit logged',
-      message: `Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Funds will be available after on-chain confirmation.`,
+      title: 'Deposit submitted',
+      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Awaiting admin approval — your balance will update once the deposit is reviewed.`,
     })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())

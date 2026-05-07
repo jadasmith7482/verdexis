@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
 import { adminApi, TRANSFER_REASONS, type AdminUserSummary } from '../lib/adminApi'
-import { ArrowLeft, ArrowRightLeft, Search } from 'lucide-react'
+import { api } from '../lib/api'
+import { ArrowLeft, ArrowRightLeft, Search, Lock } from 'lucide-react'
 
 export default function AdminTransfer() {
   const [from, setFrom] = useState<AdminUserSummary | null>(null)
@@ -15,6 +16,27 @@ export default function AdminTransfer() {
   const [allowNegative, setAllowNegative] = useState(false)
   const [notify, setNotify] = useState(true)
   const [busy, setBusy] = useState(false)
+
+  // Source account is always the signed-in admin — it is never user-selectable.
+  // This is enforced both here and on the server.
+  useEffect(() => {
+    let cancelled = false
+    api.me()
+      .then((r) => {
+        if (cancelled) return
+        const u = r.user
+        setFrom({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          suspended: u.suspended,
+          createdAt: new Date().toISOString(),
+        } as AdminUserSummary)
+      })
+      .catch(() => { /* nav guards already require admin auth */ })
+    return () => { cancelled = true }
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,7 +75,15 @@ export default function AdminTransfer() {
 
         <form onSubmit={submit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <UserPicker label="From user" value={from} onChange={setFrom} />
+            <Field label="From (signed-in admin — locked)">
+              <div className="flex items-center justify-between px-3 py-2 bg-[#0a0f11] border border-[#0C8B44]/40 rounded-lg">
+                <div className="min-w-0">
+                  <p className="text-sm text-[#E5E5E5] truncate">{from?.name || 'Loading…'}</p>
+                  <p className="text-[11px] text-[#737373] truncate">{from?.email || ''}</p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] text-[#0C8B44] uppercase tracking-wider"><Lock className="w-3 h-3" /> Locked</span>
+              </div>
+            </Field>
             <UserPicker label="To user" value={to} onChange={setTo} />
           </div>
           <div className="grid md:grid-cols-3 gap-4">

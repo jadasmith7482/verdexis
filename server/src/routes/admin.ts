@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ import { generateInvestmentId } from '../investmentId.js'
 
 const router = Router()
 
-// Admin endpoints get a stricter limiter â€” these are operator-only.
+// Admin endpoints get a stricter limiter — these are operator-only.
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 120,
@@ -73,7 +73,7 @@ async function audit(actorId: string, action: string, targetUserId: string | nul
 
 router.get('/stats', async (_req, res) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const [users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h, lastBroadcast] = await Promise.all([
+  const [users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h, pendingDeposits, lastBroadcast] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'admin' } }),
     prisma.user.count({ where: { suspended: true } }),
@@ -85,6 +85,7 @@ router.get('/stats', async (_req, res) => {
     prisma.user.count({ where: { holdActive: true } }),
     prisma.user.count({ where: { kycStatus: 'pending' } }),
     prisma.transaction.count({ where: { kind: 'withdraw', createdAt: { gte: since } } }),
+    prisma.transaction.count({ where: { kind: 'deposit', status: 'pending' } }),
     prisma.adminAudit.findFirst({ where: { action: 'notification.broadcast' }, orderBy: { createdAt: 'desc' }, include: { actor: { select: { email: true } } } }),
   ])
   const recentSignups = await prisma.user.findMany({
@@ -96,7 +97,7 @@ router.get('/stats', async (_req, res) => {
     include: { user: { select: { id: true, email: true, name: true } } },
   })
   res.json({
-    stats: { users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h },
+    stats: { users, admins, suspended, holdings, trades, alerts, deposits24h, signups24h, holds, kycPending, withdraws24h, pendingDeposits },
     lastBroadcast: lastBroadcast ? { at: lastBroadcast.createdAt, by: lastBroadcast.actor?.email ?? null, payload: lastBroadcast.payload } : null,
     recentSignups, recentTx,
   })
@@ -639,6 +640,81 @@ router.delete('/transactions/:tid', async (req: AuthedRequest, res) => {
   res.json({ ok: true })
 })
 
+// --- pending deposit approval queue --------------------------------------
+// Regular users can only file deposit *requests* (POST /api/wallet/transactions
+// with kind='deposit'). Those land here with status='pending' and DO NOT
+// credit the wallet. An admin must explicitly approve before funds are
+// available.
+
+router.get('/deposits/pending', async (_req, res) => {
+  const items = await prisma.transaction.findMany({
+    where: { kind: 'deposit', status: 'pending' },
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+    include: { user: { select: { id: true, email: true, name: true, kycStatus: true, suspended: true } } },
+  })
+  res.json({ deposits: items })
+})
+
+router.post('/deposits/:tid/approve', async (req: AuthedRequest, res) => {
+  const tx = await prisma.transaction.findUnique({ where: { id: req.params.tid } })
+  if (!tx) { res.status(404).json({ error: 'Deposit request not found' }); return }
+  if (tx.kind !== 'deposit') { res.status(400).json({ error: 'Not a deposit transaction' }); return }
+  if (tx.status !== 'pending') { res.status(409).json({ error: `Already ${tx.status}` }); return }
+  const symbol = tx.currency === 'USD' ? '$' : tx.currency
+
+  const result = await prisma.$transaction(async (db) => {
+    const existing = await db.walletBalance.findUnique({ where: { userId_currency: { userId: tx.userId, currency: tx.currency } } })
+    const nextBalance = (existing?.balance ?? 0) + tx.amount
+    const nextAvailable = (existing?.available ?? 0) + tx.amount
+    const balance = await db.walletBalance.upsert({
+      where: { userId_currency: { userId: tx.userId, currency: tx.currency } },
+      create: { userId: tx.userId, currency: tx.currency, symbol, balance: nextBalance, available: nextAvailable },
+      update: { balance: nextBalance, available: nextAvailable, symbol },
+    })
+    const updated = await db.transaction.update({
+      where: { id: tx.id },
+      data: { status: 'completed', reference: (tx.reference || 'Deposit').replace(/\s*\(awaiting admin approval\)$/i, '') + ' (approved)' },
+    })
+    return { balance, transaction: updated }
+  })
+  await prisma.notification.create({
+    data: {
+      userId: tx.userId,
+      kind: 'deposit',
+      title: `Deposit approved: ${symbol}${tx.amount.toLocaleString()} ${tx.currency}`,
+      body: 'Your deposit request has been approved by an admin and credited to your wallet.',
+    },
+  }).catch(() => { /* best-effort */ })
+  await audit(req.userId!, 'deposit.approve', tx.userId, { id: tx.id, currency: tx.currency, amount: tx.amount })
+  res.json(result)
+})
+
+router.post('/deposits/:tid/reject', async (req: AuthedRequest, res) => {
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 500) : ''
+  const tx = await prisma.transaction.findUnique({ where: { id: req.params.tid } })
+  if (!tx) { res.status(404).json({ error: 'Deposit request not found' }); return }
+  if (tx.kind !== 'deposit') { res.status(400).json({ error: 'Not a deposit transaction' }); return }
+  if (tx.status !== 'pending') { res.status(409).json({ error: `Already ${tx.status}` }); return }
+  const updated = await prisma.transaction.update({
+    where: { id: tx.id },
+    data: {
+      status: 'failed',
+      reference: (tx.reference || 'Deposit').replace(/\s*\(awaiting admin approval\)$/i, '') + (reason ? ` (rejected: ${reason})` : ' (rejected)'),
+    },
+  })
+  await prisma.notification.create({
+    data: {
+      userId: tx.userId,
+      kind: 'deposit',
+      title: `Deposit rejected: ${tx.currency === 'USD' ? '$' : tx.currency}${tx.amount.toLocaleString()} ${tx.currency}`,
+      body: reason || 'Your deposit request was not approved. Contact support for details.',
+    },
+  }).catch(() => { /* best-effort */ })
+  await audit(req.userId!, 'deposit.reject', tx.userId, { id: tx.id, reason })
+  res.json({ transaction: updated })
+})
+
 // --- trades --------------------------------------------------------------
 
 const tradeSchema = z.object({
@@ -973,7 +1049,7 @@ router.post('/transactions/:tid/reverse', async (req: AuthedRequest, res) => {
         currency: original.currency,
         amount: original.amount,
         status: 'completed',
-        reference: `Reversal of ${original.id}${parsed.data.reason ? ' â€” ' + parsed.data.reason : ''}`,
+        reference: `Reversal of ${original.id}${parsed.data.reason ? ' — ' + parsed.data.reason : ''}`,
         reversedFromId: original.id,
       },
     })
@@ -1011,10 +1087,16 @@ router.post('/transfer', async (req: AuthedRequest, res) => {
   const { fromUserId, toUserId, currency, amount, reason, note, allowNegative } = parsed.data
   if (fromUserId === toUserId) { res.status(400).json({ error: 'From and To must differ' }); return }
   const [from, to] = await Promise.all([
-    prisma.user.findUnique({ where: { id: fromUserId }, select: { id: true, email: true } }),
-    prisma.user.findUnique({ where: { id: toUserId }, select: { id: true, email: true } }),
+    prisma.user.findUnique({ where: { id: fromUserId }, select: { id: true, email: true, name: true } }),
+    prisma.user.findUnique({ where: { id: toUserId }, select: { id: true, email: true, name: true } }),
   ])
   if (!from || !to) { res.status(404).json({ error: 'One or both users not found' }); return }
+  // User-facing references avoid admin/operator jargon. The full audit trail
+  // (actor, reason code, note) is still recorded via `audit(...)` below.
+  const fromLabel = to.name?.trim() || to.email
+  const toLabel = from.name?.trim() || from.email
+  const outRef = note?.trim() ? `Transfer to ${fromLabel} \u2014 ${note.trim()}` : `Transfer to ${fromLabel}`
+  const inRef = note?.trim() ? `Transfer from ${toLabel} \u2014 ${note.trim()}` : `Transfer from ${toLabel}`
   const reference = `Admin transfer (${reason})${note ? ': ' + note : ''}`
   const symbol = currency === 'USD' ? '$' : currency
   const result = await prisma.$transaction(async (tx) => {
@@ -1034,8 +1116,8 @@ router.post('/transfer', async (req: AuthedRequest, res) => {
       create: { userId: toUserId, currency, symbol, balance: amount, available: amount },
       update: { balance: (toBal?.balance ?? 0) + amount, available: (toBal?.available ?? 0) + amount },
     })
-    const fromTx = await tx.transaction.create({ data: { userId: fromUserId, kind: 'transfer', currency, amount, status: 'completed', reference: `${reference} â†’ ${to.email}` } })
-    const toTx = await tx.transaction.create({ data: { userId: toUserId, kind: 'transfer', currency, amount, status: 'completed', reference: `${reference} â† ${from.email}` } })
+    const fromTx = await tx.transaction.create({ data: { userId: fromUserId, kind: 'transfer', currency, amount, status: 'completed', reference: outRef } })
+    const toTx = await tx.transaction.create({ data: { userId: toUserId, kind: 'transfer', currency, amount, status: 'completed', reference: inRef } })
     return { fromBalance, toBalance, fromTx, toTx }
   }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
   if ('error' in result) { res.status(result.status || 500).json({ error: result.error }); return }
@@ -1169,7 +1251,7 @@ router.post('/users/:id/email', async (req: AuthedRequest, res) => {
   const userId = req.params.id
   const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
   if (!exists) { res.status(404).json({ error: 'User not found' }); return }
-  // We don't have an SMTP backend wired in here â€” record as a system
+  // We don't have an SMTP backend wired in here — record as a system
   // notification (kind='email') so the user sees it in-app and the admin
   // gets an audit trail. Hooking up real email is a 5-line swap later.
   const n = await prisma.notification.create({

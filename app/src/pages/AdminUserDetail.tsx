@@ -373,6 +373,12 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
   async function changeStatus(id: string, status: string) {
     await adminApi.patchTransaction(id, { status }); toast.success('Status updated'); onChange()
   }
+  async function changeReference(id: string, reference: string) {
+    try {
+      await adminApi.patchTransaction(id, { reference })
+      toast.success('Description updated'); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed to update description') }
+  }
   async function del(id: string) {
     if (!confirm('Delete this transaction?')) return
     await adminApi.deleteTransaction(id); toast.success('Removed'); onChange()
@@ -421,7 +427,9 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
                     <option value="pending">pending</option><option value="completed">completed</option><option value="failed">failed</option><option value="reversed">reversed</option>
                   </select>
                 </td>
-                <td className="px-4 py-3 text-[11px] text-[#A0A0A0] truncate max-w-[160px]">{t.reference || 'â€”'}</td>
+                <td className="px-4 py-3 text-[11px] text-[#A0A0A0] max-w-[220px]">
+                  <ReferenceEditor value={t.reference || ''} onSave={(v) => changeReference(t.id, v)} />
+                </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {t.status !== 'reversed' && t.kind !== 'reversal' && (
                     <IconButton onClick={() => reverse(t)} aria-label="Reverse transaction"><RotateCcw className="w-4 h-4" /></IconButton>
@@ -1152,5 +1160,28 @@ function AuditTab({ userId }: { userId: string }) {
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Inline editor for transaction descriptions on the admin Transactions tab.
+// Saves via PATCH /api/admin/transactions/:id when the input loses focus or
+// the admin presses Enter. Empty input clears the field. Escape reverts.
+function ReferenceEditor({ value, onSave }: { value: string; onSave: (v: string) => void | Promise<void> }) {
+  const [v, setV] = useState(value)
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => { setV(value); setDirty(false) }, [value])
+  return (
+    <input
+      value={v}
+      onChange={(e) => { setV(e.target.value); setDirty(e.target.value !== value) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() }
+        if (e.key === 'Escape') { setV(value); setDirty(false); (e.target as HTMLInputElement).blur() }
+      }}
+      onBlur={() => { if (dirty) { onSave(v.trim()); setDirty(false) } }}
+      placeholder="—"
+      aria-label="Edit transaction description"
+      className="w-full bg-transparent border border-transparent hover:border-[#ffffff10] focus:border-[#0C8B44] focus:bg-[#0a0f11] rounded px-2 py-1 text-[11px] text-[#A0A0A0] focus:text-[#E5E5E5] outline-none transition-colors"
+    />
   )
 }

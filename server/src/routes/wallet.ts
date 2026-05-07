@@ -106,7 +106,36 @@ router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedReques
   }
 
   // Atomically apply to balance + record transaction.
+  // SECURITY: A regular user submitting a `deposit` only files a *request* —
+  // it stays `pending` and does NOT credit the wallet until an admin
+  // approves it from the admin console. Admins can self-deposit immediately.
+  // Other kinds (withdraw / transfer / dividend / interest) keep the
+  // existing immediate semantics.
+  const isAdmin = req.userRole === 'admin'
+  const userDepositRequiresApproval = kind === 'deposit' && !isAdmin
+
   const result = await prisma.$transaction(async (tx) => {
+    if (userDepositRequiresApproval) {
+      // Just record the pending transaction; do not touch balances.
+      const transaction = await tx.transaction.create({
+        data: {
+          userId: req.userId!,
+          kind,
+          currency,
+          amount,
+          reference: reference ? `${reference} (awaiting admin approval)` : 'Deposit request (awaiting admin approval)',
+          status: 'pending',
+        },
+      })
+      // Make sure a wallet row exists at zero so the user sees the currency.
+      const balance = await tx.walletBalance.upsert({
+        where: { userId_currency: { userId: req.userId!, currency } },
+        create: { userId: req.userId!, currency, symbol, balance: 0, available: 0 },
+        update: { symbol },
+      })
+      return { balance, transaction, pendingApproval: true as const }
+    }
+
     const existing = await tx.walletBalance.findUnique({
       where: { userId_currency: { userId: req.userId!, currency } },
     })
@@ -255,8 +284,10 @@ router.post('/transfer', requireAuth, moneyLimiter, async (req: AuthedRequest, r
       update: { balance: { increment: amount }, available: { increment: amount } },
     })
 
-    const ref = `Sent to ${recipient.email}${note ? ' — ' + note : ''}`
-    const incomingRef = `Received from ${sender?.email ?? 'user'}${note ? ' — ' + note : ''}`
+    const recipientLabel = recipient.name?.trim() || recipient.email
+    const senderLabel = sender?.name?.trim() || sender?.email || 'a Verdexis user'
+    const ref = `Transfer to ${recipientLabel}${note ? ' — ' + note : ''}`
+    const incomingRef = `Transfer from ${senderLabel}${note ? ' — ' + note : ''}`
     const out = await tx.transaction.create({
       data: { userId: req.userId!, kind: 'transfer', currency, amount, reference: ref, status: 'completed' },
     })
@@ -268,7 +299,7 @@ router.post('/transfer', requireAuth, moneyLimiter, async (req: AuthedRequest, r
         userId: recipient.id,
         kind: 'transfer',
         title: `You received ${amount} ${currency}`,
-        body: `${sender?.email ?? 'A user'} sent you ${amount} ${currency}${note ? ' — ' + note : ''}.`,
+        body: `${senderLabel} sent you ${amount} ${currency}${note ? ' — ' + note : ''}.`,
       },
     })
     return { out, incoming, recipient: { email: recipient.email, name: recipient.name } }

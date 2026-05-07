@@ -188,6 +188,7 @@ export interface AdminStats {
     holds: number
     kycPending: number
     withdraws24h: number
+    pendingDeposits: number
   }
   lastBroadcast: { at: string; by: string | null; payload: string | null } | null
   recentSignups: Array<Pick<AdminUserSummary, 'id' | 'email' | 'name' | 'createdAt' | 'role' | 'suspended'>>
@@ -209,6 +210,14 @@ export interface AdminAuditLog {
 
 export const adminApi = {
   stats: () => request<AdminStats>('/api/admin/stats'),
+
+  // --- Pending deposit approval queue ---
+  listPendingDeposits: () =>
+    request<{ deposits: Array<AdminTransaction & { user: { id: string; email: string; name: string; kycStatus: string; suspended: boolean } }> }>(`/api/admin/deposits/pending`),
+  approveDeposit: (txId: string) =>
+    request<{ balance: AdminWalletBalance; transaction: AdminTransaction }>(`/api/admin/deposits/${txId}/approve`, { method: 'POST' }),
+  rejectDeposit: (txId: string, reason?: string) =>
+    request<{ transaction: AdminTransaction }>(`/api/admin/deposits/${txId}/reject`, { method: 'POST', body: JSON.stringify({ reason: reason || '' }) }),
 
   listUsers: (params: { q?: string; page?: number; limit?: number; role?: 'user' | 'admin' | 'all'; suspended?: 'true' | 'false' | 'all' } = {}) => {
     const q = new URLSearchParams()
