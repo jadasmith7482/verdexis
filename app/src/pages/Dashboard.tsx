@@ -33,6 +33,7 @@ import {
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
   PieChart, Activity, Lock,
   ArrowRight, CircleDollarSign, Gem, Layers,
+  History, Star, Repeat, Coins, Receipt, Settings as SettingsIcon,
 } from 'lucide-react'
 
 const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
@@ -584,10 +585,16 @@ export default function Dashboard() {
                   { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet?action=withdraw', color: '#f44336', desc: 'Cash out' },
                   { label: 'Transfer', icon: ArrowRight, path: '/wallet?action=transfer', color: '#00838F', desc: 'Send funds' },
                   { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy / Sell' },
+                  { label: 'Convert', icon: Repeat, path: '/wallet?action=convert', color: '#26A69A', desc: 'Swap assets' },
+                  { label: 'Stake', icon: Coins, path: '/wallet?action=stake', color: '#8E24AA', desc: 'Earn yield' },
+                  { label: 'Activity', icon: History, path: '/activity', color: '#5C6BC0', desc: 'Transaction log' },
+                  { label: 'Watchlist', icon: Star, path: '/dashboard?widget=watchlist', color: '#FFC107', desc: 'Saved assets' },
                   { label: 'AI Insights', icon: BrainCircuit, path: '/ai', color: '#6A0DAD', desc: 'Ask AI' },
                   { label: 'Set Alert', icon: AlertTriangle, path: '/alerts', color: '#F57C00', desc: 'Price alerts' },
                   { label: 'Goals', icon: Gem, path: '/goals', color: '#4CAF50', desc: 'Track goals' },
                   { label: 'News', icon: Layers, path: '/news', color: '#2196F3', desc: 'Markets' },
+                  { label: 'Statements', icon: Receipt, path: '/activity?filter=deposit', color: '#00ACC1', desc: 'Tax / proof' },
+                  { label: 'Settings', icon: SettingsIcon, path: '/settings', color: '#757575', desc: 'Preferences' },
                 ].map((action) => (
                   <Link key={action.label} to={action.path}
                     className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all group">

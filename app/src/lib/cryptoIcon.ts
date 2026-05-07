@@ -140,7 +140,12 @@ export function stockIconFor(symbol: string | undefined | null): string | null {
   const key = symbol.toUpperCase()
   const domain = STOCK_DOMAIN[key]
   if (!domain) return null
-  return `https://logo.clearbit.com/${domain}`
+  // Clearbit's free logo API was retired in 2024 and now returns 404 for
+  // most tickers (which is exactly the "broken Apple icon" the user kept
+  // seeing). Google's S2 favicon endpoint is public, key-less, never 404s
+  // (returns a generic globe at worst), and serves a real branded icon for
+  // every domain in our table. Use ?sz=128 to get a crisp logo at 32-48px.
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
 }
 
 // Smart resolver. Picks crypto vs stock URL based on `type` (preferred) or

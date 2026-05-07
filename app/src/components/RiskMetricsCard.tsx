@@ -56,7 +56,16 @@ export default function RiskMetricsCard() {
       }
     }
     load()
-    return () => { cancelled = true }
+    // Recompute whenever the portfolio changes (new deposit, trade, etc.)
+    // and on a slow timer so 7d sparkline refreshes propagate.
+    const onChange = () => { void load() }
+    window.addEventListener('verdexis:portfolio', onChange)
+    const t = setInterval(() => { void load() }, 60_000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('verdexis:portfolio', onChange)
+      clearInterval(t)
+    }
   }, [])
 
   const items = [
