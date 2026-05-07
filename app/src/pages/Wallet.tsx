@@ -225,9 +225,13 @@ export default function WalletPage() {
     // ticker). Fall back only if we have never seen a live price.
     const live = portfolioStore.getQuote(currency)
     if (live != null && live > 0) return live
-    const baseline: Record<string, number> = { USD: 1, USDC: 1, USDT: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52 }
+    const baseline: Record<string, number> = { USD: 1, USDC: 1, USDT: 1, BTC: 67432, ETH: 3521, SOL: 178.45, ADA: 0.52, XRP: 0.55, DOGE: 0.12, MATIC: 0.62, DOT: 6.8, AVAX: 32, LINK: 14, LTC: 75, BCH: 380 }
     return baseline[currency.toUpperCase()] || 1
   }
+
+  // Cryptos a user can convert USD into. Independent of what they currently
+  // hold, so a cash-only account can still pick a target.
+  const CONVERT_TARGETS = ['BTC', 'ETH', 'SOL', 'USDC', 'USDT', 'ADA', 'XRP', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'LTC', 'BCH'] as const
 
   function CurrencyIcon({ currency, size = 32 }: { currency: string; size?: number }) {
     const isUsd = currency === 'USD'
@@ -1178,7 +1182,12 @@ export default function WalletPage() {
                   className={`py-2.5 text-sm font-medium rounded-lg transition-all ${transferMode === 'send' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
                 >Send to user</button>
                 <button
-                  onClick={() => setTransferMode('convert')}
+                  onClick={() => {
+                    setTransferMode('convert')
+                    // If the user has only USD, selectedCurrency is still 'USD'
+                    // which would make the Convert form a no-op. Default to BTC.
+                    if (selectedCurrency === 'USD') setSelectedCurrency('BTC')
+                  }}
                   className={`py-2.5 text-sm font-medium rounded-lg transition-all ${transferMode === 'convert' ? 'bg-[#0C8B44] text-white' : 'text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
                 >Convert (USD ↔ Crypto)</button>
               </div>
@@ -1267,14 +1276,18 @@ export default function WalletPage() {
                   </div>
                   <div>
                     <label className="text-sm text-[#A0A0A0] mb-2 block">To (currency)</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {wallet.filter((w) => w.currency !== 'USD').map((w) => (
-                        <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
-                          className={`p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                          <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={w.currency} size={32} /></div>
-                          <p className="text-xs text-[#E5E5E5]">{w.currency}</p>
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
+                      {CONVERT_TARGETS.map((sym) => {
+                        const rate = getUsdRate(sym)
+                        return (
+                          <button key={sym} onClick={() => setSelectedCurrency(sym)}
+                            className={`p-3 rounded-xl border transition-all ${selectedCurrency === sym ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/40'}`}>
+                            <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={sym} size={28} /></div>
+                            <p className="text-xs text-[#E5E5E5]">{sym}</p>
+                            <p className="text-[10px] text-[#737373] truncate">${rate < 1 ? rate.toFixed(4) : rate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                   <div>
