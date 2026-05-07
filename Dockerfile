@@ -17,6 +17,10 @@ WORKDIR /api
 COPY server/package.json server/package-lock.json* ./
 RUN npm install --no-audit --no-fund
 COPY server/ ./
+# Prisma's schema parser requires DATABASE_URL to exist even though
+# `generate` never connects. The real value is injected at runtime by
+# Render/Railway from the Postgres add-on.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public"
 RUN npx prisma generate
 RUN npm run build
 
