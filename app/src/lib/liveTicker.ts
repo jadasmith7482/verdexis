@@ -11,6 +11,26 @@
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
 const LIVE_POLL_MS = 2_000
 
+// Holdings are keyed by lowercase symbol ('btc') but the server's
+// /api/market/tickers endpoint expects CoinGecko ids ('bitcoin'). Without
+// this map a `liveTicker.subscribe('btc', cb)` call would ask the server
+// for `ids=btc`, get an empty response, and never fire — which is exactly
+// why dashboard prices were "frozen between refreshes". Anything we can
+// resolve here is normalized to the CoinGecko id before going on the wire.
+const SYMBOL_TO_COIN_ID: Record<string, string> = {
+  btc: 'bitcoin', eth: 'ethereum', sol: 'solana', ada: 'cardano',
+  xrp: 'ripple', doge: 'dogecoin', dot: 'polkadot', link: 'chainlink',
+  avax: 'avalanche-2', ltc: 'litecoin', matic: 'matic-network',
+  shib: 'shiba-inu', uni: 'uniswap', bch: 'bitcoin-cash', xlm: 'stellar',
+  atom: 'cosmos', fil: 'filecoin', near: 'near-protocol', apt: 'aptos',
+  arb: 'arbitrum', op: 'optimism', bnb: 'binancecoin',
+}
+
+function canonical(idOrSymbol: string): string {
+  const k = idOrSymbol.toLowerCase()
+  return SYMBOL_TO_COIN_ID[k] ?? k
+}
+
 type Listener = (price: number) => void
 
 class LiveTickerService {
@@ -20,26 +40,26 @@ class LiveTickerService {
   private inflight = false
 
   getPrice(coinId: string): number | null {
-    return this.latest.get(coinId) ?? null
+    return this.latest.get(canonical(coinId)) ?? null
   }
 
   subscribe(coinId: string, cb: Listener): () => void {
-    let bucket = this.listeners.get(coinId)
+    const id = canonical(coinId)
+    let bucket = this.listeners.get(id)
     if (!bucket) {
       bucket = new Set()
-      this.listeners.set(coinId, bucket)
+      this.listeners.set(id, bucket)
     }
     bucket.add(cb)
-    const cached = this.latest.get(coinId)
+    const cached = this.latest.get(id)
     if (cached != null) cb(cached)
     this.ensurePolling()
-    // Kick off an immediate fetch so the new subscriber sees data ASAP.
     void this.tick()
     return () => {
-      const b = this.listeners.get(coinId)
+      const b = this.listeners.get(id)
       if (!b) return
       b.delete(cb)
-      if (b.size === 0) this.listeners.delete(coinId)
+      if (b.size === 0) this.listeners.delete(id)
       if (this.listeners.size === 0) this.stopPolling()
     }
   }

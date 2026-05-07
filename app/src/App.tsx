@@ -26,6 +26,7 @@ const Goals = lazy(() => import('./pages/Goals'))
 const StatusPage = lazy(() => import('./pages/Status'))
 const Disclosures = lazy(() => import('./pages/Disclosures'))
 const AssetDetail = lazy(() => import('./pages/AssetDetail'))
+const Activity = lazy(() => import('./pages/Activity'))
 const AdminDeposits = lazy(() => import('./pages/AdminDeposits'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsers = lazy(() => import('./pages/AdminUsers'))
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/trading" element={<Trading />} />
           <Route path="/ai" element={<RequireAuth><AIAssistant /></RequireAuth>} />
           <Route path="/wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
+          <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
           <Route path="/news" element={<News />} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />

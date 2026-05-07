@@ -132,16 +132,41 @@ export default function Dashboard() {
 
   // Live price ticker -> mark portfolio to market on every price change so
   // the displayed totals (value, P&L, allocation) update sub-second instead
-  // of being frozen between the 30s CoinGecko refreshes.
-  const holdingIds = holdings.map((h) => h.id).filter(Boolean).join(',')
+  // of being frozen between the 30s CoinGecko refreshes. We feed the price
+  // back into markToMarket under BOTH the holding id (lowercase symbol) and
+  // the canonical coingecko id so wallet-value cache + holdings stay in sync.
+  const holdingKey = holdings.map((h) => `${h.id}|${h.symbol}`).join(',')
   useEffect(() => {
-    const ids = holdingIds ? holdingIds.split(',') : []
-    if (ids.length === 0) return
-    const unsubs = ids.map((id) => liveTicker.subscribe(id, (price) => {
-      portfolioStore.markToMarket({ [id]: price })
+    if (!holdingKey) return
+    const entries = holdingKey.split(',').map((p) => {
+      const [id, symbol] = p.split('|')
+      return { id, symbol }
+    })
+    const unsubs = entries.map(({ id, symbol }) => liveTicker.subscribe(symbol || id, (price) => {
+      const quotes: Record<string, number> = {}
+      if (id) quotes[id] = price
+      if (symbol) {
+        quotes[symbol] = price
+        quotes[symbol.toLowerCase()] = price
+        quotes[symbol.toUpperCase()] = price
+      }
+      portfolioStore.markToMarket(quotes)
     }))
     return () => unsubs.forEach((u) => u())
-  }, [holdingIds])
+  }, [holdingKey])
+
+  // Also subscribe to every non-USD wallet currency so the wallet value (and
+  // therefore Total Net Worth) tracks the market in real time, not just when
+  // a holding for the same asset happens to exist.
+  const walletKey = wallet.map((w) => w.currency).filter((c) => c && c !== 'USD' && c !== 'USDC' && c !== 'USDT').join(',')
+  useEffect(() => {
+    if (!walletKey) return
+    const currencies = walletKey.split(',')
+    const unsubs = currencies.map((cur) => liveTicker.subscribe(cur, (price) => {
+      portfolioStore.markToMarket({ [cur.toLowerCase()]: price, [cur.toUpperCase()]: price })
+    }))
+    return () => unsubs.forEach((u) => u())
+  }, [walletKey])
 
   // Watch dashboard layout changes (widget show/hide)
   useEffect(() => {
@@ -508,11 +533,11 @@ export default function Dashboard() {
                     <div className="mt-6 pt-6 border-t border-[#ffffff08]">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-medium text-[#E5E5E5]">Recent Activity</h4>
-                        <Link to="/wallet" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
+                        <Link to="/activity" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
                       </div>
                       <div className="space-y-1">
                         {transactions.slice(0, 5).map((tx) => (
-                          <div key={tx.id} className="flex items-center justify-between py-2">
+                          <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
                                 {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
@@ -525,7 +550,7 @@ export default function Dashboard() {
                             <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                               {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USD' ? 2 : 0, maximumFractionDigits: tx.currency === 'USD' ? 2 : 8 })} {tx.currency}
                             </span>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     </div>
