@@ -8,6 +8,8 @@ const schema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:3000'),
   APP_BASE_URL: z.string().url().default('http://localhost:5173'),
+  ALERT_POLL_ENABLED: z.coerce.boolean().default(true),
+  ALERT_POLL_INTERVAL_MS: z.coerce.number().int().min(15_000).default(60_000),
 })
 
 const parsed = schema.safeParse(process.env)

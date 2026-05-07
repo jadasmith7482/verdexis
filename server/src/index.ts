@@ -13,6 +13,7 @@ import watchlistRoutes from './routes/watchlist.js'
 import alertsRoutes from './routes/alerts.js'
 import notificationsRoutes from './routes/notifications.js'
 import aiRoutes from './routes/ai.js'
+import { startAlertPoller } from './alertPoller.js'
 
 const app = express()
 const PORT = env.PORT
@@ -49,4 +50,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 app.listen(PORT, () => {
   console.log(`[verdexis-api] listening on http://localhost:${PORT}`)
+  if (env.ALERT_POLL_ENABLED) {
+    startAlertPoller({ intervalMs: env.ALERT_POLL_INTERVAL_MS })
+  }
 })
