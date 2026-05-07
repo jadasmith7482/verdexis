@@ -44,6 +44,18 @@ const sections = [
       ['Disclosure', 'Found a vulnerability? Email security@verdexis.com — we acknowledge within 24h.'],
     ],
   },
+  {
+    id: 'cookies',
+    icon: FileText,
+    title: 'Cookie Policy',
+    summary: 'What we store on your device, and why.',
+    body: [
+      ['Essential cookies only', 'Verdexis uses a small number of strictly necessary cookies and localStorage entries to keep you signed in, remember your theme and currency preferences, and persist your dashboard layout. We do not set any advertising or cross-site tracking cookies.'],
+      ['Analytics', 'Anonymous, aggregated product analytics may be collected only after you accept the cookie banner. You can decline at any time without losing access to the platform.'],
+      ['Managing cookies', 'You can clear all Verdexis cookies and storage from your browser settings, or click “Cookie preferences” in the footer to re-open the consent banner.'],
+      ['Third parties', 'Only infrastructure providers strictly required to deliver the service (hosting, market-data APIs) may set cookies on their own domains when their endpoints are called.'],
+    ],
+  },
 ] as const
 
 export default function Legal() {

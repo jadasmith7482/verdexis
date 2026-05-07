@@ -16,6 +16,12 @@ export default function CookieBanner() {
     } catch { /* ignore */ }
   }, [])
 
+  useEffect(() => {
+    const open = () => setShow(true)
+    window.addEventListener('verdexis:open-cookie-prefs', open)
+    return () => window.removeEventListener('verdexis:open-cookie-prefs', open)
+  }, [])
+
   const accept = (value: 'accept' | 'reject') => {
     try { localStorage.setItem(KEY, value) } catch { /* ignore */ }
     if (value === 'accept') onConsentAccepted()

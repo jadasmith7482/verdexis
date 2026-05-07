@@ -49,7 +49,7 @@ export default function About() {
           </div>
 
           {/* Mission */}
-          <div className="liquid-card p-10 md:p-14 mb-20" style={{ '--fill-color': 'rgba(12,139,68,0.1)' } as React.CSSProperties}>
+          <div id="mission" className="liquid-card p-10 md:p-14 mb-20 scroll-mt-24" style={{ '--fill-color': 'rgba(12,139,68,0.1)' } as React.CSSProperties}>
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#0C8B44] mb-4">
                 <Zap className="w-3.5 h-3.5" /> Our Mission
