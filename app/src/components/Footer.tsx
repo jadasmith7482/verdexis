@@ -66,10 +66,10 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-6 border-t border-[#ffffff05]">
           <p className="text-[11px] text-[#737373]">© {year} Verdexis. All rights reserved.</p>
           <div className="flex items-center gap-4 text-[11px] text-[#737373]">
-            <a href="#" className="hover:text-[#A0A0A0] transition-colors">Privacy</a>
-            <a href="#" className="hover:text-[#A0A0A0] transition-colors">Terms</a>
-            <a href="#" className="hover:text-[#A0A0A0] transition-colors">Disclosures</a>
-            <a href="#" className="hover:text-[#A0A0A0] transition-colors">Status</a>
+            <Link to="/legal#privacy" className="hover:text-[#A0A0A0] transition-colors">Privacy</Link>
+            <Link to="/legal#terms" className="hover:text-[#A0A0A0] transition-colors">Terms</Link>
+            <Link to="/legal#security" className="hover:text-[#A0A0A0] transition-colors">Security</Link>
+            <Link to="/about" className="hover:text-[#A0A0A0] transition-colors">About</Link>
           </div>
         </div>
       </div>
