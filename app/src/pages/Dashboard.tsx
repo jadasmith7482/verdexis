@@ -334,6 +334,132 @@ export default function Dashboard() {
             )}
           </div>
 
+          {/* Total Net Worth — hero card placed directly under the greeting so it's the first thing users see after "Good afternoon". Includes the Highcharts area chart, range picker, vs-BTC benchmark toggle, and recent activity. Logged-out users see the lock CTA in the same slot. */}
+          <div className="liquid-card p-8 mb-6" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#0C8B44]/20 flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-[#0C8B44]" />
+                </div>
+                <div>
+                  <p className="text-sm text-[#A0A0A0]">{isAuthenticated ? 'Total Net Worth' : 'Portfolio Value'}</p>
+                  <p className="text-xs text-[#737373]">{isAuthenticated ? 'Across all wallets' : 'Log in to view your data'}</p>
+                </div>
+              </div>
+              {isAuthenticated && (
+                <div className="text-right">
+                  <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                    {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                    {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">7d</span>
+                  </p>
+                  <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
+                    {fmtMoney(periodChange, { sign: true })}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {isAuthenticated ? (
+              <>
+                <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 truncate">
+                  {fmtMoney(totalValue)}
+                </p>
+                <p className="text-xs text-[#737373] mb-4">
+                  Cash {fmtMoney(walletValueUsd)} <span className="text-[#404040]">·</span> Positions {fmtMoney(positionsValue)}
+                </p>
+
+                {/* Range picker + benchmark toggle */}
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <TimeRangePicker value={chartRange} onChange={setChartRange} />
+                  <button
+                    onClick={() => setShowBenchmark((v) => !v)}
+                    className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors ${showBenchmark ? 'bg-[#FF9800]/15 text-[#FF9800] border-[#FF9800]/30' : 'text-[#737373] border-[#ffffff10] hover:text-[#E5E5E5]'}`}
+                  >
+                    vs BTC
+                  </button>
+                </div>
+
+                {/* Highcharts Area Chart - real net worth from holdings sparklines */}
+                <div className="w-full">
+                  {portfolioHistory.length >= 2 ? (
+                    <NetWorthChart
+                      series={portfolioHistory}
+                      benchmark={(() => {
+                        if (!showBenchmark) return null
+                        const btcSp = quoteById['bitcoin']?.sparkline_in_7d?.price
+                        if (!btcSp || btcSp.length < 2) return null
+                        const btcStart = btcSp[0]
+                        const points = portfolioHistory.length
+                        const baseStart = portfolioHistory[0]
+                        const out: number[] = []
+                        for (let i = 0; i < points; i++) {
+                          const idx = Math.min(btcSp.length - 1, Math.round((i / (points - 1)) * (btcSp.length - 1)))
+                          out.push((btcSp[idx] / btcStart) * baseStart)
+                        }
+                        return out
+                      })()}
+                      range={chartRange}
+                      isUp={periodChangePercent >= 0}
+                      height={240}
+                    />
+                  ) : (
+                    <div className="h-48 w-full flex items-center justify-center text-xs text-[#737373]">
+                      Loading market history…
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-xs text-[#737373] mt-2">
+                  <span>{chartRange === '1D' ? '24h ago' : chartRange === '1W' ? '7 days ago' : chartRange === '1M' ? '30 days ago' : chartRange === '1Y' ? '1 year ago' : 'All time'}</span>
+                  <span>Now</span>
+                </div>
+
+                {/* Recent Activity - moved here under Total Net Worth */}
+                {transactions.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-[#ffffff08]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-[#E5E5E5]">Recent Activity</h4>
+                      <Link to="/activity" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
+                    </div>
+                    <div className="space-y-1">
+                      {transactions.slice(0, 5).map((tx) => (
+                        <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
+                              {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>
+                              <p className="text-[11px] text-[#737373] capitalize">{tx.type}</p>
+                            </div>
+                          </div>
+                          <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                            {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USD' ? 2 : 0, maximumFractionDigits: tx.currency === 'USD' ? 2 : 8 })} {tx.currency}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-14 h-14 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center mb-4">
+                  <Lock className="w-7 h-7 text-[#0C8B44]" />
+                </div>
+                <p className="text-[#A0A0A0] mb-2">Your portfolio data is private</p>
+                <p className="text-xs text-[#737373] mb-6">Log in to view your net worth, holdings, and performance</p>
+                <div className="flex items-center gap-3">
+                  <button onClick={openLogin} className="px-5 py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors">
+                    Log In
+                  </button>
+                  <button onClick={openSignup} className="px-5 py-2.5 text-[#A0A0A0] text-sm font-medium border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#E5E5E5] transition-colors">
+                    Sign Up
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Empty-state CTA — shown when authenticated but no real holdings */}
           {isAuthenticated && holdings.filter((h) => h.id !== 'usd').length === 0 && (
             <EmptyStateCta />
@@ -426,133 +552,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Portfolio Value Chart - Authenticated Only */}
-            <div className="lg:col-span-2 liquid-card p-8" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#0C8B44]/20 flex items-center justify-center">
-                    <Wallet className="w-6 h-6 text-[#0C8B44]" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#A0A0A0]">{isAuthenticated ? 'Total Net Worth' : 'Portfolio Value'}</p>
-                    <p className="text-xs text-[#737373]">{isAuthenticated ? 'Across all wallets' : 'Log in to view your data'}</p>
-                  </div>
-                </div>
-                {isAuthenticated && (
-                  <div className="text-right">
-                    <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                      {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                      {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">7d</span>
-                    </p>
-                    <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
-                      {fmtMoney(periodChange, { sign: true })}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {isAuthenticated ? (
-                <>
-                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 truncate">
-                    {fmtMoney(totalValue)}
-                  </p>
-                  <p className="text-xs text-[#737373] mb-4">
-                    Cash {fmtMoney(walletValueUsd)} <span className="text-[#404040]">·</span> Positions {fmtMoney(positionsValue)}
-                  </p>
-
-                  {/* Range picker + benchmark toggle */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <TimeRangePicker value={chartRange} onChange={setChartRange} />
-                    <button
-                      onClick={() => setShowBenchmark((v) => !v)}
-                      className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors ${showBenchmark ? 'bg-[#FF9800]/15 text-[#FF9800] border-[#FF9800]/30' : 'text-[#737373] border-[#ffffff10] hover:text-[#E5E5E5]'}`}
-                    >
-                      vs BTC
-                    </button>
-                  </div>
-
-                  {/* Highcharts Area Chart - real net worth from holdings sparklines */}
-                  <div className="w-full">
-                    {portfolioHistory.length >= 2 ? (
-                      <NetWorthChart
-                        series={portfolioHistory}
-                        benchmark={(() => {
-                          if (!showBenchmark) return null
-                          const btcSp = quoteById['bitcoin']?.sparkline_in_7d?.price
-                          if (!btcSp || btcSp.length < 2) return null
-                          const btcStart = btcSp[0]
-                          const points = portfolioHistory.length
-                          const baseStart = portfolioHistory[0]
-                          const out: number[] = []
-                          for (let i = 0; i < points; i++) {
-                            const idx = Math.min(btcSp.length - 1, Math.round((i / (points - 1)) * (btcSp.length - 1)))
-                            out.push((btcSp[idx] / btcStart) * baseStart)
-                          }
-                          return out
-                        })()}
-                        range={chartRange}
-                        isUp={periodChangePercent >= 0}
-                        height={192}
-                      />
-                    ) : (
-                      <div className="h-48 w-full flex items-center justify-center text-xs text-[#737373]">
-                        Loading market history…
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-[#737373] mt-2">
-                    <span>{chartRange === '1D' ? '24h ago' : chartRange === '1W' ? '7 days ago' : chartRange === '1M' ? '30 days ago' : chartRange === '1Y' ? '1 year ago' : 'All time'}</span>
-                    <span>Now</span>
-                  </div>
-
-                  {/* Recent Activity - moved here under Total Net Worth */}
-                  {transactions.length > 0 && (
-                    <div className="mt-6 pt-6 border-t border-[#ffffff08]">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-medium text-[#E5E5E5]">Recent Activity</h4>
-                        <Link to="/activity" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
-                      </div>
-                      <div className="space-y-1">
-                        {transactions.slice(0, 5).map((tx) => (
-                          <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
-                                {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>
-                                <p className="text-[11px] text-[#737373] capitalize">{tx.type}</p>
-                              </div>
-                            </div>
-                            <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                              {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USD' ? 2 : 0, maximumFractionDigits: tx.currency === 'USD' ? 2 : 8 })} {tx.currency}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-14 h-14 rounded-2xl bg-[#0C8B44]/10 flex items-center justify-center mb-4">
-                    <Lock className="w-7 h-7 text-[#0C8B44]" />
-                  </div>
-                  <p className="text-[#A0A0A0] mb-2">Your portfolio data is private</p>
-                  <p className="text-xs text-[#737373] mb-6">Log in to view your net worth, holdings, and performance</p>
-                  <div className="flex items-center gap-3">
-                    <button onClick={openLogin} className="px-5 py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors">
-                      Log In
-                    </button>
-                    <button onClick={openSignup} className="px-5 py-2.5 text-[#A0A0A0] text-sm font-medium border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#E5E5E5] transition-colors">
-                      Sign Up
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quick Actions */}
             <div className="liquid-card p-6" style={{ '--fill-color': 'rgba(0,131,143,0.15)' } as React.CSSProperties}>
               <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Quick Actions</h3>
