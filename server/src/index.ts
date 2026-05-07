@@ -12,6 +12,9 @@ import morgan from 'morgan'
 import helmet from 'helmet'
 import compression from 'compression'
 import rateLimit from 'express-rate-limit'
+import path from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import authRoutes from './routes/auth.js'
 import profileRoutes from './routes/profile.js'
 import holdingsRoutes from './routes/holdings.js'
@@ -87,6 +90,32 @@ app.use('/api/notifications', notificationsRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/market', marketRoutes)
 app.use('/api/admin', adminRoutes)
+
+// In production, serve the built frontend (copied into ./public during the
+// Docker build). API routes are registered above so they take precedence.
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const STATIC_DIR = path.resolve(__dirname, '../public')
+if (IS_PROD && fs.existsSync(STATIC_DIR)) {
+  app.use(
+    express.static(STATIC_DIR, {
+      index: false,
+      maxAge: '1h',
+      setHeaders: (res, filePath) => {
+        // Hashed asset bundles can be cached aggressively.
+        if (/\/assets\/.+\.[a-f0-9]{6,}\.(js|css|woff2?|png|jpg|svg)$/i.test(filePath)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        }
+      },
+    }),
+  )
+  // SPA fallback — anything that isn't /api/* or a real file gets index.html.
+  app.get(/^(?!\/api\/).*/, (_req, res, next) => {
+    const indexPath = path.join(STATIC_DIR, 'index.html')
+    if (fs.existsSync(indexPath)) return res.sendFile(indexPath)
+    next()
+  })
+}
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path })

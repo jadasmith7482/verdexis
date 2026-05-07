@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/.git
+**/.github
+**/.vscode
+**/.venv
+**/.snapshots
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+**/coverage
+app/public/assets/*.png
+app/public/assets/*.jpg
+server/dev.db
+server/dev.db-*
+server/prisma/dev.db*
