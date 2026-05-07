@@ -132,4 +132,92 @@ router.get('/supported-ids', (_req, res) => {
   res.json({ ids: Object.keys(COIN_TO_COINBASE) })
 })
 
+// ---------------------------------------------------------------------------
+// CoinGecko proxy
+// ---------------------------------------------------------------------------
+// CoinGecko's public API is blocked by CORS for browser clients in many
+// regions/networks. We proxy a small whitelist of read-only endpoints with
+// short server-side caching so the client always has reliable data.
+
+const CG_BASE = 'https://api.coingecko.com/api/v3'
+const cgCache = new Map<string, { data: unknown; ts: number }>()
+const cgInflight = new Map<string, Promise<unknown>>()
+
+async function cgFetch(pathAndQuery: string, ttlMs: number, timeoutMs = 6000): Promise<unknown> {
+  const cached = cgCache.get(pathAndQuery)
+  if (cached && Date.now() - cached.ts < ttlMs) return cached.data
+  const existing = cgInflight.get(pathAndQuery)
+  if (existing) return existing
+  const promise = (async () => {
+    try {
+      const data = await httpsGetJson(`${CG_BASE}${pathAndQuery}`, timeoutMs)
+      cgCache.set(pathAndQuery, { data, ts: Date.now() })
+      return data
+    } catch (err) {
+      // On error, return stale cache if we have it; otherwise rethrow.
+      if (cached) return cached.data
+      throw err
+    } finally {
+      cgInflight.delete(pathAndQuery)
+    }
+  })()
+  cgInflight.set(pathAndQuery, promise)
+  return promise
+}
+
+// GET /api/market/coingecko/markets?ids=bitcoin,ethereum&vs_currency=usd&sparkline=true&per_page=20
+router.get('/coingecko/markets', async (req, res) => {
+  const ids = ((req.query.ids as string | undefined) || '').trim()
+  const vs = ((req.query.vs_currency as string | undefined) || 'usd').toLowerCase()
+  const sparkline = String(req.query.sparkline ?? 'false') === 'true'
+  const perPage = Math.min(250, Math.max(1, parseInt((req.query.per_page as string) || '50', 10) || 50))
+  const page = Math.max(1, parseInt((req.query.page as string) || '1', 10) || 1)
+  const order = (req.query.order as string | undefined) || 'market_cap_desc'
+  const params = new URLSearchParams({
+    vs_currency: vs,
+    order,
+    per_page: String(perPage),
+    page: String(page),
+    sparkline: String(sparkline),
+  })
+  if (ids) params.set('ids', ids)
+  try {
+    const data = await cgFetch(`/coins/markets?${params.toString()}`, 30_000)
+    res.set('Cache-Control', 'public, max-age=20')
+    res.json(data)
+  } catch (err) {
+    res.status(502).json({ error: 'coingecko_unavailable', detail: (err as Error).message })
+  }
+})
+
+// GET /api/market/coingecko/ohlc?id=bitcoin&days=1&vs_currency=usd
+router.get('/coingecko/ohlc', async (req, res) => {
+  const id = ((req.query.id as string | undefined) || '').trim().toLowerCase()
+  const vs = ((req.query.vs_currency as string | undefined) || 'usd').toLowerCase()
+  const days = parseInt((req.query.days as string) || '1', 10) || 1
+  if (!id || !/^[a-z0-9-]+$/.test(id)) { res.status(400).json({ error: 'bad_id' }); return }
+  try {
+    const data = await cgFetch(`/coins/${id}/ohlc?vs_currency=${vs}&days=${days}`, 60_000)
+    res.set('Cache-Control', 'public, max-age=45')
+    res.json(data)
+  } catch (err) {
+    res.status(502).json({ error: 'coingecko_unavailable', detail: (err as Error).message })
+  }
+})
+
+// GET /api/market/coingecko/simple-price?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp
+router.get('/coingecko/simple-price', async (req, res) => {
+  const ids = ((req.query.ids as string | undefined) || '').trim()
+  const vs = ((req.query.vs_currencies as string | undefined) || 'usd').trim()
+  if (!ids) { res.json({}); return }
+  const params = new URLSearchParams({ ids, vs_currencies: vs })
+  try {
+    const data = await cgFetch(`/simple/price?${params.toString()}`, 60_000)
+    res.set('Cache-Control', 'public, max-age=45')
+    res.json(data)
+  } catch (err) {
+    res.status(502).json({ error: 'coingecko_unavailable', detail: (err as Error).message })
+  }
+})
+
 export default router

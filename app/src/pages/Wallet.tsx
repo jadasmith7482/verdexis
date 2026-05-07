@@ -138,7 +138,7 @@ export default function WalletPage() {
     }
     return (
       <img
-        src={cryptoIconFor(currency)}
+        src={cryptoIconFor(currency) || undefined}
         alt={currency}
         className="rounded-full bg-[#0C8B44]/10 shrink-0 object-contain"
         style={{ width: size, height: size }}
@@ -722,7 +722,7 @@ export default function WalletPage() {
                     <p className="text-sm text-[#A0A0A0] mb-2">Your {selectedCurrency} Address</p>
                     <div className="flex items-center gap-2 justify-center">
                       <code className="text-xs text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg">0x71C...9A3F</code>
-                      <button className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"><Copy className="w-4 h-4" /></button>
+                      <button type="button" aria-label="Copy address" className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"><Copy className="w-4 h-4" /></button>
                     </div>
                   </div>
                   <div className="p-4 rounded-xl bg-[#F57C00]/10 border border-[#F57C00]/20">

@@ -1,7 +1,20 @@
 import { Router } from 'express'
+import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
+import { requireAuth, type AuthedRequest } from '../auth.js'
 
 const router: Router = Router()
+
+// Per-user budget on the LLM proxy: OpenAI calls cost real money, so cap
+// hard. Keyed by userId when authed so multi-user IPs (offices, NAT) don’t
+// punish each other; falls back to IP for the unauth case.
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req as AuthedRequest).userId || req.ip || 'anon',
+})
 
 const chatSchema = z.object({
   query: z.string().min(1).max(2000),
@@ -15,7 +28,7 @@ const chatSchema = z.object({
  * built-in rule-based answer. The system prompt is composed from the requested
  * persona and a portfolio-context block sent by the client.
  */
-router.post('/chat', async (req, res) => {
+router.post('/chat', requireAuth, aiLimiter, async (req, res) => {
   const parse = chatSchema.safeParse(req.body)
   if (!parse.success) { res.status(400).json({ error: 'Invalid input' }); return }
 

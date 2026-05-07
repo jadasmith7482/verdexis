@@ -29,10 +29,12 @@ export interface AuthedRequest extends Request {
 }
 
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+  // Bearer-token only. The cookie path was a half-implemented dual-auth
+  // model with no CSRF protection \u2014 strictly worse than Bearer for an
+  // SPA. Keep things simple: client sends `Authorization: Bearer <jwt>`.
   const header = req.headers.authorization
   let token: string | undefined
   if (header?.startsWith('Bearer ')) token = header.slice(7)
-  if (!token && req.cookies?.verdexis_token) token = req.cookies.verdexis_token
 
   if (!token) {
     res.status(401).json({ error: 'Unauthorized' })

@@ -47,8 +47,8 @@ export default function App() {
           <Route path="/wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
           <Route path="/news" element={<News />} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/goals" element={<Goals />} />
+          <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
+          <Route path="/goals" element={<RequireAuth><Goals /></RequireAuth>} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />
           <Route path="/status" element={<StatusPage />} />

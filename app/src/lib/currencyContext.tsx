@@ -2,6 +2,11 @@
 // and an FX rate map keyed by ISO code (USD = 1.0). Rates refresh from
 // CoinGecko's `simple/price` endpoint every 5 minutes — same source the rest
 // of the app already uses, so no new API key is needed.
+//
+// We export constants + hook + provider from this single file. Splitting
+// would touch ~10 import sites for no runtime gain, so disable the
+// fast-refresh "only export components" rule for this file specifically.
+/* eslint-disable react-refresh/only-export-components */
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
@@ -53,8 +58,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     const fetchRates = async () => {
       try {
-        // Use CoinGecko: 1 BTC -> usd/eur/gbp; 1 ETH -> usd/eur/gbp
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp', { signal: AbortSignal.timeout(6000) })
+        // Use our backend CoinGecko proxy to avoid CORS: 1 BTC/ETH -> usd/eur/gbp
+        const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || ''
+        const res = await fetch(`${apiBase}/api/market/coingecko/simple-price?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp`, { signal: AbortSignal.timeout(6000) })
         if (!res.ok) return
         const j = await res.json() as { bitcoin?: Record<string, number>; ethereum?: Record<string, number> }
         const btcUsd = j.bitcoin?.usd

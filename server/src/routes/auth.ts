@@ -157,6 +157,8 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
 })
 
 router.post('/logout', (_req, res) => {
+  // Token storage is client-side (Bearer); just clear the legacy cookie if
+  // any client still has it lying around.
   res.clearCookie('verdexis_token')
   res.json({ ok: true })
 })

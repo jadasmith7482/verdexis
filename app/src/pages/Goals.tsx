@@ -91,11 +91,11 @@ function GoalsInner() {
                 </div>
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Deadline</label>
-                  <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]" />
+                  <input type="date" aria-label="Goal deadline" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]" />
                 </div>
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Category</label>
-                  <select value={category} onChange={(e) => setCategory(e.target.value as Goal['category'])} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]">
+                  <select aria-label="Goal category" value={category} onChange={(e) => setCategory(e.target.value as Goal['category'])} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]">
                     <option value="wealth">Net worth</option>
                     <option value="crypto">Crypto</option>
                     <option value="retirement">Retirement</option>

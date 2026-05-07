@@ -91,7 +91,7 @@ function AlertsInner() {
               <form onSubmit={create} className="space-y-4">
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Symbol</label>
-                  <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]">
+                  <select aria-label="Alert symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} className="w-full px-3 py-2 text-sm bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-[#E5E5E5]">
                     {coins.map((c) => (
                       <option key={c.id} value={c.symbol.toUpperCase()}>{c.name} ({c.symbol.toUpperCase()})</option>
                     ))}

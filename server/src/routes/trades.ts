@@ -1,10 +1,19 @@
 import { Router } from 'express'
+import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import { requireAuth, type AuthedRequest } from '../auth.js'
 import { brokerEnabled, submitPaperOrder } from '../broker.js'
 
 const router = Router()
+
+const tradeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => (req as AuthedRequest).userId || req.ip || 'anon',
+})
 
 const tradeSchema = z.object({
   symbol: z.string().min(1).max(20),
@@ -24,7 +33,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ trades })
 })
 
-router.post('/', requireAuth, async (req: AuthedRequest, res) => {
+router.post('/', requireAuth, tradeLimiter, async (req: AuthedRequest, res) => {
   const parsed = tradeSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid input' })

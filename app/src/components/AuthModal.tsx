@@ -135,6 +135,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       <div className="relative w-full max-w-md glass-card overflow-hidden" style={{ background: 'rgba(15,22,25,0.95)', backdropFilter: 'blur(24px)' }}>
         {/* Close button */}
         <button
+          type="button"
+          aria-label="Close"
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-[#737373] hover:text-[#E5E5E5] transition-colors z-10"
         >

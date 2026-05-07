@@ -48,7 +48,7 @@ export default function ConnectedAccountsCard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#E5E5E5] truncate">{b.institution}</p>
-                    <p className="text-[10px] text-[#737373]">{b.accountType} · ••••{b.last4}</p>
+                    <p className="text-[10px] text-[#737373]">{b.type} · ••••{b.accountMask}</p>
                   </div>
                   <span className="flex items-center gap-1 text-[10px] uppercase" style={{ color: dot }}>
                     <Icon className="w-3 h-3" />{b.status}

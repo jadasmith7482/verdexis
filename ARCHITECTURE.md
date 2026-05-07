@@ -80,9 +80,20 @@ src/
 └── index.css              # Global styles + design tokens
 ```
 
-## Database Schema (PostgreSQL/Superbase)
+## Database Schema (Prisma / SQLite)
 
-### Tables
+> **Status (v0.1):** The current backend uses Prisma with SQLite for fast
+> local iteration. The aspirational Postgres/Supabase schema below is the
+> production target — see [server/prisma/schema.prisma](server/prisma/schema.prisma)
+> for the actual models in use today (`User`, `Holding`, `WalletBalance`,
+> `Transaction`, `Trade`, `Watchlist`, `PriceAlert`, `Notification`,
+> `PasswordReset`).
+>
+> **Pre-prod TODO:** switch `provider = "postgresql"`, replace `Float` money
+> columns with integer minor units (cents/satoshis) or `Decimal(36,18)` to
+> avoid floating-point drift, and run a fresh migration.
+
+### Tables (production target)
 
 ```sql
 -- Users

@@ -9,6 +9,9 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
+import helmet from 'helmet'
+import compression from 'compression'
+import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth.js'
 import profileRoutes from './routes/profile.js'
 import holdingsRoutes from './routes/holdings.js'
@@ -23,24 +26,50 @@ import { startAlertPoller } from './alertPoller.js'
 
 const app = express()
 const PORT = env.PORT
+const IS_PROD = env.NODE_ENV === 'production'
 const CORS_ORIGIN = env.CORS_ORIGIN.split(',').map((s) => s.trim())
 // Allow any LAN origin (192.168.x.x / 10.x.x.x / 172.16-31.x.x) on port 3000
 // or 5173 so phones / other devices on the same wifi can hit the dev API.
+// Only enabled in non-production to avoid widening the prod CORS surface.
 const LAN_ORIGIN_RE = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|localhost|127\.0\.0\.1)(:\d+)?$/
 
+// Trust the first proxy hop (Railway / Cloudflare) so rate-limit + IP logging
+// see the real client IP rather than the load balancer.
+app.set('trust proxy', 1)
+
+app.use(helmet({
+  // CSP is delivered by the static host (Vite) for the app shell; here we
+  // only serve JSON, so a permissive CSP is fine.
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}))
+app.use(compression())
 app.use(
   cors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true) // curl, server-to-server
-      if (CORS_ORIGIN.includes(origin) || LAN_ORIGIN_RE.test(origin)) return cb(null, true)
+      if (CORS_ORIGIN.includes(origin)) return cb(null, true)
+      if (!IS_PROD && LAN_ORIGIN_RE.test(origin)) return cb(null, true)
       cb(new Error(`CORS blocked: ${origin}`))
     },
     credentials: true,
   }),
 )
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '512kb' }))
 app.use(cookieParser())
-app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'))
+app.use(morgan(IS_PROD ? 'combined' : 'dev'))
+
+// Global request limiter — generous, just to stop runaway scrapers / loops.
+// Tighter per-route limits live in their own routers (e.g. /auth, /ai).
+app.use(
+  '/api/',
+  rateLimit({
+    windowMs: 60 * 1000,
+    limit: 240, // 4/sec sustained per IP
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+  }),
+)
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'verdexis-api', version: '0.1.0', env: env.NODE_ENV })

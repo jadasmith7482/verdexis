@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Inline `style={...}` is unavoidable for dynamic CSS variables and
+      // chart bars; suppressing the editor noise keeps real lint signal
+      // visible. Static styling still belongs in Tailwind classes.
+      'react/forbid-dom-props': 'off',
+      'react/no-inline-styles': 'off',
+    },
   },
 ])

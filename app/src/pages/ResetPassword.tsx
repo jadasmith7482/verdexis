@@ -65,6 +65,8 @@ export default function ResetPassword() {
                   <label className="block text-xs uppercase tracking-[0.05em] text-[#737373] mb-2">New password</label>
                   <input
                     type="password"
+                    aria-label="New password"
+                    placeholder="At least 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -76,6 +78,8 @@ export default function ResetPassword() {
                   <label className="block text-xs uppercase tracking-[0.05em] text-[#737373] mb-2">Confirm password</label>
                   <input
                     type="password"
+                    aria-label="Confirm new password"
+                    placeholder="Re-enter password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     required

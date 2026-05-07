@@ -1,6 +1,9 @@
 const ALPHA_VANTAGE_KEY = import.meta.env.VITE_ALPHA_VANTAGE_KEY || ''
 const FINNHUB_KEY = import.meta.env.VITE_FINNHUB_KEY || ''
-const COINGECKO_BASE = 'https://api.coingecko.com/api/v3'
+// CoinGecko is blocked by CORS for browser clients. We proxy through our own
+// API which fetches server-side and caches. Vite dev proxies /api -> :4000.
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || ''
+const CG_PROXY = `${API_BASE}/api/market/coingecko`
 
 export interface StockQuote {
   symbol: string
@@ -228,7 +231,7 @@ class MarketDataService {
       const timeout = setTimeout(() => controller.abort(), 5000)
 
       const response = await fetch(
-        `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=true`,
+        `${CG_PROXY}/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=true`,
         { signal: controller.signal }
       )
       clearTimeout(timeout)
@@ -275,7 +278,7 @@ class MarketDataService {
 
     try {
       const response = await fetch(
-        `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${ids.join(',')}&sparkline=true`,
+        `${CG_PROXY}/markets?vs_currency=usd&ids=${ids.join(',')}&sparkline=true`,
         { signal: AbortSignal.timeout(5000) }
       )
       if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`)
@@ -302,7 +305,7 @@ class MarketDataService {
     }
 
     try {
-      const url = `${COINGECKO_BASE}/coins/${coinId}/ohlc?vs_currency=usd&days=${days}`
+      const url = `${CG_PROXY}/ohlc?id=${encodeURIComponent(coinId)}&vs_currency=usd&days=${days}`
       const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
       if (!res.ok) throw new Error(`OHLC ${res.status}`)
       const raw = (await res.json()) as Array<[number, number, number, number, number]>
