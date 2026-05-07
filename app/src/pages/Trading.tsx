@@ -40,7 +40,16 @@ export default function Trading() {
   const [bookAsks, setBookAsks] = useState<Level[]>([])
   const [livePrice, setLivePrice] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [, setPortfolioTick] = useState(0)
   const isAuthenticated = !!getToken()
+
+  // Hydrate holdings/wallet on mount + whenever the profile changes (login).
+  useEffect(() => {
+    void portfolioStore.hydrate(true).then(() => setPortfolioTick((t) => t + 1))
+    const onProfile = () => { void portfolioStore.hydrate(true).then(() => setPortfolioTick((t) => t + 1)) }
+    window.addEventListener('verdexis:profile', onProfile)
+    return () => window.removeEventListener('verdexis:profile', onProfile)
+  }, [])
 
   // Subscribe to sub-second Binance ticker for the currently selected coin so
   // the header price + chart + trade preview all tick smoothly.
@@ -170,6 +179,8 @@ export default function Trading() {
       // Pull fresh holdings + balances + trades so every panel agrees with
       // what the server just persisted (no drift on hard refresh).
       await portfolioStore.hydrate(true)
+      setPortfolioTick((t) => t + 1)
+      setRecentTrades(portfolioStore.getTrades().slice(0, 10) as unknown as PublicTrade[])
       setAmount('')
       setPrice('')
     } catch (e) {
@@ -454,7 +465,7 @@ export default function Trading() {
                   <p className="text-sm text-[#E5E5E5]">${(portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</p>
                   {(() => {
                     const sym = selectedCrypto?.symbol.toUpperCase() || 'BTC'
-                    const held = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)?.amount ?? 0
+                    const held = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)?.quantity ?? 0
                     return <p className="text-xs text-[#737373] mt-1">{sym}: {held.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</p>
                   })()}
                 </div>
