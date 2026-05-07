@@ -4,7 +4,11 @@
 // and caches it; the client just polls the union of subscribed coins every
 // LIVE_POLL_MS. Sub-second feel without needing a WebSocket.
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:4000'
+// Use the Vite dev-server proxy so the request goes to whichever host the
+// page was loaded from (localhost on desktop, 192.168.x.x on phone). Vite
+// rewrites /api -> http://localhost:4000 server-side. VITE_API_BASE override
+// is honored for prod builds.
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
 const LIVE_POLL_MS = 2_000
 
 type Listener = (price: number) => void
