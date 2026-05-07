@@ -54,6 +54,51 @@ export default function WalletPage() {
   const [selectedBankId, setSelectedBankId] = useState<string>(() => listBanks()[0]?.id ?? '')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
   const web3 = useWeb3()
+  const [web3TransferAmount, setWeb3TransferAmount] = useState('')
+  const [web3Sending, setWeb3Sending] = useState(false)
+  const [web3LastTx, setWeb3LastTx] = useState<{ hash: string; amount: number } | null>(null)
+
+  // Best-effort etherscan link for the connected chain.
+  function explorerTxUrl(hash: string, chainId: string | null): string {
+    const base: Record<string, string> = {
+      '0x1': 'https://etherscan.io/tx/',
+      '0xaa36a7': 'https://sepolia.etherscan.io/tx/',
+      '0x5': 'https://goerli.etherscan.io/tx/',
+      '0x89': 'https://polygonscan.com/tx/',
+      '0xa4b1': 'https://arbiscan.io/tx/',
+      '0xa': 'https://optimistic.etherscan.io/tx/',
+      '0x2105': 'https://basescan.org/tx/',
+      '0x38': 'https://bscscan.com/tx/',
+      '0xa86a': 'https://snowtrace.io/tx/',
+    }
+    return (base[chainId?.toLowerCase() ?? ''] ?? 'https://etherscan.io/tx/') + hash
+  }
+
+  async function handleWeb3Transfer() {
+    const amt = parseFloat(web3TransferAmount)
+    if (!Number.isFinite(amt) || amt <= 0) { toast.error('Enter a valid ETH amount'); return }
+    if (web3.balanceEth != null && amt > web3.balanceEth) { toast.error(`Insufficient balance (${web3.balanceEth.toFixed(4)} ETH available)`); return }
+    setWeb3Sending(true)
+    try {
+      const hash = await web3.sendTransaction({ valueEth: amt })
+      const short = `${hash.slice(0, 10)}…${hash.slice(-6)}`
+      portfolioStore.addTransaction(
+        'deposit', amt, 'ETH',
+        `On-chain ETH from ${web3.shortAddress} · tx ${short}`
+      )
+      setWeb3LastTx({ hash, amount: amt })
+      setWeb3TransferAmount('')
+      toast.success(`Sent ${amt} ETH · credited to dashboard`, {
+        description: short,
+        action: { label: 'View tx', onClick: () => window.open(explorerTxUrl(hash, web3.chainId), '_blank', 'noopener') },
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Transfer failed'
+      toast.error(msg)
+    } finally {
+      setWeb3Sending(false)
+    }
+  }
 
   useEffect(() => {
     const refresh = () => {
@@ -435,6 +480,63 @@ export default function WalletPage() {
                 )}
               </div>
             </div>
+
+            {/* Transfer to Dashboard — visible only when connected */}
+            {web3.isConnected && (
+              <div className="mt-5 pt-5 border-t border-[#ffffff10]">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium text-[#E5E5E5]">Transfer to Dashboard</p>
+                    <p className="text-[11px] text-[#737373]">Sign an on-chain ETH transfer to credit your Verdexis portfolio.</p>
+                  </div>
+                  <button
+                    onClick={() => web3.balanceEth != null && setWeb3TransferAmount(Math.max(0, web3.balanceEth - 0.001).toFixed(4))}
+                    className="text-[10px] uppercase tracking-wider text-[#0C8B44] hover:underline"
+                  >Max</button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={web3TransferAmount}
+                      onChange={(e) => setWeb3TransferAmount(e.target.value)}
+                      placeholder="0.0000"
+                      aria-label="ETH amount to transfer"
+                      className="flex-1 bg-transparent text-[#E5E5E5] text-sm focus:outline-none"
+                    />
+                    <span className="text-xs text-[#737373] font-mono">ETH</span>
+                  </div>
+                  <button
+                    onClick={handleWeb3Transfer}
+                    disabled={web3Sending || !web3TransferAmount}
+                    className="px-5 py-2.5 text-sm text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:min-w-[180px]"
+                  >
+                    {web3Sending ? (
+                      <><Clock className="w-4 h-4 animate-spin" /> Awaiting signature…</>
+                    ) : (
+                      <><ArrowDownRight className="w-4 h-4" /> Transfer to Dashboard</>
+                    )}
+                  </button>
+                </div>
+                {web3LastTx && (
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-[#A0A0A0]">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#0C8B44]" />
+                    <span>Last transfer: <span className="font-mono text-[#E5E5E5]">{web3LastTx.amount} ETH</span></span>
+                    <a
+                      href={explorerTxUrl(web3LastTx.hash, web3.chainId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto text-[#0C8B44] hover:underline flex items-center gap-1"
+                    >View on explorer <ExternalLink className="w-3 h-3" /></a>
+                  </div>
+                )}
+                <p className="text-[10px] text-[#737373] mt-2">
+                  Network fees apply. Funds settle to your dashboard once the transaction is broadcast — your wallet remains in self-custody.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tabs */}

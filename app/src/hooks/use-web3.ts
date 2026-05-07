@@ -167,7 +167,38 @@ export function useWeb3() {
     try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }, [])
 
+  const refreshBalance = useCallback(async () => {
+    const provider = getProvider()
+    if (!provider || !state.address) return
+    const bal = await fetchBalance(provider, state.address)
+    setState((s) => ({ ...s, balanceEth: bal }))
+  }, [state.address])
+
+  // Sign + broadcast an ETH transfer via the connected wallet.
+  // Returns the tx hash on success. `valueEth` is in ether (string or number).
+  // If `to` is omitted, signs a self-transfer (used for "credit-to-dashboard" proof-of-funds).
+  const sendTransaction = useCallback(async (params: { to?: string; valueEth: number | string }): Promise<string> => {
+    const provider = getProvider()
+    if (!provider) throw new Error('No Web3 wallet detected')
+    if (!state.address) throw new Error('Wallet not connected')
+    const value = typeof params.valueEth === 'string' ? Number(params.valueEth) : params.valueEth
+    if (!Number.isFinite(value) || value <= 0) throw new Error('Invalid amount')
+    const to = (params.to ?? state.address).toLowerCase()
+    if (!/^0x[a-f0-9]{40}$/.test(to)) throw new Error('Invalid recipient address')
+    // ETH -> wei (BigInt) -> hex (no leading zeros, prefixed 0x)
+    const wei = BigInt(Math.floor(value * 1e18))
+    const hexValue = '0x' + wei.toString(16)
+    const txHash = await provider.request<string>({
+      method: 'eth_sendTransaction',
+      params: [{ from: state.address, to, value: hexValue }],
+    })
+    if (typeof txHash !== 'string') throw new Error('Transaction failed')
+    // Refresh balance shortly after (mempool -> mined ~ a few seconds; eth_getBalance reflects pending)
+    setTimeout(() => { void refreshBalance() }, 2500)
+    return txHash
+  }, [state.address, refreshBalance])
+
   const shortAddress = state.address ? `${state.address.slice(0, 6)}…${state.address.slice(-4)}` : null
 
-  return { ...state, shortAddress, connect, disconnect }
+  return { ...state, shortAddress, connect, disconnect, sendTransaction, refreshBalance }
 }
