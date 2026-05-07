@@ -476,7 +476,7 @@ export default function Home() {
             </div>
             {/* Real certification badges (official trademarked logos, transparent PNGs) */}
             <div className="flex flex-col items-center justify-center gap-6">
-              <div className="flex flex-wrap items-center justify-center gap-10">
+              <div className="flex flex-nowrap items-center justify-center gap-3 sm:gap-6 md:gap-10 w-full">
                 {[
                   { src: '/assets/7_SOC_2_Type_II_91APP.png', alt: 'AICPA SOC 2 Type II Certified', invert: false },
                   { src: '/assets/badge-iso27001-clear.png', alt: 'ISO 27001 Certified', invert: true },
@@ -488,7 +488,7 @@ export default function Home() {
                     src={b.src}
                     alt={b.alt}
                     title={b.alt}
-                    className="h-24 w-auto object-contain opacity-95 hover:opacity-100 transition-opacity"
+                    className="h-12 sm:h-16 md:h-24 w-auto object-contain shrink opacity-95 hover:opacity-100 transition-opacity"
                     style={b.invert ? { filter: 'invert(1) brightness(1.6)' } : undefined}
                   />
                 ))}
