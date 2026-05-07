@@ -1,4 +1,5 @@
 import { marketData } from './marketData'
+import { portfolioStore } from './portfolioStore'
 
 export type PersonaId = 'verdexis' | 'buffett' | 'graham' | 'lynch' | 'munger' | 'klarman' | 'wood'
 
@@ -132,11 +133,22 @@ class AIService {
     try {
       // Portfolio-related queries
       if (lowerQuery.includes('portfolio') || lowerQuery.includes('net worth')) {
-        const cryptoData = await marketData.getCryptoList()
-        const totalValue = cryptoData
-          .slice(0, 5)
-          .reduce((sum, c) => sum + c.current_price * 10, 0)
-        return `Your current portfolio is valued at approximately $${totalValue.toLocaleString()}. Based on today's market movements, you're ${totalValue > 50000 ? 'up' : 'down'} ${(Math.random() * 5).toFixed(2)}%. Would you like a detailed breakdown?`
+        const holdings = portfolioStore.getHoldings()
+        const wallet = portfolioStore.getWallet()
+        const cash = wallet.find((w) => w.currency === 'USD')?.balance ?? 0
+        const positions = holdings.reduce((s, h) => s + h.value, 0)
+        const totalValue = cash + positions
+        const totalPnl = holdings.reduce((s, h) => s + h.pnl, 0)
+        const totalCost = holdings.reduce((s, h) => s + h.avgBuyPrice * h.quantity, 0)
+        const pnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0
+        const direction = totalPnl >= 0 ? 'up' : 'down'
+        const top = holdings.slice().sort((a, b) => b.value - a.value)[0]
+        const lines = [
+          `Your portfolio is currently worth $${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })} ($${positions.toLocaleString(undefined, { maximumFractionDigits: 0 })} in positions, $${cash.toLocaleString(undefined, { maximumFractionDigits: 0 })} cash).`,
+          `Unrealized P&L is ${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })} (${direction} ${Math.abs(pnlPct).toFixed(2)}%) across ${holdings.length} holding${holdings.length === 1 ? '' : 's'}.`,
+        ]
+        if (top) lines.push(`Largest position: ${top.name} (${top.symbol}) at ${top.allocation}% of portfolio.`)
+        return lines.join(' ')
       }
 
       // Price-related queries

@@ -154,7 +154,15 @@ export default function Trading() {
       price: currentPrice - (i + 1) * (currentPrice * 0.0005),
       size: rand() * 10 + 0.1,
     }))
-    return { asks, bids }
+    // Deterministic depth bars (40 buckets) seeded by the same price so they
+    // match the order book and don't flicker on every render.
+    const depthBars = Array.from({ length: 40 }, (_, i) => {
+      const isAsk = i > 20
+      const lean = isAsk ? (i - 20) / 20 : (20 - i) / 20
+      const h = rand() * 80 * lean
+      return { isAsk, height: Math.max(5, h) }
+    })
+    return { asks, bids, depthBars }
   }, [selectedCrypto?.id, selectedCrypto?.current_price])
 
   return (
@@ -330,11 +338,9 @@ export default function Trading() {
 
                 {orderBookTab === 'depth' && (
                   <div className="p-4 h-64 flex items-end gap-1">
-                    {Array.from({ length: 40 }, (_, i) => {
-                      const isAsk = i > 20
-                      const height = isAsk ? Math.random() * 80 * ((i - 20) / 20) : Math.random() * 80 * ((20 - i) / 20)
-                      return <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${Math.max(5, height)}%`, background: isAsk ? 'rgba(244,67,54,0.4)' : 'rgba(76,175,80,0.4)' }} />
-                    })}
+                    {orderBook.depthBars.map((b, i) => (
+                      <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${b.height}%`, background: b.isAsk ? 'rgba(244,67,54,0.4)' : 'rgba(76,175,80,0.4)' }} />
+                    ))}
                   </div>
                 )}
               </div>
