@@ -143,13 +143,24 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
   const [twoFactor, setTwoFactor] = useState(u.twoFactor)
   const [prefs, setPrefs] = useState(JSON.stringify(u.prefs, null, 2))
   const [newPassword, setNewPassword] = useState('')
+  // <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in local time.
+  const [createdAt, setCreatedAt] = useState(() => toLocalInput(u.createdAt))
 
   async function save(e: FormEvent) {
     e.preventDefault()
     let parsedPrefs: Record<string, unknown>
     try { parsedPrefs = JSON.parse(prefs || '{}') } catch { toast.error('Prefs is not valid JSON'); return }
+    const patch: Parameters<typeof adminApi.patchUser>[1] = {
+      name, email, role, suspended, suspendedReason: suspendedReason || null, twoFactor, prefs: parsedPrefs,
+    }
+    // Only include createdAt if the admin actually changed it, and validate.
+    if (createdAt && createdAt !== toLocalInput(u.createdAt)) {
+      const iso = new Date(createdAt).toISOString()
+      if (Number.isNaN(new Date(iso).getTime())) { toast.error('Invalid date'); return }
+      patch.createdAt = iso
+    }
     try {
-      await adminApi.patchUser(u.id, { name, email, role, suspended, suspendedReason: suspendedReason || null, twoFactor, prefs: parsedPrefs })
+      await adminApi.patchUser(u.id, patch)
       toast.success('Profile updated')
       onChange()
     } catch (err) { toast.error((err as { error?: string }).error || 'Update failed') }
@@ -190,6 +201,18 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
             {suspended ? '⛔ Suspended — login blocked' : 'Account active — click to suspend'}
           </button>
           {suspended && <Input className="mt-2" label="Suspension reason (shown internally)" value={suspendedReason} onChange={setSuspendedReason} />}
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5 block">Joined (createdAt)</label>
+          <input
+            type="datetime-local"
+            aria-label="Account created at"
+            title="Account created at"
+            value={createdAt}
+            onChange={(e) => setCreatedAt(e.target.value)}
+            className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+          />
+          <p className="text-[10px] text-[#737373] mt-1">Backdate or post-date when this account was opened. Editable on save below.</p>
         </div>
         <Textarea label="Preferences (JSON)" value={prefs} onChange={setPrefs} rows={6} mono />
         <button type="submit" className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Save className="w-4 h-4" />Save profile</button>
@@ -702,6 +725,15 @@ const INVEST_ASSETS: { symbol: string; name: string; type: 'crypto' | 'stock' | 
 ]
 
 function todayIsoDate(): string { return new Date().toISOString().slice(0, 10) }
+
+// Convert any date-ish value into the "YYYY-MM-DDTHH:mm" format that
+// <input type="datetime-local"> expects (in the browser's local time).
+function toLocalInput(d: string | Date): string {
+  const dt = typeof d === 'string' ? new Date(d) : d
+  if (Number.isNaN(dt.getTime())) return ''
+  const tzOffset = dt.getTimezoneOffset() * 60_000
+  return new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16)
+}
 
 function DepositDeductPanel({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
   const [mode, setMode] = useState<'deposit' | 'deduct'>('deposit')

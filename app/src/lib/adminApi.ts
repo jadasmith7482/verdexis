@@ -263,7 +263,7 @@ export const adminApi = {
   releaseHold: (userId: string) =>
     request<{ user: AdminUserFull }>(`/api/admin/users/${userId}/unhold`, { method: 'POST' }),
 
-  patchUser: (id: string, patch: Partial<{ name: string; email: string; avatar: string | null; role: 'user' | 'admin'; suspended: boolean; suspendedReason: string | null; twoFactor: boolean; prefs: Record<string, unknown> }>) =>
+  patchUser: (id: string, patch: Partial<{ name: string; email: string; avatar: string | null; role: 'user' | 'admin'; suspended: boolean; suspendedReason: string | null; twoFactor: boolean; prefs: Record<string, unknown>; createdAt: string }>) =>
     request<{ user: AdminUserFull }>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
   setPassword: (id: string, password: string, revokeSessions = true) =>

@@ -122,9 +122,13 @@ app.use((req, res) => {
 })
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err)
-  res.status(500).json({ error: 'Internal server error' })
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(`[verdexis-api] unhandled error on ${req.method} ${req.path}:`, err)
+  res.status(500).json({
+    error: 'Internal server error',
+    detail: err?.message || String(err),
+    path: req.path,
+  })
 })
 
 app.listen(PORT, '0.0.0.0', () => {

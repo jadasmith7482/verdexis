@@ -222,6 +222,8 @@ const patchUserSchema = z.object({
   suspendedReason: z.string().max(500).nullable().optional(),
   twoFactor: z.boolean().optional(),
   prefs: z.record(z.unknown()).optional(),
+  // Allow admins to backdate (or post-date) the join date for an account.
+  createdAt: z.string().datetime().optional(),
 })
 
 router.patch('/users/:id', async (req: AuthedRequest, res) => {
@@ -230,6 +232,7 @@ router.patch('/users/:id', async (req: AuthedRequest, res) => {
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const data: Record<string, unknown> = { ...parsed.data }
   if ('prefs' in data) data.prefs = JSON.stringify(data.prefs ?? {})
+  if (typeof parsed.data.createdAt === 'string') data.createdAt = new Date(parsed.data.createdAt)
   // Don't let admin demote themselves to last-admin and lock everyone out.
   if (parsed.data.role === 'user' && id === req.userId!) {
     const otherAdmins = await prisma.user.count({ where: { role: 'admin', NOT: { id } } })

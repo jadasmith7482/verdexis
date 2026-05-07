@@ -126,34 +126,49 @@ router.post('/signup', authLimiter, async (req, res) => {
 })
 
 router.post('/login', authLimiter, async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body)
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid input' })
-    return
+  try {
+    const parsed = loginSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid input' })
+      return
+    }
+    const { password } = parsed.data
+    const id = (parsed.data.identifier || parsed.data.email || '').trim().toLowerCase()
+    // If it parses as an email, look up by email; otherwise treat as username.
+    const isEmail = /.+@.+\..+/.test(id)
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: id } })
+      : await prisma.user.findUnique({ where: { username: id } })
+    if (!user) {
+      res.status(401).json({ error: 'Invalid credentials' })
+      return
+    }
+    const ok = await bcrypt.compare(password, user.passwordHash)
+    if (!ok) {
+      res.status(401).json({ error: 'Invalid credentials' })
+      return
+    }
+    if (user.suspended) {
+      res.status(403).json({ error: 'Account suspended' })
+      return
+    }
+    let role = user.role
+    try {
+      role = await autoPromoteIfAdminEmail(user.id, user.email, user.role)
+    } catch (promoteErr) {
+      // Don't block login if promotion fails (e.g. treasury seed write race);
+      // log it so we can see it in Render logs.
+      console.error('[verdexis-api] autoPromote failed for', user.email, promoteErr)
+    }
+    const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
+    res.json({ token, user: publicUser({ ...user, role }) })
+  } catch (err) {
+    console.error('[verdexis-api] /login crashed:', err)
+    res.status(500).json({
+      error: 'Login failed',
+      detail: err instanceof Error ? err.message : String(err),
+    })
   }
-  const { password } = parsed.data
-  const id = (parsed.data.identifier || parsed.data.email || '').trim().toLowerCase()
-  // If it parses as an email, look up by email; otherwise treat as username.
-  const isEmail = /.+@.+\..+/.test(id)
-  const user = isEmail
-    ? await prisma.user.findUnique({ where: { email: id } })
-    : await prisma.user.findUnique({ where: { username: id } })
-  if (!user) {
-    res.status(401).json({ error: 'Invalid credentials' })
-    return
-  }
-  const ok = await bcrypt.compare(password, user.passwordHash)
-  if (!ok) {
-    res.status(401).json({ error: 'Invalid credentials' })
-    return
-  }
-  if (user.suspended) {
-    res.status(403).json({ error: 'Account suspended' })
-    return
-  }
-  const role = await autoPromoteIfAdminEmail(user.id, user.email, user.role)
-  const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
-  res.json({ token, user: publicUser({ ...user, role }) })
 })
 
 router.post('/forgot', authLimiter, async (req, res) => {
