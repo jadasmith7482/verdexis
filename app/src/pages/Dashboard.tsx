@@ -4,12 +4,30 @@ import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
 import Footer from '../components/Footer'
 import RiskMetricsCard from '../components/RiskMetricsCard'
+import TopMovers from '../components/dashboard/TopMovers'
+import AlertsSummaryCard from '../components/dashboard/AlertsSummaryCard'
+import NewsSnippetCard from '../components/dashboard/NewsSnippetCard'
+import GoalsProgressCard from '../components/dashboard/GoalsProgressCard'
+import ConnectedAccountsCard from '../components/dashboard/ConnectedAccountsCard'
+import CategoryBreakdownCard from '../components/dashboard/CategoryBreakdownCard'
+import StakingCard from '../components/dashboard/StakingCard'
+import DcaCard from '../components/dashboard/DcaCard'
+import GreetingHeader from '../components/dashboard/GreetingHeader'
+import CurrencySelector from '../components/dashboard/CurrencySelector'
+import ExportMenu from '../components/dashboard/ExportMenu'
+import CustomizeWidgets from '../components/dashboard/CustomizeWidgets'
+import TimeRangePicker, { type ChartRange } from '../components/dashboard/TimeRangePicker'
+import EmptyStateCta from '../components/dashboard/EmptyStateCta'
+import WatchlistPanel from '../components/WatchlistPanel'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, type WalletTransaction } from '../lib/portfolioStore'
 import { cryptoIconFor } from '../lib/cryptoIcon'
-import { Toaster } from 'sonner'
+import { useCurrency } from '../lib/currencyContext'
+import { dashboardLayout, DASHBOARD_LAYOUT_EVENT } from '../lib/dashboardLayout'
+import { dcaStore, nextRunMs } from '../lib/dcaStore'
+import { Toaster, toast } from 'sonner'
 import {
   TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight,
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
@@ -18,16 +36,6 @@ import {
 } from 'lucide-react'
 
 const getCryptoLogo = (id: string) => cryptoIconFor(id)
-
-const fmtMoney = (n: number, opts: { compact?: boolean; sign?: boolean } = {}) => {
-  const abs = Math.abs(n)
-  const useCompact = opts.compact && abs >= 100_000
-  const formatted = useCompact
-    ? abs.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 })
-    : abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const prefix = opts.sign ? (n >= 0 ? '+$' : '-$') : '$'
-  return `${prefix}${formatted}`
-}
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
   if (!prices || prices.length === 0) return ''
@@ -45,6 +53,7 @@ function getSparklinePath(prices: number[], width: number, height: number): stri
 }
 
 export default function Dashboard() {
+  const { format: fmtMoney } = useCurrency()
   const [cryptoData, setCryptoData] = useState<CryptoQuote[]>([])
   const [insights, setInsights] = useState<AIInsight[]>([])
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([])
@@ -55,7 +64,17 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
+  const [chartRange, setChartRange] = useState<ChartRange>('1W')
+  const [showBenchmark, setShowBenchmark] = useState(false)
+  const [hiddenWidgets, setHiddenWidgets] = useState(() => dashboardLayout.hidden())
   const isAuthenticated = !!localStorage.getItem('verdexis_holdings')
+  const userName = (() => {
+    try {
+      const auth = localStorage.getItem('verdexis_auth')
+      if (auth) return (JSON.parse(auth).name as string) || 'there'
+    } catch { /* ignore */ }
+    return 'there'
+  })()
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true)
@@ -123,6 +142,36 @@ export default function Dashboard() {
     return () => unsubs.forEach((u) => u())
   }, [holdingIds])
 
+  // Watch dashboard layout changes (widget show/hide)
+  useEffect(() => {
+    const refresh = () => setHiddenWidgets(dashboardLayout.hidden())
+    window.addEventListener(DASHBOARD_LAYOUT_EVENT, refresh)
+    return () => window.removeEventListener(DASHBOARD_LAYOUT_EVENT, refresh)
+  }, [])
+
+  // DCA scheduler — checks once a minute; when an active schedule is
+  // overdue, simulates the buy at the current market price (using cached
+  // cryptoData) so it shows up in trades + holdings just like a real one.
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const tick = () => {
+      const now = Date.now()
+      for (const s of dcaStore.list()) {
+        if (!s.active) continue
+        if (now < nextRunMs(s)) continue
+        const quote = cryptoData.find((c) => c.id === s.assetId || c.symbol.toUpperCase() === s.asset)
+        if (!quote || quote.current_price <= 0) continue
+        const qty = s.amountUsd / quote.current_price
+        portfolioStore.executeTrade(s.asset, s.name, 'buy', quote.current_price, qty, 'dca')
+        dcaStore.markRun(s.id)
+        toast.success(`Auto-bought ${qty.toFixed(6)} ${s.asset} ($${s.amountUsd})`)
+      }
+    }
+    tick()
+    const t = setInterval(tick, 60_000)
+    return () => clearInterval(t)
+  }, [cryptoData, isAuthenticated])
+
   // Portfolio calculations
   const totalValue = holdings.reduce((sum, h) => sum + h.value, 0)
   const totalPnl = holdings.reduce((sum, h) => sum + h.pnl, 0)
@@ -131,16 +180,19 @@ export default function Dashboard() {
     ? holdings.reduce((best, h) => (h.pnlPercent > best.pnlPercent ? h : best), holdings[0])
     : null
 
-  // Real 7-day net-worth history reconstructed from each holding's hourly
+  // Real net-worth history reconstructed from each holding's hourly
   // sparkline (CoinGecko sparkline_in_7d, ~168 hourly points) weighted by
-  // the user's actual current quantity. Stable-coins / cash holdings without
-  // a sparkline contribute a flat (quantity * currentPrice) line.
+  // the user's actual current quantity. The chart-range picker windows the
+  // resulting series to 1D / 1W / 1M / 1Y / ALL — for ranges longer than
+  // the available 7-day window, the early portion is approximated using
+  // the holding's avg-buy price as a stable anchor.
   const quoteById: Record<string, CryptoQuote> = {}
   for (const c of cryptoData) {
     quoteById[c.id] = c
     if (c.symbol) quoteById[c.symbol.toLowerCase()] = c
   }
-  const HISTORY_POINTS = 168
+  const rangeBuckets: Record<ChartRange, number> = { '1D': 24, '1W': 168, '1M': 168, '1Y': 365, 'ALL': 365 }
+  const HISTORY_POINTS = rangeBuckets[chartRange]
   const portfolioHistory: number[] = (() => {
     if (!holdings.length) return []
     const series = new Array(HISTORY_POINTS).fill(0)
@@ -150,12 +202,8 @@ export default function Dashboard() {
       const sp = q?.sparkline_in_7d?.price
       if (sp && sp.length >= 2) {
         haveAny = true
-        // Resample sparkline into HISTORY_POINTS buckets
-        for (let i = 0; i < HISTORY_POINTS; i++) {
-          const idx = Math.min(sp.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (sp.length - 1)))
-          series[i] += h.quantity * sp[idx]
-        }
-      } else {
+        // For 1D, only use the most recent ~24 hourly points (last day of the
+        // 7-day sparkline). For 1W use full sparkline. For 1M / 1Y / ALL we\n        // don't have historical data older than 7 days from CoinGecko\u2019s\n        // simple endpoint, so we synthesise the early portion by anchoring\n        // the start of the window at avg-buy-price-equivalent quantity-value\n        // and linearly interpolating to the recent sparkline window.\n        let window = sp\n        if (chartRange === '1D') window = sp.slice(-24)\n        for (let i = 0; i < HISTORY_POINTS; i++) {\n          if (chartRange === '1M' || chartRange === '1Y' || chartRange === 'ALL') {\n            // Synthetic: blend from h.avgBuyPrice (start) to current sparkline (end)\n            const recentPortion = 0.7 // last 30% of the chart uses real sparkline\n            const recentStart = Math.floor(HISTORY_POINTS * recentPortion)\n            if (i < recentStart) {\n              const t = recentStart > 0 ? i / recentStart : 1\n              const startVal = h.quantity * h.avgBuyPrice\n              const endVal = h.quantity * sp[0]\n              series[i] += startVal + (endVal - startVal) * t\n            } else {\n              const t = HISTORY_POINTS > recentStart ? (i - recentStart) / (HISTORY_POINTS - recentStart) : 0\n              const idx = Math.min(sp.length - 1, Math.round(t * (sp.length - 1)))\n              series[i] += h.quantity * sp[idx]\n            }\n          } else {\n            const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))\n            series[i] += h.quantity * window[idx]\n          }\n        }\n      } else {
         // Flat contribution (cash, stablecoin, or missing sparkline)
         const flat = h.value || h.quantity * h.currentPrice
         for (let i = 0; i < HISTORY_POINTS; i++) series[i] += flat
@@ -186,11 +234,11 @@ export default function Dashboard() {
   })()
   const chartMax = portfolioHistory.length ? Math.max(...portfolioHistory) : 0
   const chartMin = portfolioHistory.length ? Math.min(...portfolioHistory) : 0
-  const chartRange = chartMax - chartMin || 1
+  const chartYRange = chartMax - chartMin || 1
   const chartPath = portfolioHistory
     .map((v, i) => {
       const x = (i / (portfolioHistory.length - 1 || 1)) * 100
-      const y = 100 - ((v - chartMin) / chartRange) * 90 - 5
+      const y = 100 - ((v - chartMin) / chartYRange) * 90 - 5
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
     })
     .join(' ')
@@ -213,16 +261,27 @@ export default function Dashboard() {
 
       <div className="pt-24 pb-16 px-6">
         <div className="max-w-[1280px] mx-auto">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">Dashboard</h1>
-              <p className="text-sm text-[#737373] mt-1 flex items-center gap-2">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0C8B44] animate-pulse" />
-                Live · Last updated {lastUpdated.toLocaleTimeString()}
-              </p>
-            </div>
+          {/* Header — greeting + toolbar */}
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
+            <GreetingHeader name={userName} lastUpdated={lastUpdated} />
+            {isAuthenticated && (
+              <div className="flex flex-wrap items-center gap-2">
+                <CurrencySelector />
+                <ExportMenu />
+                <CustomizeWidgets />
+              </div>
+            )}
           </div>
+
+          {/* Empty-state CTA — shown when authenticated but no real holdings */}
+          {isAuthenticated && holdings.filter((h) => h.id !== 'usd').length === 0 && (
+            <EmptyStateCta />
+          )}
+
+          {/* Top Movers strip — public, always visible */}
+          {!hiddenWidgets.has('topMovers') && cryptoData.length > 0 && (
+            <TopMovers data={cryptoData} />
+          )}
 
           {/* Top Stats Row */}
           {isAuthenticated && (
@@ -334,10 +393,22 @@ export default function Dashboard() {
 
               {isAuthenticated ? (
                 <>
-                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6 truncate">
+                  <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4 truncate">
                     {fmtMoney(totalValue)}
                   </p>
-                  {/* SVG Area Chart - real 7-day net worth from holdings sparklines */}
+
+                  {/* Range picker + benchmark toggle */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <TimeRangePicker value={chartRange} onChange={setChartRange} />
+                    <button
+                      onClick={() => setShowBenchmark((v) => !v)}
+                      className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border transition-colors ${showBenchmark ? 'bg-[#FF9800]/15 text-[#FF9800] border-[#FF9800]/30' : 'text-[#737373] border-[#ffffff10] hover:text-[#E5E5E5]'}`}
+                    >
+                      vs BTC
+                    </button>
+                  </div>
+
+                  {/* SVG Area Chart - real net worth from holdings sparklines */}
                   <div className="h-48 w-full">
                     {portfolioHistory.length >= 2 ? (
                       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
@@ -349,6 +420,29 @@ export default function Dashboard() {
                         </defs>
                         <path d={areaPath} fill="url(#areaGradient)" />
                         <path d={chartPath} fill="none" stroke={periodChangePercent >= 0 ? '#0C8B44' : '#f44336'} strokeWidth="0.5" strokeLinecap="round" />
+                        {showBenchmark && (() => {
+                          const btcSp = quoteById['bitcoin']?.sparkline_in_7d?.price
+                          if (!btcSp || btcSp.length < 2) return null
+                          // Normalise BTC to start at chartMin so the two lines share the same scale.
+                          const btcStart = btcSp[0]
+                          const points = portfolioHistory.length
+                          const ratios: number[] = []
+                          for (let i = 0; i < points; i++) {
+                            const idx = Math.min(btcSp.length - 1, Math.round((i / (points - 1)) * (btcSp.length - 1)))
+                            ratios.push(btcSp[idx] / btcStart)
+                          }
+                          const baseStart = portfolioHistory[0]
+                          const synth = ratios.map((r) => r * baseStart)
+                          const synthMax = Math.max(...synth)
+                          const synthMin = Math.min(...synth)
+                          const synthRange = synthMax - synthMin || 1
+                          const path = synth.map((v, i) => {
+                            const x = (i / (synth.length - 1 || 1)) * 100
+                            const y = 100 - ((v - synthMin) / synthRange) * 90 - 5
+                            return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
+                          }).join(' ')
+                          return <path d={path} fill="none" stroke="#FF9800" strokeWidth="0.4" strokeDasharray="1.5 1.5" opacity="0.85" />
+                        })()}
                       </svg>
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-xs text-[#737373]">
@@ -357,7 +451,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="flex items-center justify-between text-xs text-[#737373] mt-2">
-                    <span>7 days ago</span>
+                    <span>{chartRange === '1D' ? '24h ago' : chartRange === '1W' ? '7 days ago' : chartRange === '1M' ? '30 days ago' : chartRange === '1Y' ? '1 year ago' : 'All time'}</span>
                     <span>Now</span>
                   </div>
 
@@ -622,6 +716,40 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* New widget row 1 — alerts / goals / news (3-up) */}
+            {isAuthenticated && (
+              <>
+                {!hiddenWidgets.has('alertsSummary') && <AlertsSummaryCard />}
+                {!hiddenWidgets.has('goalsProgress') && <GoalsProgressCard portfolioValue={totalValue} />}
+                {!hiddenWidgets.has('newsSnippet') && <NewsSnippetCard />}
+              </>
+            )}
+
+            {/* New widget row 2 — connected accounts + categories (2-up wide) */}
+            {isAuthenticated && (
+              <>
+                {!hiddenWidgets.has('connectedAccounts') && (
+                  <div className="lg:col-span-1"><ConnectedAccountsCard /></div>
+                )}
+                {!hiddenWidgets.has('categoryBreakdown') && (
+                  <div className="lg:col-span-2"><CategoryBreakdownCard holdings={holdings} totalValue={totalValue} /></div>
+                )}
+              </>
+            )}
+
+            {/* New widget row 3 — staking + dca + watchlist */}
+            {isAuthenticated && (
+              <>
+                {!hiddenWidgets.has('staking') && <StakingCard />}
+                {!hiddenWidgets.has('dca') && <DcaCard />}
+                {!hiddenWidgets.has('watchlist') && (
+                  <WatchlistPanel
+                    availableSymbols={cryptoData.slice(0, 10).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }))}
+                  />
+                )}
+              </>
             )}
 
             {/* Market Overview - Public */}
