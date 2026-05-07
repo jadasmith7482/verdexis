@@ -8,6 +8,7 @@ import QrCode from '../components/QrCode'
 import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
+import type { Web3Payout } from '../lib/depositInstructions'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
 import { api, getToken } from '../lib/api'
@@ -96,6 +97,10 @@ export default function WalletPage() {
   const web3 = useWeb3()
   const [web3TransferAmount, setWeb3TransferAmount] = useState('')
   const [web3Recipient, setWeb3Recipient] = useState('')
+  // Admin-managed Web3 payout for the connected chain (or default).
+  const [web3Payout, setWeb3Payout] = useState<Web3Payout | null>(null)
+  // True while the recipient input is the admin payout (locked unless user overrides).
+  const [web3RecipientOverridden, setWeb3RecipientOverridden] = useState(false)
   const [web3Sending, setWeb3Sending] = useState(false)
   const [web3LastTx, setWeb3LastTx] = useState<{ hash: string; amount: number; to: string } | null>(null)
 
@@ -146,7 +151,13 @@ export default function WalletPage() {
       )
       setWeb3LastTx({ hash, amount: amt, to: sendingToOther ? recipientRaw : (web3.address ?? '') })
       setWeb3TransferAmount('')
-      setWeb3Recipient('')
+      // Reset override so the admin payout (if any) is shown again next time.
+      setWeb3RecipientOverridden(false)
+      if (web3Payout) {
+        setWeb3Recipient(web3Payout.address)
+      } else {
+        setWeb3Recipient('')
+      }
       setTransferStatus({
         kind: 'success',
         title: sendingToOther ? 'Web3 transfer sent' : 'Credited to dashboard',
@@ -187,6 +198,21 @@ export default function WalletPage() {
       setInstructionsTick((n) => n + 1)
     })
   }, [])
+
+  // Resolve the admin-managed Web3 payout for the connected chain. When found,
+  // pre-fill the recipient input (locked) so the user is sending to the address
+  // the admin configured. The user can still click "Use a different address"
+  // to override.
+  useEffect(() => {
+    const payout = depositInstructions.getWeb3Payout(web3.chainId)
+    setWeb3Payout(payout)
+    if (payout && !web3RecipientOverridden) {
+      setWeb3Recipient(payout.address)
+    } else if (!payout && !web3RecipientOverridden) {
+      setWeb3Recipient('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [web3.chainId, instructionsTick])
 
   // Single source of truth shared with the Dashboard so the Wallet's
   // \"Total Balance\" hero matches the Dashboard's \"Cash\" subtitle exactly.
@@ -715,9 +741,11 @@ export default function WalletPage() {
               <div className="mt-5 pt-5 border-t border-[#ffffff10]">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-sm font-medium text-[#E5E5E5]">{web3Recipient.trim() ? 'Send ETH' : 'Transfer to Dashboard'}</p>
+                    <p className="text-sm font-medium text-[#E5E5E5]">{web3Payout && !web3RecipientOverridden ? 'Send to Verdexis payout address' : web3Recipient.trim() ? 'Send ETH' : 'Transfer to Dashboard'}</p>
                     <p className="text-[11px] text-[#737373]">
-                      {web3Recipient.trim()
+                      {web3Payout && !web3RecipientOverridden
+                        ? 'Funds will be sent on-chain to the address configured by Verdexis admin.'
+                        : web3Recipient.trim()
                         ? 'Sign an on-chain ETH transfer to the recipient address below.'
                         : 'Leave the address empty to credit your Verdexis dashboard, or paste any 0x… address to send to another wallet.'}
                     </p>
@@ -728,23 +756,44 @@ export default function WalletPage() {
                   >Max</button>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
-                    <input
-                      type="text"
-                      value={web3Recipient}
-                      onChange={(e) => setWeb3Recipient(e.target.value)}
-                      placeholder="Recipient address (0x…) — leave empty to credit dashboard"
-                      aria-label="Recipient wallet address"
-                      spellCheck={false}
-                      className="flex-1 bg-transparent text-[#E5E5E5] text-sm font-mono focus:outline-none placeholder:font-sans placeholder:text-[#555]"
-                    />
-                    {web3Recipient && (
+                  {web3Payout && !web3RecipientOverridden ? (
+                    <div className="flex items-start gap-3 bg-[#0C8B44]/10 border border-[#0C8B44]/30 rounded-lg px-3 py-3">
+                      <Shield className="w-4 h-4 text-[#0C8B44] mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-[#E5E5E5] font-medium truncate">{web3Payout.label || 'Verdexis payout address'}</p>
+                        <p className="text-[11px] text-[#A0A0A0] font-mono truncate">{web3Payout.address}</p>
+                        {web3Payout.notes && <p className="text-[10px] text-[#737373] mt-1">{web3Payout.notes}</p>}
+                      </div>
                       <button
-                        onClick={() => setWeb3Recipient('')}
-                        className="text-[10px] uppercase tracking-wider text-[#737373] hover:text-[#E5E5E5]"
-                      >Clear</button>
-                    )}
-                  </div>
+                        onClick={() => { setWeb3RecipientOverridden(true); setWeb3Recipient('') }}
+                        className="text-[10px] uppercase tracking-wider text-[#0C8B44] hover:underline whitespace-nowrap shrink-0"
+                      >Use other</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
+                      <input
+                        type="text"
+                        value={web3Recipient}
+                        onChange={(e) => setWeb3Recipient(e.target.value)}
+                        placeholder="Recipient address (0x…) — leave empty to credit dashboard"
+                        aria-label="Recipient wallet address"
+                        spellCheck={false}
+                        className="flex-1 bg-transparent text-[#E5E5E5] text-sm font-mono focus:outline-none placeholder:font-sans placeholder:text-[#555]"
+                      />
+                      {web3Payout && (
+                        <button
+                          onClick={() => { setWeb3RecipientOverridden(false); setWeb3Recipient(web3Payout.address) }}
+                          className="text-[10px] uppercase tracking-wider text-[#0C8B44] hover:underline whitespace-nowrap"
+                        >Use payout</button>
+                      )}
+                      {!web3Payout && web3Recipient && (
+                        <button
+                          onClick={() => setWeb3Recipient('')}
+                          className="text-[10px] uppercase tracking-wider text-[#737373] hover:text-[#E5E5E5]"
+                        >Clear</button>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 flex items-center gap-2 bg-[#0a0e10] border border-[#ffffff10] rounded-lg px-3 py-2.5">
                       <input

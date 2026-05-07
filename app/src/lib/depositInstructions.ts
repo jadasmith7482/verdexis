@@ -51,9 +51,24 @@ export interface CryptoWallet {
 export interface DepositInstructions {
   wires: Record<string, WireInstruction> // keyed by currency, e.g. "USD"
   cryptos: Record<string, CryptoWallet>  // keyed by currency, e.g. "BTC"
+  /** Admin-managed Web3 payout address shown in the user's wallet picker.
+   *  Keyed by EIP-155 chain id hex (e.g. "0x1" Ethereum, "0x89" Polygon)
+   *  with an optional "default" fallback used when no chain-specific entry. */
+  web3: Record<string, Web3Payout>
 }
 
-const EMPTY: DepositInstructions = { wires: {}, cryptos: {} }
+export interface Web3Payout {
+  /** Human label, e.g. "Verdexis Treasury (ETH Mainnet)". */
+  label: string
+  /** EIP-155 chain id hex, e.g. "0x1". Use "default" to apply to any chain. */
+  chainId: string
+  /** 0x... EVM address that user funds will be transferred to. */
+  address: string
+  /** Optional note shown to the user. */
+  notes?: string
+}
+
+const EMPTY: DepositInstructions = { wires: {}, cryptos: {}, web3: {} }
 
 function read(): DepositInstructions {
   try {
@@ -63,6 +78,7 @@ function read(): DepositInstructions {
     return {
       wires: parsed.wires ?? {},
       cryptos: parsed.cryptos ?? {},
+      web3: parsed.web3 ?? {},
     }
   } catch {
     return EMPTY
@@ -106,6 +122,30 @@ export const depositInstructions = {
   removeCrypto(currency: string): void {
     const cur = read()
     delete cur.cryptos[currency.toUpperCase()]
+    write(cur)
+  },
+  /** Resolve Web3 payout for a chain id (hex). Falls back to "default". */
+  getWeb3Payout(chainId: string | null | undefined): Web3Payout | null {
+    const cur = read()
+    if (chainId) {
+      const hit = cur.web3[chainId.toLowerCase()]
+      if (hit) return hit
+    }
+    return cur.web3['default'] ?? null
+  },
+  listWeb3Payouts(): Web3Payout[] {
+    const cur = read()
+    return Object.values(cur.web3)
+  },
+  setWeb3Payout(info: Web3Payout): void {
+    const cur = read()
+    const key = (info.chainId || 'default').toLowerCase()
+    cur.web3[key] = { ...info, chainId: key }
+    write(cur)
+  },
+  removeWeb3Payout(chainId: string): void {
+    const cur = read()
+    delete cur.web3[chainId.toLowerCase()]
     write(cur)
   },
 }

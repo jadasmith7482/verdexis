@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
-import { ArrowLeft, Banknote, Coins, Shield, Trash2, Save, KeyRound } from 'lucide-react'
+import { ArrowLeft, Banknote, Coins, Shield, Trash2, Save, KeyRound, Wallet as WalletIcon } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import {
@@ -11,6 +11,7 @@ import {
   onDepositInstructionsChanged,
   type WireInstruction,
   type CryptoWallet,
+  type Web3Payout,
 } from '../lib/depositInstructions'
 
 export default function AdminDeposits() {
@@ -23,6 +24,20 @@ export default function AdminDeposits() {
 
 const FIAT_CURRENCIES = ['USD', 'EUR', 'GBP'] as const
 const CRYPTO_CURRENCIES = ['BTC', 'ETH', 'SOL', 'USDT', 'USDC', 'XRP', 'ADA', 'DOGE'] as const
+
+const WEB3_CHAINS: { id: string; label: string }[] = [
+  { id: 'default', label: 'Default (any chain)' },
+  { id: '0x1',     label: 'Ethereum Mainnet (0x1)' },
+  { id: '0x89',    label: 'Polygon (0x89)' },
+  { id: '0xa4b1',  label: 'Arbitrum (0xa4b1)' },
+  { id: '0xa',     label: 'Optimism (0xa)' },
+  { id: '0x2105',  label: 'Base (0x2105)' },
+  { id: '0x38',    label: 'BNB Chain (0x38)' },
+  { id: '0xa86a',  label: 'Avalanche (0xa86a)' },
+  { id: '0xaa36a7', label: 'Sepolia testnet (0xaa36a7)' },
+]
+
+const EMPTY_WEB3: Web3Payout = { label: '', chainId: 'default', address: '', notes: '' }
 
 type FiatCurrency = (typeof FIAT_CURRENCIES)[number]
 type CryptoCurrency = (typeof CRYPTO_CURRENCIES)[number]
@@ -59,6 +74,8 @@ function AdminInner() {
 
   const [wireForm, setWireForm] = useState<WireInstruction>(EMPTY_WIRE)
   const [cryptoForm, setCryptoForm] = useState<CryptoWallet>({ ...EMPTY_CRYPTO, currency: 'BTC', network: 'Bitcoin' })
+  const [web3ChainId, setWeb3ChainId] = useState<string>('default')
+  const [web3Form, setWeb3Form] = useState<Web3Payout>(EMPTY_WEB3)
 
   // Refresh from store when currency changes or admin saves elsewhere
   useEffect(() => {
@@ -70,6 +87,11 @@ function AdminInner() {
     const existing = depositInstructions.getCrypto(cryptoCurrency)
     setCryptoForm(existing ?? { ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
   }, [cryptoCurrency])
+
+  useEffect(() => {
+    const existing = depositInstructions.getWeb3Payout(web3ChainId)
+    setWeb3Form(existing && existing.chainId === web3ChainId ? existing : { ...EMPTY_WEB3, chainId: web3ChainId, label: WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? '' })
+  }, [web3ChainId])
 
   useEffect(() => onDepositInstructionsChanged(() => setAdminState(isAdmin())), [])
 
@@ -127,6 +149,23 @@ function AdminInner() {
     if (!confirm(`Delete ${cryptoCurrency} deposit address?`)) return
     depositInstructions.removeCrypto(cryptoCurrency)
     setCryptoForm({ ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
+    toast.success('Removed')
+  }
+
+  function saveWeb3(e: FormEvent) {
+    e.preventDefault()
+    if (!/^0x[a-fA-F0-9]{40}$/.test(web3Form.address.trim())) {
+      toast.error('Address must be a valid 0x… EVM address (40 hex chars)')
+      return
+    }
+    depositInstructions.setWeb3Payout({ ...web3Form, address: web3Form.address.trim(), chainId: web3ChainId })
+    toast.success(`Web3 payout saved for ${WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? web3ChainId}`)
+  }
+
+  function deleteWeb3() {
+    if (!confirm(`Delete Web3 payout for ${web3ChainId}?`)) return
+    depositInstructions.removeWeb3Payout(web3ChainId)
+    setWeb3Form({ ...EMPTY_WEB3, chainId: web3ChainId })
     toast.success('Removed')
   }
 
@@ -267,6 +306,47 @@ function AdminInner() {
                     <Save className="w-4 h-4" />Save {cryptoCurrency} address
                   </button>
                   <button type="button" onClick={deleteCrypto} aria-label="Delete deposit address" title="Delete deposit address" className="px-3 py-2.5 text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {/* WEB3 PAYOUT */}
+            <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 lg:col-span-2">
+              <div className="flex items-center gap-3 mb-2">
+                <WalletIcon className="w-5 h-5 text-[#0C8B44]" />
+                <h2 className="text-base font-medium text-[#E5E5E5]">Web3 payout address</h2>
+              </div>
+              <p className="text-[11px] text-[#737373] mb-5">
+                When set, users connecting an external Web3 wallet will see this address pre-filled as the recipient for on-chain ETH transfers.
+                The user can still override it. Configure a per-chain address, or use <span className="text-[#E5E5E5]">Default</span> as the fallback for any chain.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Chain</label>
+                <select
+                  value={web3ChainId}
+                  onChange={(e) => setWeb3ChainId(e.target.value)}
+                  aria-label="Web3 chain"
+                  className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                >
+                  {WEB3_CHAINS.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <form onSubmit={saveWeb3} className="space-y-3">
+                <Field label="Display label" value={web3Form.label} onChange={(v) => setWeb3Form({ ...web3Form, label: v })} placeholder="Verdexis Treasury (ETH Mainnet)" />
+                <Field label="Payout address *" value={web3Form.address} onChange={(v) => setWeb3Form({ ...web3Form, address: v })} placeholder="0x..." mono />
+                <Textarea label="Notes" value={web3Form.notes ?? ''} onChange={(v) => setWeb3Form({ ...web3Form, notes: v })} placeholder="Funds typically credit within 1 confirmation." />
+
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors">
+                    <Save className="w-4 h-4" />Save Web3 payout
+                  </button>
+                  <button type="button" onClick={deleteWeb3} aria-label="Delete Web3 payout" title="Delete Web3 payout" className="px-3 py-2.5 text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
