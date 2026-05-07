@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
+import LinkBankModal from '../components/LinkBankModal'
 import { portfolioStore } from '../lib/portfolioStore'
+import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
+import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor } from '../lib/cryptoIcon'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
   Clock, CheckCircle, AlertCircle, Copy,
   Eye, EyeOff, Banknote, QrCode, Download,
-  Coins, Percent,
+  Coins, Percent, Plus, Trash2, Wallet as WalletIcon,
+  ExternalLink,
 } from 'lucide-react'
 
 type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer' | 'income'
@@ -46,6 +50,10 @@ export default function WalletPage() {
   const [incomeSource, setIncomeSource] = useState('')
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
   const [transactions, setTransactions] = useState(() => portfolioStore.getTransactions())
+  const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
+  const [selectedBankId, setSelectedBankId] = useState<string>(() => listBanks()[0]?.id ?? '')
+  const [linkBankOpen, setLinkBankOpen] = useState(false)
+  const web3 = useWeb3()
 
   useEffect(() => {
     const refresh = () => {
@@ -54,6 +62,15 @@ export default function WalletPage() {
     }
     window.addEventListener('verdexis:portfolio', refresh)
     return () => window.removeEventListener('verdexis:portfolio', refresh)
+  }, [])
+
+  // Keep linked-bank list reactive (cross-tab + same-tab updates).
+  useEffect(() => {
+    return onBanksChanged(() => {
+      const list = listBanks()
+      setBanks(list)
+      setSelectedBankId((cur) => (cur && list.some((b) => b.id === cur) ? cur : list[0]?.id ?? ''))
+    })
   }, [])
 
   const totalBalance = wallet.reduce((sum, w) => sum + (w.currency === 'USD' ? w.balance : w.balance * getUsdRate(w.currency)), 0)
@@ -95,7 +112,25 @@ export default function WalletPage() {
       return
     }
     const amt = parseFloat(amount)
-    portfolioStore.addTransaction('deposit', amt, selectedCurrency, selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Deposit (${selectedCurrency})`)
+    if (selectedCurrency === 'USD') {
+      const bank = banks.find((b) => b.id === selectedBankId)
+      if (!bank) {
+        toast.error('Link a bank account first')
+        setLinkBankOpen(true)
+        return
+      }
+      if (bank.status !== 'verified') {
+        toast.error('That bank is still verifying — try again in a few seconds.')
+        return
+      }
+      const description = `ACH from ${bank.institution} ····${bank.accountMask}`
+      portfolioStore.addTransaction('deposit', amt, 'USD', description)
+      toast.success(`Initiated $${amt.toLocaleString()} ACH deposit`, { description: `From ${bank.institution} ····${bank.accountMask} — funds typically settle in 1–3 business days.` })
+      setAmount('')
+      setTransactions(portfolioStore.getTransactions())
+      return
+    }
+    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency})`)
     toast.success(`Deposited ${amt.toLocaleString()} ${selectedCurrency}`, { description: 'Funds will be available shortly' })
     setAmount('')
     setTransactions(portfolioStore.getTransactions())
@@ -246,6 +281,7 @@ export default function WalletPage() {
     <div className="min-h-screen bg-[#070C0E]">
       <Toaster position="top-right" theme="dark" />
       <Navigation />
+      <LinkBankModal isOpen={linkBankOpen} onClose={() => setLinkBankOpen(false)} onLinked={(id) => setSelectedBankId(id)} />
 
       <div className="pt-24 pb-16 px-6">
         <div className="max-w-[1280px] mx-auto">
@@ -340,6 +376,67 @@ export default function WalletPage() {
             ))}
           </div>
 
+          {/* Web3 Wallet */}
+          <div className="glass-card p-6 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center shrink-0">
+                  <WalletIcon className="w-5 h-5 text-[#0C8B44]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[#E5E5E5]">Web3 Wallet</p>
+                  {web3.isConnected ? (
+                    <p className="text-xs text-[#A0A0A0] flex items-center gap-2 truncate">
+                      <span className="font-mono text-[#0C8B44]">{web3.shortAddress}</span>
+                      {web3.chainName && <span className="text-[10px] uppercase tracking-wider text-[#737373]">{web3.chainName}</span>}
+                      {web3.balanceEth != null && <span className="text-[10px] text-[#737373]">{web3.balanceEth.toFixed(4)} ETH</span>}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[#737373]">{web3.isAvailable ? 'Connect MetaMask to deposit crypto directly from self-custody.' : 'Install MetaMask to enable on-chain deposits.'}</p>
+                  )}
+                  {web3.error && <p className="text-[10px] text-[#f44336] mt-0.5">{web3.error}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {web3.isConnected ? (
+                  <>
+                    <button
+                      onClick={() => { if (web3.address) { navigator.clipboard.writeText(web3.address); toast.success('Address copied') } }}
+                      className="px-3 py-2 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#0C8B44] hover:border-[#0C8B44]/40 transition-colors flex items-center gap-1.5"
+                    >
+                      <Copy className="w-3 h-3" /> Copy
+                    </button>
+                    <button
+                      onClick={web3.disconnect}
+                      className="px-3 py-2 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : web3.isAvailable ? (
+                  <button
+                    onClick={web3.connect}
+                    disabled={web3.isConnecting}
+                    className="px-4 py-2 text-xs text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <WalletIcon className="w-3.5 h-3.5" />
+                    {web3.isConnecting ? 'Connecting…' : 'Connect Wallet'}
+                  </button>
+                ) : (
+                  <a
+                    href="https://metamask.io/download/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 text-xs text-white bg-[#0C8B44] rounded-lg hover:bg-[#0a7539] transition-colors flex items-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Install MetaMask
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Tabs */}
           <div className="-mx-2 px-2 mb-6 overflow-x-auto no-scrollbar">
             <div className="inline-flex gap-1 p-1 bg-[#1a1a1a] rounded-xl">
@@ -419,23 +516,90 @@ export default function WalletPage() {
               {selectedCurrency === 'USD' ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block" htmlFor="deposit-amt">Amount</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">$</span>
-                      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                      <input id="deposit-amt" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
                         className="w-full pl-8 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
                     </div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08]">
-                    <p className="text-xs text-[#737373] mb-2">Bank Transfer (ACH)</p>
-                    <div className="flex items-center gap-3">
-                      <Banknote className="w-8 h-8 text-[#0C8B44]" />
-                      <div><p className="text-sm text-[#E5E5E5]">**** **** **** 4532</p><p className="text-xs text-[#737373]">Chase Bank - Checking</p></div>
+                    <div className="flex gap-2 mt-2">
+                      {[100, 500, 1000, 5000].map((v) => (
+                        <button key={v} onClick={() => setAmount(String(v))} className="flex-1 py-1.5 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff08] rounded-lg hover:text-[#0C8B44] hover:border-[#0C8B44]/40 transition-colors">${v.toLocaleString()}</button>
+                      ))}
                     </div>
                   </div>
-                  <button onClick={handleDeposit} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
-                    Deposit USD
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-[#A0A0A0]">Funding source</label>
+                      <button onClick={() => setLinkBankOpen(true)} className="flex items-center gap-1 text-xs text-[#0C8B44] hover:text-[#0a7539] transition-colors">
+                        <Plus className="w-3 h-3" /> Add bank
+                      </button>
+                    </div>
+                    {banks.length === 0 ? (
+                      <button onClick={() => setLinkBankOpen(true)} className="w-full p-5 rounded-xl border-2 border-dashed border-[#0C8B44]/30 hover:border-[#0C8B44] hover:bg-[#0C8B44]/5 transition-all text-left group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center shrink-0">
+                            <Banknote className="w-5 h-5 text-[#0C8B44]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-[#E5E5E5]">Link a bank account</p>
+                            <p className="text-xs text-[#A0A0A0] mt-1">Required to fund USD deposits via ACH. Verified instantly with your bank login or in 1–2 days with micro-deposits.</p>
+                          </div>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        {banks.map((b) => {
+                          const checked = selectedBankId === b.id
+                          return (
+                            <label key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${checked ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}>
+                              <input
+                                type="radio"
+                                name="funding-bank"
+                                value={b.id}
+                                checked={checked}
+                                onChange={() => setSelectedBankId(b.id)}
+                                className="sr-only"
+                              />
+                              <Banknote className={`w-7 h-7 shrink-0 ${checked ? 'text-[#0C8B44]' : 'text-[#A0A0A0]'}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-[#E5E5E5] truncate">{b.institution}</p>
+                                <p className="text-xs text-[#737373] capitalize">{b.type} ····{b.accountMask}</p>
+                              </div>
+                              {b.status === 'verified' ? (
+                                <span className="flex items-center gap-1 text-[10px] text-[#4CAF50] uppercase tracking-wider shrink-0"><CheckCircle className="w-3 h-3" /> Verified</span>
+                              ) : b.status === 'pending' ? (
+                                <span className="flex items-center gap-1 text-[10px] text-[#F57C00] uppercase tracking-wider shrink-0"><Clock className="w-3 h-3" /> Pending</span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-[10px] text-[#f44336] uppercase tracking-wider shrink-0"><AlertCircle className="w-3 h-3" /> Failed</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); if (confirm(`Remove ${b.institution} ····${b.accountMask}?`)) { removeBank(b.id); toast.success('Bank removed') } }}
+                                className="p-1.5 rounded-lg text-[#737373] hover:text-[#f44336] hover:bg-red-500/10 transition-colors shrink-0"
+                                aria-label="Remove bank"
+                                title="Remove bank"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleDeposit}
+                    disabled={!banks.find((b) => b.id === selectedBankId && b.status === 'verified') || !amount}
+                    className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {banks.find((b) => b.id === selectedBankId && b.status === 'verified') ? `Deposit $${amount || '0'} via ACH` : 'Link a verified bank to continue'}
                   </button>
+                  <p className="flex items-center justify-center gap-1.5 text-[10px] text-[#737373]">
+                    <Banknote className="w-3 h-3" /> Same-day ACH up to $25k. Standard ACH 1–3 business days. No fees.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">

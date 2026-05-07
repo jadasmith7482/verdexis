@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
 import ScrambleText from '../components/ScrambleText'
@@ -58,6 +58,16 @@ const securityFeatures = [
 ]
 
 export default function Home() {
+  // If the user is already authenticated, send them straight to the
+  // dashboard. Computed once per render — checked AFTER hooks below.
+  const isAuthed = (() => {
+    try {
+      return !!localStorage.getItem('verdexis_token') || (!!localStorage.getItem('verdexis_auth') && !!localStorage.getItem('verdexis_holdings'))
+    } catch {
+      return false
+    }
+  })()
+
   const [insights, setInsights] = useState<AIInsight[]>([])
   const [cryptoData, setCryptoData] = useState<CryptoQuote[]>([])
   const [authOpen, setAuthOpen] = useState(false)
@@ -90,6 +100,8 @@ export default function Home() {
   const totalValue = 2847293.5
 
   const getCryptoLogo = (id: string) => cryptoIconFor(id)
+
+  if (isAuthed) return <Navigate to="/dashboard" replace />
 
   return (
     <div className="min-h-screen bg-[#070C0E]">

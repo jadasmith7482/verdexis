@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Shield, Fingerprint, KeyRound, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, setToken, setStoredUser, type ApiError } from '../lib/api'
@@ -12,6 +13,7 @@ interface AuthModalProps {
 type Mode = 'login' | 'signup' | 'forgot'
 
 export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
+  const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>(defaultMode)
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
@@ -83,7 +85,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       setLoading(false)
       onClose()
       window.dispatchEvent(new Event('storage'))
-      window.location.reload()
+      window.dispatchEvent(new Event('verdexis:profile'))
+      navigate('/dashboard', { replace: true })
       return
     } catch (err) {
       const e = err as ApiError
@@ -100,7 +103,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       setLoading(false)
       onClose()
       window.dispatchEvent(new Event('storage'))
-      window.location.reload()
+      window.dispatchEvent(new Event('verdexis:profile'))
+      navigate('/dashboard', { replace: true })
     }
   }
 
