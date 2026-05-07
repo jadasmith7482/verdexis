@@ -27,7 +27,7 @@ services:
       - key: APP_BASE_URL
         sync: false
       - key: ADMIN_EMAILS
-        sync: false
+        value: admin@verdexis.local
       - key: FINNHUB_API_KEY
         sync: false
       - key: ALPHA_VANTAGE_KEY
