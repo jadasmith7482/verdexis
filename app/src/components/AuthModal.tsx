@@ -379,7 +379,7 @@ function PasswordStrength({ password }: { password: string }) {
       </div>
       <p className="mt-1.5 text-[11px]" style={{ color: tone }}>
         {labels[score]}
-        {tips.length > 0 && <span className="text-[#737373]"> — add {tips.join(', ')}</span>}
+        {tips.length > 0 && <span className="text-[#737373]"> ï¿½ add {tips.join(', ')}</span>}
       </p>
     </div>
   )

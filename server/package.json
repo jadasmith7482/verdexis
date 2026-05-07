@@ -13,7 +13,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:deploy": "prisma migrate deploy",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "promote-admin": "tsx scripts/promote-admin.ts",
+    "list-admins": "tsx scripts/promote-admin.ts --list"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
