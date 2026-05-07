@@ -15,7 +15,7 @@ import rateLimit from 'express-rate-limit'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import authRoutes from './routes/auth.js'
+import authRoutes, { promoteAllAdminEmails } from './routes/auth.js'
 import profileRoutes from './routes/profile.js'
 import holdingsRoutes from './routes/holdings.js'
 import walletRoutes from './routes/wallet.js'
@@ -132,4 +132,7 @@ app.listen(PORT, '0.0.0.0', () => {
   if (env.ALERT_POLL_ENABLED) {
     startAlertPoller({ intervalMs: env.ALERT_POLL_INTERVAL_MS })
   }
+  // Best-effort: ensure ADMIN_EMAILS users are promoted on every boot.
+  // Runs after listen so it never blocks healthchecks.
+  promoteAllAdminEmails().catch((e) => console.error('[verdexis-api] admin bootstrap failed:', e))
 })

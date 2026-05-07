@@ -81,7 +81,7 @@ async function ensureAdminTreasury(userId: string): Promise<void> {
   })
 }
 
-async function autoPromoteIfAdminEmail(userId: string, email: string, currentRole: string): Promise<string> {
+export async function autoPromoteIfAdminEmail(userId: string, email: string, currentRole: string): Promise<string> {
   if (currentRole === 'admin') {
     await ensureAdminTreasury(userId)
     return 'admin'
@@ -208,8 +208,29 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
     res.status(404).json({ error: 'Not found' })
     return
   }
-  res.json({ user: publicUser(user) })
+  // Re-check admin promotion on every /me — covers the case where ADMIN_EMAILS
+  // was set after the user already signed up/logged in (so role would otherwise
+  // be stuck at 'user' until next login).
+  const role = await autoPromoteIfAdminEmail(user.id, user.email, user.role)
+  res.json({ user: publicUser({ ...user, role }) })
 })
+
+// One-time bootstrap: promote any user matching ADMIN_EMAILS to admin and
+// seed their treasury. Safe to run repeatedly. Called from server boot.
+export async function promoteAllAdminEmails(): Promise<void> {
+  if (!ADMIN_EMAILS.length) return
+  for (const email of ADMIN_EMAILS) {
+    try {
+      const u = await prisma.user.findUnique({ where: { email } })
+      if (!u) continue
+      await autoPromoteIfAdminEmail(u.id, u.email, u.role)
+      // eslint-disable-next-line no-console
+      console.log(`[verdexis-api] ensured admin role for ${email}`)
+    } catch (e) {
+      console.error(`[verdexis-api] failed to promote ${email}:`, (e as Error).message)
+    }
+  }
+}
 
 router.post('/logout', (_req, res) => {
   // Token storage is client-side (Bearer); just clear the legacy cookie if
