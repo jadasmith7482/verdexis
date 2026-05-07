@@ -474,11 +474,13 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            {/* Real certification seals */}
+            {/* Real certification badges (official trademarked logos) */}
             <div className="flex flex-col items-center justify-center gap-6">
-              <div className="flex items-center gap-4 flex-wrap justify-center">
-                <img src="/assets/seal-soc2.png" alt="SOC 2 Type II Certified" className="h-20 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
-                <img src="/assets/seal-iso27001.png" alt="ISO 27001 Certified" className="h-20 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center justify-items-center bg-white/95 rounded-2xl p-6 border border-[#ffffff10]">
+                <img src="/assets/badge-soc2.png" alt="AICPA SOC 2 Type II Certified" className="h-16 w-auto object-contain" />
+                <img src="/assets/9_Iso_27001_Certified_Logo_PNG_Images.png" alt="ISO 27001 Certified" className="h-16 w-auto object-contain" />
+                <img src="/assets/badge-pci.png" alt="PCI DSS Compliant" className="h-12 w-auto object-contain" />
+                <img src="/assets/badge-gdpr.png" alt="EU GDPR Compliant" className="h-16 w-auto object-contain" />
               </div>
               <div className="flex items-center gap-3 text-xs text-[#737373]">
                 <Shield className="w-4 h-4 text-[#0C8B44]" />
