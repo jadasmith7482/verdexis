@@ -40,7 +40,7 @@ const sections = [
       ['Authentication', 'Optional TOTP-based two-factor authentication. WebAuthn/passkey support is on the roadmap.'],
       ['Infrastructure', 'Hosted on hardened cloud infrastructure with isolated network segments and least-privilege IAM.'],
       ['Monitoring', '24/7 anomaly detection, audit logging on all financial actions, and weekly third-party vulnerability scans.'],
-      ['Compliance', 'SOC 2 Type II controls, ISO 27001 alignment, PCI DSS for payment paths, GDPR-compliant data handling.'],
+      ['Compliance', 'Controls are designed to align with SOC 2, ISO 27001 and PCI DSS frameworks, and to honour GDPR / CCPA data rights.'],
       ['Disclosure', 'Found a vulnerability? Email security@verdexis.com — we acknowledge within 24h.'],
     ],
   },

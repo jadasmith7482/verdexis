@@ -23,7 +23,6 @@ const INITIAL_CHECKS: Omit<Check, 'status'>[] = [
   { id: 'coingecko', name: 'CoinGecko', description: 'Crypto market data feed', url: 'https://api.coingecko.com/api/v3/ping', category: 'market' },
   { id: 'binance', name: 'Binance', description: 'Live crypto price stream', url: 'https://api.binance.com/api/v3/ping', category: 'market' },
   { id: 'finnhub', name: 'Finnhub', description: 'Stocks & equities feed', url: 'https://finnhub.io/api/v1/quote?symbol=AAPL', category: 'market' },
-  { id: 'news', name: 'News Feed', description: 'Aggregated finance headlines', url: '/api/news', category: 'market' },
 ]
 
 async function probe(url: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {

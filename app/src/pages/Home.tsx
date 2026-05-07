@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
+import Footer from '../components/Footer'
 import AuthModal from '../components/AuthModal'
 import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
@@ -12,8 +13,7 @@ import {
   Zap, BarChart3, PieChart, Activity, Bot,
   ChevronRight, Wallet, LineChart, BrainCircuit, Lock,
   Globe, Server, CheckCircle, Star, Play,
-  Radio, FileText, Linkedin, Twitter, Fingerprint, Eye,
-  Github, Youtube, MessageSquare,
+  Radio, FileText, Fingerprint, Eye,
 } from 'lucide-react'
 
 const testimonials: { name: string; role: string; company: string; image: string; text: string; rating: number }[] = []
@@ -67,8 +67,6 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup')
   const [loading, setLoading] = useState(true)
-  const [newsletterEmail, setNewsletterEmail] = useState('')
-  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'sent'>('idle')
   useEffect(() => {
     marketData.getCryptoList().then(setCryptoData)
     aiService.getPortfolioInsights().then(setInsights)
@@ -77,18 +75,6 @@ export default function Home() {
 
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
   const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
-  const submitNewsletter = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newsletterEmail.includes('@')) return
-    try {
-      const list = JSON.parse(localStorage.getItem('verdexis_newsletter') || '[]') as string[]
-      if (!list.includes(newsletterEmail)) list.push(newsletterEmail)
-      localStorage.setItem('verdexis_newsletter', JSON.stringify(list))
-    } catch { /* ignore */ }
-    setNewsletterStatus('sent')
-    setNewsletterEmail('')
-    setTimeout(() => setNewsletterStatus('idle'), 4000)
-  }
 
   const topCryptos = cryptoData.slice(0, 5)
   // Live total market cap of the top 5 cryptos shown in the preview. This is
@@ -538,7 +524,7 @@ export default function Home() {
             <div>
               <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44] mb-3 block">Security</span>
               <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-6">Institutional-Grade Protection</h2>
-              <p className="text-[#A0A0A0] mb-8 leading-relaxed">Your assets and data are protected by the same security standards used by the world&apos;s largest financial institutions. SOC 2 Type II certified, with regular third-party audits.</p>
+              <p className="text-[#A0A0A0] mb-8 leading-relaxed">Your assets and data are protected by the same security primitives used by leading financial institutions: defence-in-depth, least-privilege access, and encryption everywhere.</p>
               <div className="space-y-4">
                 {securityFeatures.map((s) => (
                   <div key={s.title} className="flex items-start gap-4 p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05]">
@@ -548,29 +534,17 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            {/* Real certification badges (official trademarked logos, transparent PNGs) */}
-            <div className="flex flex-col items-center justify-center gap-6">
-              <div className="flex flex-nowrap items-center justify-center gap-3 sm:gap-6 md:gap-10 w-full">
-                {[
-                  { src: '/assets/7_SOC_2_Type_II_91APP.png', alt: 'AICPA SOC 2 Type II Certified', invert: false },
-                  { src: '/assets/badge-iso27001-clear.png', alt: 'ISO 27001 Certified', invert: true },
-                  { src: '/assets/badge-pci-clear.png', alt: 'PCI DSS Compliant', invert: false },
-                  { src: '/assets/badge-gdpr-clear.png', alt: 'EU GDPR Compliant', invert: false },
-                ].map((b) => (
-                  <img
-                    key={b.alt}
-                    src={b.src}
-                    alt={b.alt}
-                    title={b.alt}
-                    className="h-12 sm:h-16 md:h-24 w-auto object-contain shrink opacity-95 hover:opacity-100 transition-opacity"
-                    style={b.invert ? { filter: 'invert(1) brightness(1.6)' } : undefined}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-[#737373]">
-                <Shield className="w-4 h-4 text-[#0C8B44]" />
-                <span>SOC 2 Type II &middot; ISO 27001 &middot; PCI DSS &middot; GDPR Compliant</span>
-              </div>
+            {/* Security guarantees — plain text, no badge claims we can't substantiate. */}
+            <div className="flex flex-col items-start justify-center gap-4 p-8 rounded-2xl bg-[#1a1a1a]/40 border border-[#ffffff05]">
+              <Shield className="w-7 h-7 text-[#0C8B44]" />
+              <h3 className="text-xl font-light text-[#E5E5E5]">Built on industry standards</h3>
+              <ul className="space-y-2 text-sm text-[#A0A0A0]">
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-[#0C8B44] mt-0.5 shrink-0" /> AES-256 encryption at rest, TLS 1.3 in transit.</li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-[#0C8B44] mt-0.5 shrink-0" /> Optional TOTP two-factor authentication on every account.</li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-[#0C8B44] mt-0.5 shrink-0" /> Audit logging on every financial action.</li>
+                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-[#0C8B44] mt-0.5 shrink-0" /> GDPR &amp; CCPA data-rights workflow built in.</li>
+              </ul>
+              <p className="text-xs text-[#737373] pt-2">Engineered to align with SOC 2, ISO 27001, PCI DSS and GDPR control frameworks.</p>
             </div>
           </div>
         </div>
@@ -588,8 +562,8 @@ export default function Home() {
             {[
               { q: 'Is Verdexis really free?', a: 'Yes. The Starter plan is free forever and includes real-time market data, portfolio tracking for up to 50 assets, and basic AI insights. Upgrade only when you need advanced features.' },
               { q: 'Do you custody my crypto?', a: 'No. Verdexis is non-custodial by default — your keys, your crypto. We support read-only API connections to your exchanges and wallets so you can track and analyse without giving up control.' },
-              { q: 'How is my data secured?', a: 'All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We are SOC 2 Type II and ISO 27001 certified, and undergo quarterly third-party penetration tests. We never sell user data.' },
-              { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to 200+ centralised exchanges (Binance, Coinbase, Kraken, etc.) and the major blockchains (Bitcoin, Ethereum, Solana, BNB Chain, Polygon, and more). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
+              { q: 'How is my data secured?', a: 'All data is encrypted with AES-256 at rest and TLS 1.3 in transit. Our controls are designed to align with SOC 2, ISO 27001 and PCI DSS frameworks, and we never sell user data.' },
+              { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to leading centralised exchanges (Binance, Coinbase, Kraken and more) and the major blockchains (Bitcoin, Ethereum, Solana, BNB Chain, Polygon). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
               { q: 'Can I cancel my subscription anytime?', a: 'Yes — cancel any time from Settings. Paid plans are billed monthly with no long-term commitment, and you keep access until the end of the billing period.' },
               { q: 'Is the AI advice financial advice?', a: 'No. Verdexis AI provides market analysis and portfolio insights for educational purposes. It is not a registered investment adviser and nothing on the platform constitutes personalised investment advice.' },
             ].map((item) => (
@@ -628,69 +602,7 @@ export default function Home() {
       </section>
 
       {/* ===== FOOTER ===== */}
-      <footer className="py-16 px-6 border-t border-[#ffffff08]">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
-            <div className="col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                <img src="/assets/logo-icon-transparent.png" alt="Verdexis" className="logo-knockout" />
-                <span className="text-xl font-light tracking-[0.15em] uppercase text-[#E5E5E5]">VERDEXIS</span>
-              </div>
-              <p className="text-sm text-[#737373] max-w-xs leading-relaxed">AI-powered trading and portfolio management for the modern investor. Real-time data. Institutional security.</p>
-              <div className="flex items-center gap-4 mt-4">
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Twitter className="w-4 h-4" /></a>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Linkedin className="w-4 h-4" /></a>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Github className="w-4 h-4" /></a>
-                <a href="https://discord.com" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><MessageSquare className="w-4 h-4" /></a>
-                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="text-[#737373] hover:text-[#0C8B44] transition-colors"><Youtube className="w-4 h-4" /></a>
-              </div>
-              <form onSubmit={submitNewsletter} className="mt-6 max-w-sm">
-                <p className="text-xs tracking-[0.05em] uppercase text-[#737373] mb-3">Newsletter</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="email"
-                    value={newsletterEmail}
-                    onChange={(e) => setNewsletterEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    aria-label="Email address for newsletter"
-                    required
-                    className="flex-1 min-w-0 px-3 py-2 text-sm bg-[#0f1619] border border-[#ffffff10] rounded-lg text-[#E5E5E5] placeholder:text-[#555] focus:outline-none focus:border-[#0C8B44]/40"
-                  />
-                  <button type="submit" className="px-4 py-2 bg-[#0C8B44] text-white text-xs font-medium uppercase tracking-[0.04em] rounded-lg hover:bg-[#0a7539] transition-colors">Join</button>
-                </div>
-                {newsletterStatus === 'sent' && (
-                  <p className="text-xs text-[#0C8B44] mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Subscribed — thanks!</p>
-                )}
-              </form>
-            </div>
-            {[
-              { title: 'Product', links: [{ label: 'Markets', to: '/trading' }, { label: 'News', to: '/news' }, { label: 'AI Analyst', to: '/ai' }, { label: 'Pricing', to: '/#pricing' }] },
-              { title: 'Resources', links: [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Wallet', to: '/wallet' }, { label: 'Docs', to: '/about' }, { label: 'Status', to: '/about#status' }] },
-              { title: 'Company', links: [{ label: 'About', to: '/about' }, { label: 'Blog', to: '/news' }, { label: 'Careers', to: '/about#careers' }, { label: 'Contact', to: '/about#contact' }] },
-              { title: 'Legal', links: [{ label: 'Privacy', to: '/legal#privacy' }, { label: 'Terms', to: '/legal#terms' }, { label: 'Security', to: '/legal#security' }, { label: 'Cookies', to: '/legal#cookies' }] },
-            ].map((col) => (
-              <div key={col.title}>
-                <p className="text-sm font-medium text-[#E5E5E5] mb-4">{col.title}</p>
-                <ul className="space-y-2">{col.links.map((link) => <li key={link.label}><Link to={link.to} className="text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">{link.label}</Link></li>)}</ul>
-              </div>
-            ))}
-          </div>
-          <div className="pt-8 border-t border-[#ffffff08] space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.1em] text-[#555] mb-2">As featured in</p>
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-[#737373] font-light tracking-wider">
-              <span>TechCrunch</span><span>Bloomberg</span><span>CoinDesk</span><span>The Block</span><span>Decrypt</span><span>Forbes</span>
-            </div>
-            <div className="text-[11px] leading-relaxed text-[#555] space-y-1 pt-4">
-              <p>¹ Active trader count includes registered demo and paper-trading accounts as of Q4 2024.</p>
-              <p>² Past performance is not indicative of future results. Trading digital assets involves substantial risk of loss.</p>
-            </div>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4">
-              <p className="text-xs text-[#737373]">&copy; 2026 Verdexis. All rights reserved.</p>
-              <p className="text-xs text-[#737373]">SOC 2 Type II &middot; ISO 27001 &middot; PCI DSS &middot; GDPR Compliant</p>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
