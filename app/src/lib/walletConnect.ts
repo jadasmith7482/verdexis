@@ -15,7 +15,15 @@ import type { EthereumProvider as Eip1193Provider } from '../types/ethereum'
 
 let cached: Promise<Eip1193Provider | null> | null = null
 
-export const WC_PROJECT_ID = (import.meta.env.VITE_WC_PROJECT_ID as string | undefined) ?? ''
+export const WC_PROJECT_ID =
+  (import.meta.env.VITE_WC_PROJECT_ID as string | undefined) ||
+  // Public Reown/WalletConnect project ID for verdexis.app — safe to ship in
+  // client JS (it's a public identifier, not a secret). Hardcoded as a
+  // fallback because Docker builds on Render/Railway don't see app/.env
+  // (it's in .dockerignore) — without this, `isWalletConnectConfigured()`
+  // returned false in prod and Safari/mobile users were forced through the
+  // deep-link install rows that open the wallet's in-app browser.
+  '242e95d2634817c56a6742ee75e92acb'
 
 export function isWalletConnectConfigured(): boolean {
   return WC_PROJECT_ID.length > 0
