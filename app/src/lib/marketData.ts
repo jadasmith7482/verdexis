@@ -195,7 +195,16 @@ class MarketDataService {
     try {
       const url = `${CG_PROXY}/ohlc?id=${encodeURIComponent(coinId)}&vs_currency=usd&days=${days}`
       const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
-      if (!res.ok) throw new Error(`OHLC ${res.status}`)
+      if (!res.ok) {
+        // Try to surface upstream detail so the chart UI can show *why* it failed.
+        let detail = `OHLC ${res.status}`
+        try {
+          const body = (await res.json()) as { error?: string; detail?: string }
+          if (body?.detail) detail = body.detail
+          else if (body?.error) detail = body.error
+        } catch { /* not json */ }
+        throw new Error(detail)
+      }
       const raw = (await res.json()) as Array<[number, number, number, number, number]>
       if (!Array.isArray(raw) || raw.length === 0) throw new Error('empty')
       let candles: Candle[] = raw.map(([time, open, high, low, close]) => ({ time, open, high, low, close }))
@@ -209,9 +218,12 @@ class MarketDataService {
       this.setCache(cacheKey, candles)
       return candles
     } catch (error) {
-      console.warn('CoinGecko OHLC failed; returning empty candles:', error)
+      console.warn('CoinGecko OHLC failed:', error)
       const stale = this.cache.get(cacheKey)?.data as Candle[] | undefined
-      return stale ?? []
+      if (stale && stale.length > 0) return stale
+      // Re-throw so the chart can render a real error + retry button instead
+      // of silently showing an empty pane.
+      throw error instanceof Error ? error : new Error(String(error))
     }
   }
 

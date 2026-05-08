@@ -51,7 +51,9 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
     return unsub
   }, [coinId])
 
-  // Fetch + auto-refresh per range.
+  // Fetch + auto-refresh per range. `reloadKey` lets the user force a reload
+  // from the error UI without remounting the whole chart.
+  const [reloadKey, setReloadKey] = useState(0)
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -60,7 +62,7 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
         const data = await marketData.getOhlc(coinId, range)
         if (!cancelled) {
           setCandles(data)
-          setError(null)
+          setError(data.length === 0 ? 'No candles returned for this market' : null)
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load chart')
@@ -71,7 +73,7 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
     load()
     const interval = setInterval(load, RANGE_REFRESH_MS[range])
     return () => { cancelled = true; clearInterval(interval) }
-  }, [coinId, range])
+  }, [coinId, range, reloadKey])
 
   // Splice the live price onto the last candle so it visibly ticks between
   // OHLC refreshes (which are heavily cached server-side).
@@ -222,8 +224,18 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
 
   if (error || merged.length === 0) {
     return (
-      <div className="h-[500px] w-full flex items-center justify-center">
-        <div className="text-xs text-[#737373]">No chart data{error ? ` — ${error}` : ''}</div>
+      <div className="h-[500px] w-full flex flex-col items-center justify-center gap-3">
+        <div className="text-xs text-[#737373] text-center max-w-sm">
+          Couldn’t load {symbol.toUpperCase()} candles{error ? ` — ${error}` : ''}.
+          <br />The market data provider may be rate-limiting. We’ll keep trying in the background.
+        </div>
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="px-3 py-1.5 text-[11px] rounded-md bg-[#0C8B44]/15 text-[#0C8B44] hover:bg-[#0C8B44]/25 transition-colors"
+        >
+          Retry now
+        </button>
       </div>
     )
   }

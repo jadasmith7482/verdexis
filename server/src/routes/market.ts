@@ -278,6 +278,9 @@ router.get('/coingecko/markets', async (req, res) => {
 })
 
 // GET /api/market/coingecko/ohlc?id=bitcoin&days=1&vs_currency=usd
+// Tries CoinGecko first (richer history) and falls back to Coinbase Exchange
+// candles when CoinGecko is rate-limited or down so the chart never goes
+// blank for users.
 router.get('/coingecko/ohlc', async (req, res) => {
   const id = ((req.query.id as string | undefined) || '').trim().toLowerCase()
   const vs = ((req.query.vs_currency as string | undefined) || 'usd').toLowerCase()
@@ -285,12 +288,61 @@ router.get('/coingecko/ohlc', async (req, res) => {
   if (!id || !/^[a-z0-9-]+$/.test(id)) { res.status(400).json({ error: 'bad_id' }); return }
   try {
     const data = await cgFetch(`/coins/${id}/ohlc?vs_currency=${vs}&days=${days}`, 60_000)
-    res.set('Cache-Control', 'public, max-age=45')
-    res.json(data)
-  } catch (err) {
-    res.status(502).json({ error: 'coingecko_unavailable', detail: (err as Error).message })
+    if (Array.isArray(data) && data.length > 0) {
+      res.set('Cache-Control', 'public, max-age=45')
+      res.json(data)
+      return
+    }
+    throw new Error('coingecko empty')
+  } catch (cgErr) {
+    // Fallback: Coinbase Exchange candles. Pick a granularity so we get a
+    // sensible candle count for the requested window (target ~150 candles).
+    const product = COIN_TO_COINBASE[id]
+    if (!product) {
+      res.status(502).json({ error: 'coingecko_unavailable', detail: (cgErr as Error).message })
+      return
+    }
+    try {
+      const candles = await fetchCoinbaseCandles(product, days)
+      if (candles.length === 0) throw new Error('coinbase empty')
+      res.set('Cache-Control', 'public, max-age=45')
+      res.set('X-Data-Source', 'coinbase')
+      res.json(candles)
+    } catch (cbErr) {
+      res.status(502).json({
+        error: 'ohlc_unavailable',
+        detail: `coingecko: ${(cgErr as Error).message}; coinbase: ${(cbErr as Error).message}`,
+      })
+    }
   }
 })
+
+// Coinbase /products/{id}/candles returns [time(s), low, high, open, close, volume].
+// We normalise to CoinGecko's [time(ms), open, high, low, close] shape so the
+// client doesn't have to care which upstream answered.
+const cbCandlesCache = new Map<string, { data: number[][]; ts: number }>()
+async function fetchCoinbaseCandles(product: string, days: number): Promise<number[][]> {
+  const granularity =
+    days <= 1 ? 300         // 5-min  → 288 candles for 1d
+    : days <= 7 ? 3600      // 1-hour → 168 candles for 1w
+    : days <= 30 ? 21600    // 6-hour → 120 candles for 1m
+    : 86400                 // 1-day  → up to 365 candles for 1y
+  const cacheKey = `${product}:${granularity}:${days}`
+  const cached = cbCandlesCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < 60_000) return cached.data
+  const end = Math.floor(Date.now() / 1000)
+  const start = end - days * 24 * 60 * 60
+  const url = `https://api.exchange.coinbase.com/products/${product}/candles?granularity=${granularity}&start=${new Date(start * 1000).toISOString()}&end=${new Date(end * 1000).toISOString()}`
+  const raw = (await httpsGetJson(url, 6000)) as Array<[number, number, number, number, number, number]>
+  if (!Array.isArray(raw)) return []
+  // Coinbase returns newest-first; reverse so the chart plots left→right.
+  const normalised = raw
+    .slice()
+    .reverse()
+    .map(([t, low, high, open, close]) => [t * 1000, open, high, low, close])
+  cbCandlesCache.set(cacheKey, { data: normalised, ts: Date.now() })
+  return normalised
+}
 
 // GET /api/market/coingecko/simple-price?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp
 router.get('/coingecko/simple-price', async (req, res) => {
