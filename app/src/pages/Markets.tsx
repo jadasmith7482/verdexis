@@ -99,11 +99,11 @@ type SortKey = 'rank' | 'price' | 'change24h' | 'change7d' | 'marketCap' | 'volu
 type SortDir = 'asc' | 'desc'
 
 function pct7d(coin: CryptoQuote): number {
-  const spark = coin.sparkline_in_7d?.price
-  if (!spark || spark.length < 2) return 0
+  const spark = coin?.sparkline_in_7d?.price
+  if (!Array.isArray(spark) || spark.length < 2) return 0
   const first = spark[0]
   const last = spark[spark.length - 1]
-  if (!first) return 0
+  if (typeof first !== 'number' || typeof last !== 'number' || !first) return 0
   return ((last - first) / first) * 100
 }
 
@@ -117,12 +117,13 @@ function compactNumber(n: number): string {
 }
 
 function MiniSpark({ prices, isUp }: { prices: number[]; isUp: boolean }) {
-  if (!prices || prices.length < 2) return <div className="w-20 h-8" />
-  const min = Math.min(...prices)
-  const max = Math.max(...prices)
+  const clean = Array.isArray(prices) ? prices.filter((p) => typeof p === 'number' && isFinite(p)) : []
+  if (clean.length < 2) return <div className="w-20 h-8" />
+  const min = Math.min(...clean)
+  const max = Math.max(...clean)
   const range = max - min || 1
-  const step = 80 / (prices.length - 1)
-  const path = prices
+  const step = 80 / (clean.length - 1)
+  const path = clean
     .map((p, i) => {
       const x = i * step
       const y = 24 - ((p - min) / range) * 20 - 2
@@ -158,17 +159,22 @@ function MarketRow({
   onToggleWatch: (id: string) => void
   fmtMoney: (n: number) => string
 }) {
-  const [livePrice, setLivePrice] = useState<number>(coin.current_price)
+  const basePrice = typeof coin.current_price === 'number' ? coin.current_price : 0
+  const [livePrice, setLivePrice] = useState<number>(basePrice)
   useEffect(() => {
-    setLivePrice(liveTicker.getPrice(coin.id) ?? coin.current_price)
+    setLivePrice(liveTicker.getPrice(coin.id) ?? basePrice)
     return liveTicker.subscribe(coin.id, (p) => setLivePrice(p))
-  }, [coin.id, coin.current_price])
+  }, [coin.id, basePrice])
 
-  const isUp = coin.price_change_percentage_24h >= 0
+  const change24h = typeof coin.price_change_percentage_24h === 'number' ? coin.price_change_percentage_24h : 0
+  const isUp = change24h >= 0
   const change7d = pct7d(coin)
   const is7dUp = change7d >= 0
   const sparkline = coin.sparkline_in_7d?.price ?? []
   const icon = cryptoIconFor(coin)
+  const symbol = coin.symbol || ''
+  const name = coin.name || symbol.toUpperCase() || coin.id
+  const symbolInitial = symbol.charAt(0).toUpperCase() || '?'
 
   return (
     <tr className="border-b border-[#ffffff05] hover:bg-[#ffffff03] transition-colors group">
@@ -187,30 +193,30 @@ function MarketRow({
           {icon ? (
             <img
               src={icon}
-              alt={coin.name}
+              alt={name}
               className="w-7 h-7 rounded-full object-cover shrink-0"
-              onError={cryptoIconErrorFallback(coin.symbol[0]?.toUpperCase() || '?', coin.id)}
+              onError={cryptoIconErrorFallback(symbolInitial, coin.id)}
             />
           ) : (
             <div className="w-7 h-7 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">
-              {coin.symbol[0]?.toUpperCase()}
+              {symbolInitial}
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-sm text-[#E5E5E5] truncate">{coin.name}</p>
-            <p className="text-[10px] text-[#737373] uppercase">{coin.symbol}</p>
+            <p className="text-sm text-[#E5E5E5] truncate">{name}</p>
+            <p className="text-[10px] text-[#737373] uppercase">{symbol}</p>
           </div>
         </Link>
       </td>
-      <td className="py-3 px-2 text-right text-sm text-[#E5E5E5] tabular-nums">{fmtMoney(livePrice)}</td>
+      <td className="py-3 px-2 text-right text-sm text-[#E5E5E5] tabular-nums">{fmtMoney(typeof livePrice === 'number' ? livePrice : 0)}</td>
       <td className={`py-3 px-2 text-right text-xs tabular-nums ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-        {isUp ? '+' : ''}{coin.price_change_percentage_24h.toFixed(2)}%
+        {isUp ? '+' : ''}{change24h.toFixed(2)}%
       </td>
       <td className={`py-3 px-2 text-right text-xs tabular-nums ${is7dUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
         {is7dUp ? '+' : ''}{change7d.toFixed(2)}%
       </td>
-      <td className="py-3 px-2 text-right text-xs text-[#A0A0A0] tabular-nums">{compactNumber(coin.market_cap)}</td>
-      <td className="py-3 px-2 text-right text-xs text-[#A0A0A0] tabular-nums">{compactNumber(coin.total_volume)}</td>
+      <td className="py-3 px-2 text-right text-xs text-[#A0A0A0] tabular-nums">{compactNumber(coin.market_cap || 0)}</td>
+      <td className="py-3 px-2 text-right text-xs text-[#A0A0A0] tabular-nums">{compactNumber(coin.total_volume || 0)}</td>
       <td className="py-3 px-2"><MiniSpark prices={sparkline} isUp={is7dUp} /></td>
       <td className="py-3 px-2 text-right">
         <Link
@@ -273,12 +279,12 @@ export default function Markets() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    let out = coins
+    let out = coins.filter((c) => c && typeof c.id === 'string')
     if (q) {
       out = out.filter((c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.symbol.toLowerCase().includes(q) ||
-        c.id.toLowerCase().includes(q),
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.symbol || '').toLowerCase().includes(q) ||
+        (c.id || '').toLowerCase().includes(q),
       )
     }
     if (category === 'watchlist') {
@@ -290,14 +296,15 @@ export default function Markets() {
       out = out.filter((c) => !categoriesFor(c).includes('stablecoin'))
     }
     const dir = sortDir === 'asc' ? 1 : -1
+    const num = (n: unknown) => (typeof n === 'number' && isFinite(n) ? n : 0)
     out = [...out].sort((a, b) => {
       switch (sortKey) {
-        case 'rank': return dir * ((b.market_cap || 0) - (a.market_cap || 0)) * -1 // rank=asc means biggest mc first
-        case 'price': return dir * (a.current_price - b.current_price)
-        case 'change24h': return dir * (a.price_change_percentage_24h - b.price_change_percentage_24h)
+        case 'rank': return dir * (num(b.market_cap) - num(a.market_cap)) * -1 // rank=asc means biggest mc first
+        case 'price': return dir * (num(a.current_price) - num(b.current_price))
+        case 'change24h': return dir * (num(a.price_change_percentage_24h) - num(b.price_change_percentage_24h))
         case 'change7d': return dir * (pct7d(a) - pct7d(b))
-        case 'marketCap': return dir * ((a.market_cap || 0) - (b.market_cap || 0))
-        case 'volume': return dir * ((a.total_volume || 0) - (b.total_volume || 0))
+        case 'marketCap': return dir * (num(a.market_cap) - num(b.market_cap))
+        case 'volume': return dir * (num(a.total_volume) - num(b.total_volume))
       }
     })
     return out
@@ -306,11 +313,12 @@ export default function Markets() {
   // Top stats banner — global market context.
   const stats = useMemo(() => {
     if (coins.length === 0) return null
-    const totalCap = coins.reduce((s, c) => s + (c.market_cap || 0), 0)
-    const totalVol = coins.reduce((s, c) => s + (c.total_volume || 0), 0)
-    const avg24h = coins.reduce((s, c) => s + c.price_change_percentage_24h, 0) / coins.length
-    const gainers = coins.filter((c) => c.price_change_percentage_24h > 0).length
-    const losers = coins.filter((c) => c.price_change_percentage_24h < 0).length
+    const num = (n: unknown) => (typeof n === 'number' && isFinite(n) ? n : 0)
+    const totalCap = coins.reduce((s, c) => s + num(c.market_cap), 0)
+    const totalVol = coins.reduce((s, c) => s + num(c.total_volume), 0)
+    const avg24h = coins.reduce((s, c) => s + num(c.price_change_percentage_24h), 0) / coins.length
+    const gainers = coins.filter((c) => num(c.price_change_percentage_24h) > 0).length
+    const losers = coins.filter((c) => num(c.price_change_percentage_24h) < 0).length
     return { totalCap, totalVol, avg24h, gainers, losers }
   }, [coins])
 

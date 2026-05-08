@@ -127,6 +127,22 @@ export default function WalletPage() {
     delivery: 'standard',
     memo: '',
   })
+  // Pending withdrawal awaiting external fee payment. The processing fee
+  // CANNOT be deducted from the user's wallet balance — it must be paid
+  // out-of-band (e.g. crypto transfer to the treasury address) and the
+  // transaction hash / reference attached as proof. Only then is the
+  // withdrawal recorded as pending for admin review.
+  const [pendingWithdrawal, setPendingWithdrawal] = useState<{
+    amountAbs: number
+    currency: string
+    reference: string
+    feeUsd: number
+    feeBreakdown: { processing: number; delivery: number }
+    methodLabel: string
+    etaNote?: string
+  } | null>(null)
+  const [feeProof, setFeeProof] = useState('')
+  const [feePayCurrency, setFeePayCurrency] = useState<string>('BTC')
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
   const wireInstructions = useMemo(
@@ -369,23 +385,21 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Enter a valid amount.' })
       return
     }
-    if (selectedCurrency === 'USD') {
-      const gross = parseFloat(amount)
-      const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
-        ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
-        : 0
-      const totalFee = Math.max(500, gross * 0.008) + deliverySurcharge
-      if (gross <= totalFee) {
-        const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        setTransferStatus({
-          kind: 'error',
-          title: 'Withdrawal declined',
-          message: `Amount must exceed the processing fee of ${fmt(totalFee)}.`,
-        })
-        return
-      }
-    }
+    const gross = parseFloat(amount)
+    // Fee is always quoted in USD. For crypto withdrawals we mark the
+    // withdrawn amount to USD using the live quote so the same
+    // `max($500, 0.8%)` floor applies uniformly.
+    const grossUsd = selectedCurrency === 'USD' ? gross : gross * getUsdRate(selectedCurrency)
+    const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
+      ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
+      : 0
+    const processingFeeUsd = Math.max(500, grossUsd * 0.008)
+    const totalFeeUsd = processingFeeUsd + deliverySurcharge
+
     let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
+    let methodLabel = 'Withdrawal'
+    let etaNote: string | undefined
+
     if (selectedCurrency === 'USD') {
       if (usdWithdrawMethod === 'ach') {
         const bank = banks.find(b => b.id === selectedBankId)
@@ -398,6 +412,7 @@ export default function WalletPage() {
           return
         }
         reference = `ACH to ${bank.institution} ····${bank.accountMask}`
+        methodLabel = 'ACH withdrawal'
       } else if (usdWithdrawMethod === 'wire') {
         const required: Array<[keyof WireRecipientInfo, string]> = [
           ['beneficiaryName', 'beneficiary name'],
@@ -412,6 +427,8 @@ export default function WalletPage() {
         }
         const mask = wireInfo.accountNumber.slice(-4)
         reference = `Wire to ${wireInfo.beneficiaryName.trim()} · ${wireInfo.bankName.trim()} ····${mask}`
+        methodLabel = 'Wire transfer'
+        etaNote = 'Wire arrives ~1 business day after fee + admin approval.'
       } else if (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check') {
         const required: Array<[keyof CheckDeliveryInfo, string]> = [
           ['payTo', 'payee name'],
@@ -429,41 +446,62 @@ export default function WalletPage() {
         const label = usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'
         const deliveryLabel = checkInfo.delivery === 'overnight' ? 'overnight' : checkInfo.delivery === 'priority' ? 'priority' : 'standard mail'
         reference = `${label} to ${checkInfo.payTo.trim()} · ${checkInfo.city.trim()}, ${checkInfo.state.trim()} (${deliveryLabel})`
+        methodLabel = label
+        const eta = checkInfo.delivery === 'overnight' ? '1 business day' : checkInfo.delivery === 'priority' ? '2–3 business days' : '5–7 business days'
+        etaNote = `${label} mails to ${checkInfo.payTo.trim()} after fee + admin approval (est. ${eta}).`
       }
     } else if (!recipient.trim()) {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Enter a ${selectedCurrency} destination address.` })
       return
     } else {
       reference = `${selectedCurrency} withdrawal to ${recipient.trim().slice(0, 12)}…`
+      methodLabel = `${selectedCurrency} on-chain withdrawal`
     }
-    const amt = -parseFloat(amount)
-    portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference, newIdempotencyKey())
-    let successMessage = `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`
-    if (selectedCurrency === 'USD') {
-      const gross = Math.abs(amt)
-      const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
-        ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
-        : 0
-      const processingFee = Math.max(500, gross * 0.008)
-      const totalFee = processingFee + deliverySurcharge
-      const net = Math.max(0, gross - totalFee)
-      const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      successMessage = `Submitted ${fmt(gross)} withdrawal. Processing fee ${fmt(processingFee)}${deliverySurcharge > 0 ? ` + ${fmt(deliverySurcharge)} delivery` : ''}. You'll receive ${fmt(net)}.`
-    }
-    if (selectedCurrency === 'USD' && usdWithdrawMethod === 'wire') {
-      successMessage += ' Wire arrives ~1 business day after approval.'
-    } else if (selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')) {
-      const eta = checkInfo.delivery === 'overnight' ? '1 business day' : checkInfo.delivery === 'priority' ? '2–3 business days' : '5–7 business days'
-      successMessage += ` ${usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'} mails to ${checkInfo.payTo.trim()} after review (est. ${eta}).`
-    }
-    setTransferStatus({
-      kind: 'success',
-      title: 'Withdrawal sent',
-      message: successMessage,
+
+    // Open the external-fee-payment modal. The withdrawal is NOT recorded
+    // until the user submits a payment proof (txn hash / wire reference).
+    setPendingWithdrawal({
+      amountAbs: gross,
+      currency: selectedCurrency,
+      reference,
+      feeUsd: totalFeeUsd,
+      feeBreakdown: { processing: processingFeeUsd, delivery: deliverySurcharge },
+      methodLabel,
+      etaNote,
     })
+    setFeeProof('')
+    setFeePayCurrency('BTC')
+  }
+
+  const cancelFeePayment = () => {
+    setPendingWithdrawal(null)
+    setFeeProof('')
+  }
+
+  const commitWithdrawal = () => {
+    if (!pendingWithdrawal) return
+    const proof = feeProof.trim()
+    if (proof.length < 6) {
+      setTransferStatus({ kind: 'error', title: 'Fee proof required', message: 'Paste the transaction hash or wire reference (min 6 characters) so we can verify your fee payment.' })
+      return
+    }
+    const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const reference = `${pendingWithdrawal.reference} | Fee paid via ${feePayCurrency}: ${proof.slice(0, 24)}${proof.length > 24 ? '…' : ''}`
+    const signed = -pendingWithdrawal.amountAbs
+    portfolioStore.addTransaction('withdraw', signed, pendingWithdrawal.currency, reference, newIdempotencyKey())
+
+    const grossLabel = pendingWithdrawal.currency === 'USD'
+      ? fmt(pendingWithdrawal.amountAbs)
+      : `${pendingWithdrawal.amountAbs.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${pendingWithdrawal.currency}`
+    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee ${fmt(pendingWithdrawal.feeUsd)} (proof attached) — pending admin verification.`
+    if (pendingWithdrawal.etaNote) successMessage += ` ${pendingWithdrawal.etaNote}`
+
+    setTransferStatus({ kind: 'success', title: 'Withdrawal queued', message: successMessage })
     setAmount('')
     setRecipient('')
     setTransactions(portfolioStore.getTransactions())
+    setPendingWithdrawal(null)
+    setFeeProof('')
   }
 
   const handleTransfer = async () => {
@@ -1432,21 +1470,12 @@ export default function WalletPage() {
                 )}
                 {(() => {
                   const amt = parseFloat(amount) || 0
-                  if (selectedCurrency !== 'USD') {
-                    return (
-                      <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
-                        <span className="text-sm text-[#A0A0A0]">Network Fee</span>
-                        <span className="text-sm text-[#E5E5E5]">{`0.001 ${selectedCurrency}`}</span>
-                      </div>
-                    )
-                  }
-                  const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
+                  const grossUsd = selectedCurrency === 'USD' ? amt : amt * getUsdRate(selectedCurrency)
+                  const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
                     ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
                     : 0
-                  // Processing fee: max($500, 0.8% of amount). 0.8% = $500 at $62,500.
-                  const processingFee = amt > 0 ? Math.max(500, amt * 0.008) : 0
+                  const processingFee = amt > 0 ? Math.max(500, grossUsd * 0.008) : 0
                   const totalFee = processingFee + deliverySurcharge
-                  const net = Math.max(0, amt - totalFee)
                   const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   return (
                     <div className="border-t border-[#ffffff08] pt-3 space-y-2">
@@ -1461,19 +1490,17 @@ export default function WalletPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between pt-2 border-t border-[#ffffff05]">
-                        <span className="text-sm text-[#A0A0A0]">You receive</span>
-                        <span className="text-sm font-medium text-[#E5E5E5]">{amt > 0 ? fmt(net) : '—'}</span>
+                        <span className="text-sm text-[#A0A0A0]">Total fee (paid externally)</span>
+                        <span className="text-sm font-medium text-[#E5E5E5]">{amt > 0 ? fmt(totalFee) : '—'}</span>
                       </div>
+                      <p className="text-[11px] text-[#F57C00] mt-1">
+                        ⚠ Fee is paid out-of-band — it is NOT deducted from your wallet balance. After clicking the button below, you'll get payment instructions and a field to attach your transaction proof.
+                      </p>
                     </div>
                   )
                 })()}
                 <button onClick={handleWithdraw} className="w-full py-3.5 bg-[#f44336] text-white text-sm font-medium rounded-xl hover:bg-[#d32f2f] transition-colors">
-                  {selectedCurrency === 'USD'
-                    ? (usdWithdrawMethod === 'ach' ? 'Send ACH withdrawal'
-                      : usdWithdrawMethod === 'wire' ? 'Send wire transfer'
-                      : usdWithdrawMethod === 'cashiers_check' ? "Mail cashier's check"
-                      : 'Mail check')
-                    : `Withdraw ${selectedCurrency}`}
+                  Continue → Pay processing fee
                 </button>
               </div>
             </div>
@@ -1678,6 +1705,127 @@ export default function WalletPage() {
         </div>
       </div>
       <Footer />
+
+      {pendingWithdrawal && (() => {
+        const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        const cryptoWallet = depositInstructions.getCrypto(feePayCurrency)
+        const wireFee = depositInstructions.getWire('USD')
+        const cryptoOptions = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'XRP', 'DOGE']
+        const usdAmount = pendingWithdrawal.feeUsd
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+            <div className="w-full max-w-lg bg-[#0d0d0d] border border-[#ffffff10] rounded-2xl shadow-2xl">
+              <div className="p-6 border-b border-[#ffffff08] flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-medium text-[#E5E5E5]">Pay processing fee</h3>
+                  <p className="text-xs text-[#A0A0A0] mt-1">
+                    {pendingWithdrawal.methodLabel} for{' '}
+                    {pendingWithdrawal.currency === 'USD'
+                      ? fmt(pendingWithdrawal.amountAbs)
+                      : `${pendingWithdrawal.amountAbs.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${pendingWithdrawal.currency}`}
+                  </p>
+                </div>
+                <button type="button" aria-label="Cancel" onClick={cancelFeePayment} className="text-[#737373] hover:text-[#E5E5E5]">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <div className="rounded-xl border border-[#F57C00]/30 bg-[#F57C00]/5 p-4">
+                  <p className="text-sm font-medium text-[#F57C00]">Fee due: {fmt(usdAmount)}</p>
+                  <p className="text-[11px] text-[#A0A0A0] mt-1">
+                    Processing {fmt(pendingWithdrawal.feeBreakdown.processing)}
+                    {pendingWithdrawal.feeBreakdown.delivery > 0 ? ` + Delivery ${fmt(pendingWithdrawal.feeBreakdown.delivery)}` : ''}.
+                    Verdexis cannot deduct this from your account balance — please pay it externally and submit the transaction proof below.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-[#A0A0A0] mb-2">Pay the fee in:</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {cryptoOptions.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setFeePayCurrency(c)}
+                        className={`px-3 py-2 rounded-lg text-xs border transition-colors ${feePayCurrency === c ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#E5E5E5]' : 'border-[#ffffff10] bg-[#1a1a1a] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {cryptoWallet ? (
+                  <div className="rounded-xl bg-[#1a1a1a] border border-[#ffffff08] p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-[#737373]">Network</p>
+                      <p className="text-xs text-[#E5E5E5]">{cryptoWallet.network}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-[#737373] mb-1.5">Send {fmt(usdAmount)} worth of {feePayCurrency} (≈ {(usdAmount / getUsdRate(feePayCurrency)).toFixed(8)} {feePayCurrency}) to:</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-2 rounded-lg break-all">{cryptoWallet.address}</code>
+                        <button type="button" aria-label="Copy address" onClick={() => copyToClipboard(cryptoWallet.address, 'Address copied')} className="p-2 rounded-lg text-[#737373] hover:text-[#0C8B44]">
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {cryptoWallet.memo && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-[#737373] mb-1">Memo / Tag (required)</p>
+                          <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-2 rounded-lg block">{cryptoWallet.memo}</code>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : wireFee ? (
+                  <div className="rounded-xl bg-[#1a1a1a] border border-[#ffffff08] p-4 space-y-2">
+                    <p className="text-xs text-[#737373]">No {feePayCurrency} address configured. Pay by wire instead:</p>
+                    <p className="text-xs text-[#E5E5E5]">{wireFee.bankName} · {wireFee.beneficiaryName}</p>
+                    <p className="text-[11px] text-[#A0A0A0]">Account: {wireFee.accountNumber}{wireFee.routingNumber ? ` · Routing ${wireFee.routingNumber}` : ''}</p>
+                    <p className="text-[11px] text-[#737373]">Reference: VERDEXIS-FEE-{pendingWithdrawal.amountAbs.toFixed(0)}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#f44336]/30 bg-[#f44336]/5 p-4">
+                    <p className="text-xs text-[#f44336]">No payment instructions configured for {feePayCurrency}. Please contact support — admin needs to add an address.</p>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="fee-proof" className="text-xs text-[#A0A0A0] mb-1.5 block">Transaction hash / wire reference *</label>
+                  <input
+                    id="fee-proof"
+                    type="text"
+                    value={feeProof}
+                    onChange={(e) => setFeeProof(e.target.value)}
+                    placeholder="0x… or wire confirmation number"
+                    className="w-full px-3 py-2.5 bg-[#070C0E] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]"
+                  />
+                  <p className="text-[10px] text-[#737373] mt-1">We verify this on-chain (or via the bank) before releasing your withdrawal. False proofs cause permanent account suspension.</p>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={cancelFeePayment}
+                    className="flex-1 py-3 rounded-xl bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#A0A0A0] hover:text-[#E5E5E5]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={commitWithdrawal}
+                    disabled={feeProof.trim().length < 6}
+                    className="flex-[2] py-3 rounded-xl bg-[#0C8B44] text-white text-sm font-medium hover:bg-[#0a7539] disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    I've paid the fee — submit withdrawal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
