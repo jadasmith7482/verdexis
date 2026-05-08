@@ -17,6 +17,7 @@ import {
   ArrowDownToLine, ArrowUpFromLine, Lock, Unlock, FileCheck2, Activity, UserCog, Wifi, RotateCcw, DollarSign,
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
+import { userWallets, type UserWalletOverride } from '../lib/userWallets'
 
 type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'audit' | 'danger'
 
@@ -118,7 +119,7 @@ export default function AdminUserDetail() {
         </div>
 
         {tab === 'profile' && <ProfileTab data={data} onChange={reload} />}
-        {tab === 'wallet' && <WalletTab userId={u.id} balances={data.walletBalances} onChange={reload} />}
+        {tab === 'wallet' && <WalletTab userId={u.id} userEmail={u.email} balances={data.walletBalances} onChange={reload} />}
         {tab === 'holdings' && <HoldingsTab userId={u.id} holdings={data.holdings} onChange={reload} />}
         {tab === 'transactions' && <TransactionsTab userId={u.id} txs={data.transactions} onChange={reload} />}
         {tab === 'trades' && <TradesTab userId={u.id} trades={data.trades} onChange={reload} />}
@@ -242,7 +243,7 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
 }
 
 // ---------- Wallet ----------
-function WalletTab({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
+function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; userEmail: string; balances: AdminWalletBalance[]; onChange: () => void }) {
   const [currency, setCurrency] = useState('USD')
   const [symbol, setSymbol] = useState('$')
   const [balance, setBalance] = useState('0')
@@ -262,6 +263,7 @@ function WalletTab({ userId, balances, onChange }: { userId: string; balances: A
   return (
     <div className="space-y-6">
       <FeePanel userId={userId} balances={balances} onChange={onChange} />
+      <UserWalletPanel userEmail={userEmail} />
       <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
       <div className="grid lg:grid-cols-3 gap-6">
         <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
@@ -709,6 +711,136 @@ function HoldPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; 
         {user.holdActive && (
           <button type="button" disabled={busy} onClick={release} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#0C8B44] rounded-lg hover:border-[#0C8B44]/40 disabled:opacity-50"><Unlock className="w-4 h-4" />Release hold</button>
         )}
+      </div>
+    </section>
+  )
+}
+
+// ---------- Per-user wallet override (admin-edited) ----------
+// Lets the admin assign a unique crypto address (per ticker) and a USD wire
+// destination to THIS user. Surfaces in the user's Wallet page (deposit +
+// processing-fee modal) instead of the global default.
+function UserWalletPanel({ userEmail }: { userEmail: string }) {
+  const [override, setOverride] = useState<UserWalletOverride>(() =>
+    userWallets.get(userEmail) || { cryptos: {}, wire: undefined, notes: '' },
+  )
+  const [cryptoTicker, setCryptoTicker] = useState('BTC')
+  const [cryptoNetwork, setCryptoNetwork] = useState('Bitcoin')
+  const [cryptoAddress, setCryptoAddress] = useState('')
+  const [cryptoMemo, setCryptoMemo] = useState('')
+
+  function persist(next: UserWalletOverride) {
+    setOverride(next)
+    userWallets.set(userEmail, next)
+  }
+
+  function addCrypto() {
+    const t = cryptoTicker.trim().toUpperCase()
+    const a = cryptoAddress.trim()
+    if (!t || !a) { toast.error('Ticker and address are required'); return }
+    persist({
+      ...override,
+      cryptos: {
+        ...override.cryptos,
+        [t]: { currency: t, network: cryptoNetwork.trim() || t, address: a, memo: cryptoMemo.trim() || undefined },
+      },
+    })
+    setCryptoAddress(''); setCryptoMemo('')
+    toast.success(`${t} address saved for ${userEmail}`)
+  }
+
+  function removeCrypto(ticker: string) {
+    const next = { ...override, cryptos: { ...override.cryptos } }
+    delete next.cryptos[ticker]
+    persist(next)
+    toast.success(`${ticker} address removed`)
+  }
+
+  function setWireField<K extends keyof NonNullable<UserWalletOverride['wire']>>(k: K, v: string) {
+    const w = override.wire || { beneficiaryName: '', bankName: '', accountNumber: '' }
+    persist({ ...override, wire: { ...w, [k]: v } })
+  }
+
+  function clearWire() {
+    persist({ ...override, wire: undefined })
+    toast.success('Wire override cleared')
+  }
+
+  function clearAll() {
+    if (!confirm(`Clear ALL personal wallet addresses for ${userEmail}?`)) return
+    userWallets.remove(userEmail)
+    setOverride({ cryptos: {}, wire: undefined, notes: '' })
+    toast.success('Cleared')
+  }
+
+  const cryptoEntries = Object.entries(override.cryptos)
+  const w = override.wire
+
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><Wallet className="w-4 h-4" />Personal payment destinations</h2>
+          <p className="text-[11px] text-[#737373] mt-1">
+            Per-user crypto / wire addresses shown to this user when paying processing fees or making deposits. Falls back to the global deposit instructions if empty.
+          </p>
+          <p className="text-[10px] text-[#737373] mt-0.5">Stored locally on this admin device, keyed by user email.</p>
+        </div>
+        {(cryptoEntries.length > 0 || w) && (
+          <button onClick={clearAll} className="text-[11px] text-[#f44336] hover:underline">Clear all</button>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <h3 className="text-xs uppercase tracking-wider text-[#A0A0A0]">Crypto addresses</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Ticker" value={cryptoTicker} onChange={(v) => setCryptoTicker(v.toUpperCase())} />
+            <Input label="Network" value={cryptoNetwork} onChange={setCryptoNetwork} />
+          </div>
+          <Input label="Address" value={cryptoAddress} onChange={setCryptoAddress} />
+          <Input label="Memo / Tag (optional)" value={cryptoMemo} onChange={setCryptoMemo} />
+          <button onClick={addCrypto} className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Plus className="w-4 h-4" />Save address</button>
+
+          <div className="space-y-1.5 pt-2">
+            {cryptoEntries.length === 0 && <p className="text-[11px] text-[#737373]">No personal crypto addresses set.</p>}
+            {cryptoEntries.map(([t, c]) => (
+              <div key={t} className="flex items-center justify-between gap-2 rounded-lg bg-[#1a1a1a] border border-[#ffffff05] px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-[#E5E5E5]">{t} <span className="text-[10px] text-[#737373]">· {c.network}</span></p>
+                  <p className="text-[10px] text-[#A0A0A0] truncate font-mono">{c.address}</p>
+                  {c.memo && <p className="text-[10px] text-[#737373]">memo: {c.memo}</p>}
+                </div>
+                <IconButton onClick={() => removeCrypto(t)} aria-label="Remove"><Trash2 className="w-3.5 h-3.5" /></IconButton>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs uppercase tracking-wider text-[#A0A0A0]">USD wire destination</h3>
+            {w && <button onClick={clearWire} className="text-[10px] text-[#f44336] hover:underline">Clear</button>}
+          </div>
+          <Input label="Beneficiary name" value={w?.beneficiaryName || ''} onChange={(v) => setWireField('beneficiaryName', v)} />
+          <Input label="Bank name" value={w?.bankName || ''} onChange={(v) => setWireField('bankName', v)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Routing / ABA" value={w?.routingNumber || ''} onChange={(v) => setWireField('routingNumber', v)} />
+            <Input label="SWIFT (intl)" value={w?.swiftCode || ''} onChange={(v) => setWireField('swiftCode', v)} />
+          </div>
+          <Input label="Account number" value={w?.accountNumber || ''} onChange={(v) => setWireField('accountNumber', v)} />
+          <Input label="Reference (optional)" value={w?.reference || ''} onChange={(v) => setWireField('reference', v)} />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-[#A0A0A0] mb-1 block">Note shown to user (optional)</label>
+        <textarea
+          value={override.notes || ''}
+          onChange={(e) => persist({ ...override, notes: e.target.value })}
+          placeholder="e.g. Use this address for fee payments only. Funds arrive within 2 confirmations."
+          className="w-full px-3 py-2 bg-[#1a1a1a] border border-[#ffffff10] rounded-lg text-xs text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] min-h-[60px]"
+        />
       </div>
     </section>
   )
