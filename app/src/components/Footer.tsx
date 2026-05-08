@@ -95,6 +95,7 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-medium text-[#E5E5E5] mb-3 uppercase tracking-[0.05em]">Support</h4>
             <ul className="space-y-2 text-xs text-[#A0A0A0]">
+              <li><Link to="/help" className="hover:text-[#0C8B44] transition-colors">Help center</Link></li>
               <li><a href="mailto:hello@verdexis.com" className="hover:text-[#0C8B44] transition-colors">Contact us</a></li>
               <li><Link to="/settings" className="hover:text-[#0C8B44] transition-colors">Account settings</Link></li>
               <li><Link to="/wallet" className="hover:text-[#0C8B44] transition-colors">Payment methods</Link></li>

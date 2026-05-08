@@ -26,6 +26,7 @@ const Alerts = lazy(() => import('./pages/Alerts'))
 const Goals = lazy(() => import('./pages/Goals'))
 const StatusPage = lazy(() => import('./pages/Status'))
 const Disclosures = lazy(() => import('./pages/Disclosures'))
+const Help = lazy(() => import('./pages/Help'))
 const AssetDetail = lazy(() => import('./pages/AssetDetail'))
 const Activity = lazy(() => import('./pages/Activity'))
 const AdminDeposits = lazy(() => import('./pages/AdminDeposits'))
@@ -82,6 +83,7 @@ function RoutedPages() {
           <Route path="/about" element={<About />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="/disclosures" element={<Disclosures />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/asset/:id" element={<AssetDetail />} />
           <Route path="/coin/:id" element={<AssetDetail />} />
           <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />

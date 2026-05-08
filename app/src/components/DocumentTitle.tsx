@@ -22,6 +22,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/about': 'About',
   '/status': 'System Status',
   '/disclosures': 'Risk Disclosures',
+  '/help': 'Help Center',
   '/reset': 'Reset Password',
   '/admin': 'Admin Console',
   '/admin/users': 'Admin · Users',

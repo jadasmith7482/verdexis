@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon } from 'lucide-react'
+import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon, LifeBuoy } from 'lucide-react'
 import AuthModal from './AuthModal'
 import NotificationBell from './NotificationBell'
 import { getAvatar } from '../lib/userProfile'
@@ -147,6 +147,9 @@ export default function Navigation() {
                   ) : (
                     userName[0]?.toUpperCase() || 'U'
                   )}
+                </Link>
+                <Link to="/help" className="w-9 h-9 rounded-full bg-[#1a1a1a] flex items-center justify-center text-[#737373] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 transition-colors" title="Help">
+                  <LifeBuoy className="w-4 h-4" />
                 </Link>
                 <Link to="/settings" className="w-9 h-9 rounded-full bg-[#1a1a1a] flex items-center justify-center text-[#737373] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 transition-colors" title="Settings">
                   <SettingsIcon className="w-4 h-4" />
