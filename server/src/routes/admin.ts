@@ -617,12 +617,22 @@ const txSchema = z.object({
   amount: z.number(),
   status: z.enum(['pending', 'completed', 'failed', 'reversed']).default('completed'),
   reference: z.string().max(200).optional(),
+  // Admin-editable timestamp. Lets ops backdate / correct deposit dates so
+  // history reflects the real banking date instead of the keystroke time.
+  createdAt: z.string().datetime().optional(),
 })
 
 router.post('/users/:id/transactions', async (req: AuthedRequest, res) => {
   const parsed = txSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
-  const t = await prisma.transaction.create({ data: { userId: req.params.id, ...parsed.data } })
+  const { createdAt, ...rest } = parsed.data
+  const t = await prisma.transaction.create({
+    data: {
+      userId: req.params.id,
+      ...rest,
+      ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+    },
+  })
   await audit(req.userId!, 'transaction.create', req.params.id, parsed.data)
   res.json({ transaction: t })
 })
@@ -630,7 +640,10 @@ router.post('/users/:id/transactions', async (req: AuthedRequest, res) => {
 router.patch('/transactions/:tid', async (req: AuthedRequest, res) => {
   const partial = txSchema.partial().safeParse(req.body)
   if (!partial.success) { res.status(400).json({ error: 'Invalid input' }); return }
-  const t = await prisma.transaction.update({ where: { id: req.params.tid }, data: partial.data })
+  const { createdAt, ...rest } = partial.data
+  const data: Record<string, unknown> = { ...rest }
+  if (createdAt) data.createdAt = new Date(createdAt)
+  const t = await prisma.transaction.update({ where: { id: req.params.tid }, data })
   await audit(req.userId!, 'transaction.update', t.userId, partial.data)
   res.json({ transaction: t })
 })

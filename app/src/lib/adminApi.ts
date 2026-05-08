@@ -299,9 +299,9 @@ export const adminApi = {
     request<{ ok: boolean }>(`/api/admin/wallet/${id}`, { method: 'DELETE' }),
 
   // Transactions
-  createTransaction: (userId: string, tx: { kind: string; currency: string; amount: number; status?: string; reference?: string }) =>
+  createTransaction: (userId: string, tx: { kind: string; currency: string; amount: number; status?: string; reference?: string; createdAt?: string }) =>
     request<{ transaction: AdminTransaction }>(`/api/admin/users/${userId}/transactions`, { method: 'POST', body: JSON.stringify(tx) }),
-  patchTransaction: (id: string, tx: Partial<{ kind: string; currency: string; amount: number; status: string; reference: string }>) =>
+  patchTransaction: (id: string, tx: Partial<{ kind: string; currency: string; amount: number; status: string; reference: string; createdAt: string }>) =>
     request<{ transaction: AdminTransaction }>(`/api/admin/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(tx) }),
   deleteTransaction: (id: string) =>
     request<{ ok: boolean }>(`/api/admin/transactions/${id}`, { method: 'DELETE' }),

@@ -366,12 +366,16 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
   const [amount, setAmount] = useState('0')
   const [status, setStatus] = useState<'pending' | 'completed' | 'failed' | 'reversed'>('completed')
   const [reference, setReference] = useState('')
+  // Optional backdate: yyyy-mm-dd from <input type="date">. Empty = now.
+  const [whenDate, setWhenDate] = useState('')
 
   async function add(e: FormEvent) {
     e.preventDefault()
     try {
-      await adminApi.createTransaction(userId, { kind, currency: currency.toUpperCase(), amount: parseFloat(amount), status, reference: reference || undefined })
-      toast.success('Transaction logged'); onChange()
+      const createdAt = whenDate ? new Date(whenDate + 'T12:00:00Z').toISOString() : undefined
+      await adminApi.createTransaction(userId, { kind, currency: currency.toUpperCase(), amount: parseFloat(amount), status, reference: reference || undefined, createdAt })
+      toast.success(createdAt ? `Transaction logged (dated ${whenDate})` : 'Transaction logged'); onChange()
+      setWhenDate('')
     } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
   }
   async function changeStatus(id: string, status: string) {
@@ -382,6 +386,14 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
       await adminApi.patchTransaction(id, { reference })
       toast.success('Description updated'); onChange()
     } catch (err) { toast.error((err as { error?: string }).error || 'Failed to update description') }
+  }
+  async function changeDate(id: string, ymd: string) {
+    if (!ymd) return
+    try {
+      const iso = new Date(ymd + 'T12:00:00Z').toISOString()
+      await adminApi.patchTransaction(id, { createdAt: iso })
+      toast.success(`Date updated to ${ymd}`); onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed to update date') }
   }
   async function del(id: string) {
     if (!confirm('Delete this transaction?')) return
@@ -412,6 +424,17 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
         <Input label="Amount" value={amount} onChange={setAmount} type="number" />
         <Select label="Status" value={status} onChange={(v) => setStatus(v as typeof status)} options={[{ value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }, { value: 'failed', label: 'Failed (rejected)' }, { value: 'reversed', label: 'Reversed' }]} />
         <Input label="Reference" value={reference} onChange={setReference} />
+        <label className="block">
+          <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">When (optional backdate)</span>
+          <input
+            type="date"
+            value={whenDate}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setWhenDate(e.target.value)}
+            className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-xs text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+          />
+          <span className="block text-[10px] text-[#737373] mt-1">Leave blank to use today.</span>
+        </label>
         <button type="submit" className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539]"><Plus className="w-4 h-4" />Add transaction</button>
       </form>
       <div className="lg:col-span-2 rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] overflow-hidden">
@@ -423,7 +446,17 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
             {txs.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-[#737373]">No transactions</td></tr>}
             {txs.map((t) => (
               <tr key={t.id} className="border-t border-[#ffffff05]">
-                <td className="px-4 py-3 text-[11px] text-[#737373]">{new Date(t.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-3 text-[11px] text-[#737373]">
+                  <input
+                    type="date"
+                    defaultValue={new Date(t.createdAt).toISOString().slice(0, 10)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => changeDate(t.id, e.target.value)}
+                    aria-label="Edit transaction date"
+                    title={new Date(t.createdAt).toLocaleString()}
+                    className="bg-[#0a0f11] border border-[#ffffff10] rounded px-2 py-1 text-[11px] text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                  />
+                </td>
                 <td className="px-4 py-3 text-[#E5E5E5] capitalize">{t.kind}{t.reversedFromId && <span className="ml-2 text-[9px] text-[#F57C00] uppercase">(reversal)</span>}{t.subType && <span className="ml-2 text-[9px] text-[#737373] uppercase">[{t.subType}]</span>}</td>
                 <td className="px-4 py-3 text-right text-[#A0A0A0]">{t.amount.toLocaleString()} {t.currency}</td>
                 <td className="px-4 py-3">

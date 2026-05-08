@@ -59,6 +59,55 @@ export type OhlcRange = '1H' | '1D' | '1W' | '1M' | '1Y'
 // the service returns empty arrays so the UI can render an explicit
 // empty/error state instead of fabricated prices that look like real money.
 
+// Normalize a raw CoinGecko coin object so every consumer can safely call
+// `.symbol.toUpperCase()`, `.price_change_percentage_24h.toFixed(2)`, etc.
+// CoinGecko occasionally returns null/undefined for any of these fields
+// (especially on freshly-listed coins or during partial outages), and that
+// is what triggers "null is not an object" crashes across the app.
+function num(v: unknown): number {
+  return typeof v === 'number' && isFinite(v) ? v : 0
+}
+function str(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback
+}
+function sanitizeCryptoQuote(raw: unknown): CryptoQuote | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = str(r.id)
+  if (!id) return null
+  const symbol = str(r.symbol) || id
+  const name = str(r.name) || symbol.toUpperCase() || id
+  const spark = (r.sparkline_in_7d && typeof r.sparkline_in_7d === 'object')
+    ? (r.sparkline_in_7d as { price?: unknown }).price
+    : undefined
+  const sparkline_in_7d = Array.isArray(spark)
+    ? { price: (spark as unknown[]).filter((p): p is number => typeof p === 'number' && isFinite(p)) }
+    : undefined
+  return {
+    id,
+    symbol,
+    name,
+    current_price: num(r.current_price),
+    price_change_24h: num(r.price_change_24h),
+    price_change_percentage_24h: num(r.price_change_percentage_24h),
+    market_cap: num(r.market_cap),
+    total_volume: num(r.total_volume),
+    high_24h: num(r.high_24h),
+    low_24h: num(r.low_24h),
+    image: typeof r.image === 'string' ? r.image : undefined,
+    sparkline_in_7d,
+  }
+}
+function sanitizeCryptoList(raw: unknown): CryptoQuote[] {
+  if (!Array.isArray(raw)) return []
+  const out: CryptoQuote[] = []
+  for (const item of raw) {
+    const q = sanitizeCryptoQuote(item)
+    if (q) out.push(q)
+  }
+  return out
+}
+
 class MarketDataService {
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map()
   private cacheDuration = 30000              // generic cache (stocks etc)
@@ -155,8 +204,9 @@ class MarketDataService {
         throw new Error('Empty response from CoinGecko')
       }
 
-      this.setCache(cacheKey, data)
-      return data
+      const sanitized = sanitizeCryptoList(data)
+      this.setCache(cacheKey, sanitized)
+      return sanitized
     } catch (error) {
       console.warn('CoinGecko API failed; returning empty crypto list:', error)
       this.markApiFailed()
@@ -178,8 +228,9 @@ class MarketDataService {
       )
       if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`)
       const data = await response.json()
-      this.setCache(cacheKey, data)
-      return data
+      const sanitized = sanitizeCryptoList(data)
+      this.setCache(cacheKey, sanitized)
+      return sanitized
     } catch {
       const stale = this.cache.get(cacheKey)?.data as CryptoQuote[] | undefined
       return stale ?? []

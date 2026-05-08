@@ -58,7 +58,7 @@ export default function Trading() {
     if (!want || cryptoData.length === 0) return
     const lower = want.toLowerCase()
     const found = cryptoData.find(
-      (c) => c.id.toLowerCase() === lower || c.symbol.toLowerCase() === lower,
+      (c) => (c.id || '').toLowerCase() === lower || (c.symbol || '').toLowerCase() === lower,
     )
     if (found) {
       setSelectedCrypto(found)
@@ -141,8 +141,10 @@ export default function Trading() {
 
   const filteredCryptos = cryptoData.filter(
     (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      c && typeof c.id === 'string' && (
+        (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.symbol || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
   )
 
   const toggleWatchlist = (id: string) => {
@@ -161,7 +163,7 @@ export default function Trading() {
   const totalCost = orderSide === 'buy' ? subtotal + feeAmount : subtotal - feeAmount
   const usdBalance = portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0
   const heldQty = selectedCrypto
-    ? (portfolioStore.getHoldings().find(h => h.symbol.toUpperCase() === selectedCrypto.symbol.toUpperCase())?.quantity ?? 0)
+    ? (portfolioStore.getHoldings().find(h => h.symbol.toUpperCase() === (selectedCrypto.symbol || '').toUpperCase())?.quantity ?? 0)
     : 0
   const hasInsufficientCash = orderSide === 'buy' && totalCost > usdBalance && qtyNum > 0
   const hasInsufficientCoin = orderSide === 'sell' && qtyNum > heldQty && qtyNum > 0
@@ -186,14 +188,14 @@ export default function Trading() {
       return
     }
     if (hasInsufficientCoin) {
-      toast.error(`Insufficient ${selectedCrypto.symbol.toUpperCase()} balance`, {
+      toast.error(`Insufficient ${(selectedCrypto.symbol || '').toUpperCase()} balance`, {
         description: `You hold ${heldQty} but tried to sell ${qtyNum}.`,
       })
       return
     }
     // Limit/stop orders need to wait for the market to cross the trigger.
     if (orderType === 'limit' || orderType === 'stop') {
-      const last = livePrice ?? selectedCrypto.current_price
+      const last = livePrice ?? selectedCrypto.current_price ?? 0
       const triggered = orderSide === 'buy' ? last <= previewPrice : last >= previewPrice
       if (!triggered) {
         toast.error(`${orderType} order not eligible yet`, {
@@ -216,8 +218,8 @@ export default function Trading() {
     const tradeKey = newIdempotencyKey()
     try {
       const result = await api.postTrade({
-        symbol: selectedCrypto.symbol.toUpperCase(),
-        name: selectedCrypto.name,
+        symbol: (selectedCrypto.symbol || selectedCrypto.id).toUpperCase(),
+        name: selectedCrypto.name || selectedCrypto.id,
         side: orderSide,
         amount: qty,
         price: tradePrice,
@@ -228,7 +230,7 @@ export default function Trading() {
       const fillQty = result.trade.amount
       const fillPrice = result.trade.price
       toast.success(
-        `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${fillQty} ${selectedCrypto.symbol.toUpperCase()} at $${fillPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `${orderSide === 'buy' ? 'Bought' : 'Sold'} ${fillQty} ${(selectedCrypto.symbol || '').toUpperCase()} at $${fillPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         {
           description: `Total: $${(fillPrice * fillQty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${result.broker ? ` · ${result.broker.venue}` : ''}`,
         },
@@ -293,29 +295,29 @@ export default function Trading() {
                     {selectedCrypto && getCryptoLogo(selectedCrypto) ? (
                       <img
                         src={getCryptoLogo(selectedCrypto)!}
-                        alt={selectedCrypto.name}
+                        alt={selectedCrypto.name || selectedCrypto.id}
                         className="w-10 h-10 rounded-full object-cover"
-                        onError={cryptoIconErrorFallback(selectedCrypto.symbol.toUpperCase()[0] || '?', selectedCrypto.id)}
+                        onError={cryptoIconErrorFallback((selectedCrypto.symbol || '?').toUpperCase()[0] || '?', selectedCrypto.id)}
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">
-                        {selectedCrypto?.symbol.toUpperCase()[0]}
+                        {(selectedCrypto?.symbol || '?').toUpperCase()[0]}
                       </div>
                     )}
                     <div>
                       <p className="text-sm font-medium text-[#E5E5E5]">
-                        {selectedCrypto.symbol.toUpperCase()}/USD
+                        {(selectedCrypto.symbol || selectedCrypto.id).toUpperCase()}/USD
                       </p>
-                      <p className="text-xs text-[#737373]">{selectedCrypto.name}</p>
+                      <p className="text-xs text-[#737373]">{selectedCrypto.name || selectedCrypto.id}</p>
                     </div>
                   </div>
                   <div className="h-8 w-px bg-[#ffffff10]" />
                   <p className="text-xl font-light text-[#E5E5E5] tabular-nums">
-                    ${(livePrice ?? selectedCrypto.current_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${(livePrice ?? selectedCrypto.current_price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <div className={`text-sm ${selectedCrypto.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                    {selectedCrypto.price_change_percentage_24h >= 0 ? '+' : ''}
-                    {selectedCrypto.price_change_percentage_24h.toFixed(2)}%
+                  <div className={`text-sm ${(selectedCrypto.price_change_percentage_24h ?? 0) >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                    {(selectedCrypto.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                    {(selectedCrypto.price_change_percentage_24h ?? 0).toFixed(2)}%
                   </div>
                   <button
                     onClick={() => toggleWatchlist(selectedCrypto.id)}
@@ -362,28 +364,28 @@ export default function Trading() {
                       {getCryptoLogo(crypto) ? (
                         <img
                           src={getCryptoLogo(crypto)!}
-                          alt={crypto.name}
+                          alt={crypto.name || crypto.id}
                           className="w-8 h-8 rounded-full object-cover"
-                          onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
+                          onError={cryptoIconErrorFallback((crypto.symbol || '?').toUpperCase()[0] || '?', crypto.id)}
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{crypto.symbol.toUpperCase()[0]}</div>
+                        <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{(crypto.symbol || '?').toUpperCase()[0]}</div>
                       )}
                       <div className="text-left">
-                        <p className="text-sm font-medium text-[#E5E5E5]">{crypto.symbol.toUpperCase()}</p>
-                        <p className="text-xs text-[#737373]">{crypto.name}</p>
+                        <p className="text-sm font-medium text-[#E5E5E5]">{(crypto.symbol || crypto.id).toUpperCase()}</p>
+                        <p className="text-xs text-[#737373]">{crypto.name || crypto.id}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-[#E5E5E5]">{formatPrice(crypto.current_price)}</p>
-                      <p className={`text-xs ${crypto.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                        {crypto.price_change_percentage_24h >= 0 ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
+                      <p className="text-sm text-[#E5E5E5]">{formatPrice(crypto.current_price ?? 0)}</p>
+                      <p className={`text-xs ${(crypto.price_change_percentage_24h ?? 0) >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                        {(crypto.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}{(crypto.price_change_percentage_24h ?? 0).toFixed(2)}%
                       </p>
                     </div>
                   </button>
                     <Link
                       to={`/asset/${crypto.id}`}
-                      title={`Open ${crypto.name} detail`}
+                      title={`Open ${crypto.name || crypto.id} detail`}
                       className="px-3 flex items-center text-[10px] uppercase tracking-wider text-[#737373] hover:text-[#0C8B44] hover:bg-[#0C8B44]/10 border-l border-[#ffffff05] transition-colors"
                     >
                       Open
@@ -399,8 +401,8 @@ export default function Trading() {
                 {selectedCrypto ? (
                   <CandleChart
                     coinId={selectedCrypto.id}
-                    symbol={selectedCrypto.symbol}
-                    livePrice={livePrice ?? selectedCrypto.current_price}
+                    symbol={selectedCrypto.symbol || selectedCrypto.id}
+                    livePrice={livePrice ?? selectedCrypto.current_price ?? 0}
                     range={timeRange}
                   />
                 ) : (
@@ -409,7 +411,7 @@ export default function Trading() {
                 <div className="flex justify-between mt-2 text-xs text-[#737373]">
                   <span>24h Low: ${selectedCrypto?.low_24h?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span>
                   <span>24h High: ${selectedCrypto?.high_24h?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—'}</span>
-                  <span>Vol: ${selectedCrypto ? (selectedCrypto.total_volume / 1_000_000).toFixed(1) + 'M' : '—'}</span>
+                  <span>Vol: ${selectedCrypto && typeof selectedCrypto.total_volume === 'number' ? (selectedCrypto.total_volume / 1_000_000).toFixed(1) + 'M' : '—'}</span>
                 </div>
               </div>
 
@@ -496,7 +498,7 @@ export default function Trading() {
               </div>
 
               <div className="mb-4">
-                <label className="text-xs text-[#737373] mb-1.5 block">Amount ({selectedCrypto?.symbol.toUpperCase() || 'BTC'})</label>
+                <label className="text-xs text-[#737373] mb-1.5 block">Amount ({(selectedCrypto?.symbol || 'BTC').toUpperCase()})</label>
                 <div className="relative">
                   <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
                     className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
@@ -506,7 +508,7 @@ export default function Trading() {
               {(orderType === 'limit' || orderType === 'stop') && (
                 <div className="mb-4">
                   <label className="text-xs text-[#737373] mb-1.5 block">Price (USD)</label>
-                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={selectedCrypto?.current_price.toString()}
+                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={selectedCrypto?.current_price?.toString() ?? '0'}
                     className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
                 </div>
               )}
@@ -532,7 +534,7 @@ export default function Trading() {
                     <span className="text-[11px]">
                       {hasInsufficientCash
                         ? `Need $${(totalCost - usdBalance).toFixed(2)} more — deposit funds or lower amount.`
-                        : `You only hold ${heldQty} ${selectedCrypto?.symbol.toUpperCase()}.`}
+                        : `You only hold ${heldQty} ${(selectedCrypto?.symbol || '').toUpperCase()}.`}
                     </span>
                   </div>
                 )}
@@ -540,7 +542,7 @@ export default function Trading() {
 
               <button onClick={handleTrade} disabled={submitting || hasInsufficientCash || hasInsufficientCoin}
                 className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderSide === 'buy' ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#f44336] text-white hover:bg-[#d32f2f]'}`}>
-                {submitting ? 'Submitting…' : `Review ${orderSide === 'buy' ? 'Buy' : 'Sell'} ${selectedCrypto?.symbol.toUpperCase() || 'BTC'}`}
+                {submitting ? 'Submitting…' : `Review ${orderSide === 'buy' ? 'Buy' : 'Sell'} ${(selectedCrypto?.symbol || 'BTC').toUpperCase()}`}
               </button>
 
               <Link to="/alerts" className="mt-2 block text-center text-[11px] text-[#737373] hover:text-[#0C8B44] transition-colors">
@@ -552,7 +554,7 @@ export default function Trading() {
                   <p className="text-xs text-[#737373] mb-1">Available Balance</p>
                   <p className="text-sm text-[#E5E5E5]">${(portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</p>
                   {(() => {
-                    const sym = selectedCrypto?.symbol.toUpperCase() || 'BTC'
+                    const sym = (selectedCrypto?.symbol || 'BTC').toUpperCase()
                     const held = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)?.quantity ?? 0
                     return <p className="text-xs text-[#737373] mt-1">{sym}: {held.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</p>
                   })()}
@@ -568,9 +570,9 @@ export default function Trading() {
             {isAuthenticated && (
               <div className="mt-6">
                 <WatchlistPanel
-                  availableSymbols={cryptoData.map((c) => ({ symbol: c.symbol, name: c.name }))}
+                  availableSymbols={cryptoData.map((c) => ({ symbol: c.symbol || c.id, name: c.name || c.id }))}
                   onSelect={(s) => {
-                    const found = cryptoData.find((c) => c.symbol.toUpperCase() === s.toUpperCase())
+                    const found = cryptoData.find((c) => (c.symbol || '').toUpperCase() === s.toUpperCase())
                     if (found) setSelectedCrypto(found)
                   }}
                 />
@@ -584,12 +586,12 @@ export default function Trading() {
           before money moves: shows asset, full cost breakdown, before/after
           balances, and any risk warnings (concentration, large order, etc.). */}
       {confirmOpen && selectedCrypto && (() => {
-        const sym = selectedCrypto.symbol.toUpperCase()
+        const sym = (selectedCrypto.symbol || selectedCrypto.id).toUpperCase()
         const icon = cryptoIconFor(selectedCrypto)
         const netWorth = portfolioStore.getNetWorth()
         // Position size after fill, as a % of net worth. Used for the
         // concentration warning that institutional desks always show.
-        const currentPositionValue = (heldQty) * (livePrice ?? selectedCrypto.current_price)
+        const currentPositionValue = (heldQty) * (livePrice ?? selectedCrypto.current_price ?? 0)
         const newPositionValue = orderSide === 'buy'
           ? currentPositionValue + subtotal
           : Math.max(0, currentPositionValue - subtotal)
@@ -608,7 +610,7 @@ export default function Trading() {
                   {icon && (
                     <img
                       src={icon}
-                      alt={selectedCrypto.name}
+                      alt={selectedCrypto.name || selectedCrypto.id}
                       className="w-10 h-10 rounded-full object-cover"
                       onError={cryptoIconErrorFallback(sym[0] || '?', selectedCrypto.id)}
                     />
@@ -625,7 +627,7 @@ export default function Trading() {
                     <h2 className="text-lg font-medium text-[#E5E5E5] mt-1">
                       {orderSide === 'buy' ? 'Review buy order' : 'Review sell order'}
                     </h2>
-                    <p className="text-[11px] text-[#737373]">{selectedCrypto.name} · {sym}/USD</p>
+                    <p className="text-[11px] text-[#737373]">{selectedCrypto.name || selectedCrypto.id} · {sym}/USD</p>
                   </div>
                 </div>
                 <button onClick={() => !submitting && setConfirmOpen(false)} className="text-[#737373] hover:text-[#E5E5E5] transition-colors -mt-1" aria-label="Close">
