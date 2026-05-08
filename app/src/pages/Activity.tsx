@@ -31,6 +31,17 @@ function fmtAmount(n: number, currency: string): string {
   })
 }
 
+// Titlecase a single word/phrase. Used to render lowercase enum-y strings
+// like "deposit", "completed", "market" as "Deposit", "Completed", "Market"
+// in the activity detail drawer where they read as labels rather than codes.
+function titleCase(s: string): string {
+  if (!s) return s
+  return s
+    .split(/(\s+|[-_/])/)
+    .map((part) => (/^[a-z]/i.test(part) ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part))
+    .join('')
+}
+
 function rowIcon(row: ActivityRow) {
   if (row.kind === 'trade') return TrendingUp
   switch (row.data.type) {
@@ -53,9 +64,9 @@ function rowColor(row: ActivityRow): string {
 function rowTitle(row: ActivityRow): string {
   if (row.kind === 'trade') {
     const side = row.data.side === 'buy' ? 'Bought' : 'Sold'
-    return `${side} ${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol}`
+    return `${side} ${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol.toUpperCase()}`
   }
-  return row.data.description
+  return titleCase(row.data.description)
 }
 
 function rowSubtitle(row: ActivityRow): string {
@@ -307,25 +318,25 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
             <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.05em] px-2 py-0.5 rounded-full"
               style={{ color: status === 'completed' ? '#4CAF50' : '#FF9800', background: status === 'completed' ? '#4CAF5015' : '#FF980015' }}>
               {status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-              {status}
+              {titleCase(status)}
             </div>
           </div>
 
           <div className="space-y-3 text-sm">
-            <Detail label="Type" value={row.kind === 'trade' ? `Trade · ${row.data.side.toUpperCase()}` : row.data.type} />
+            <Detail label="Type" value={row.kind === 'trade' ? `Trade · ${row.data.side.toUpperCase()}` : titleCase(row.data.type)} />
             {row.kind === 'trade' && (
               <>
-                <Detail label="Symbol" value={row.data.symbol} />
-                <Detail label="Quantity" value={`${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol}`} />
+                <Detail label="Symbol" value={row.data.symbol.toUpperCase()} />
+                <Detail label="Quantity" value={`${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol.toUpperCase()}`} />
                 <Detail label="Fill price" value={`$${row.data.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
                 <Detail label="Order total" value={`$${row.data.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
-                <Detail label="Order type" value={row.data.type} />
+                <Detail label="Order type" value={titleCase(row.data.type)} />
               </>
             )}
             {isTx && (
               <>
-                <Detail label="Currency" value={row.data.currency} />
-                <Detail label="Description" value={row.data.description} multiline />
+                <Detail label="Currency" value={row.data.currency.toUpperCase()} />
+                <Detail label="Description" value={titleCase(row.data.description)} multiline />
               </>
             )}
             <Detail label="Date" value={row.ts.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'medium' })} />
