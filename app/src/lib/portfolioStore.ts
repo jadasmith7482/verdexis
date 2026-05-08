@@ -413,4 +413,11 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && getToken()) void portfolioStore.hydrate(true)
   })
+  // NotificationBell fires this when a deposit is approved/rejected, a
+  // transfer is received, or a trade fills server-side. Refresh balances
+  // immediately so the user doesn't see stale numbers next to a "Deposit
+  // approved" toast.
+  window.addEventListener('verdexis:portfolio-refresh', () => {
+    if (getToken()) void portfolioStore.hydrate(true)
+  })
 }

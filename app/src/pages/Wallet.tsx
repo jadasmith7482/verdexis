@@ -15,7 +15,7 @@ import { api, getToken } from '../lib/api'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
-  Clock, CheckCircle, AlertCircle, Copy,
+  Clock, CheckCircle, AlertCircle, XCircle, Copy,
   Eye, EyeOff, Banknote, QrCode as QrCodeIcon, Download,
   Coins, Percent, Plus, Trash2, Wallet as WalletIcon,
   ExternalLink, Building2, Shield,
@@ -452,11 +452,19 @@ export default function WalletPage() {
   }
 
   const getStatusIcon = (status: string) => {
-    return status === 'completed' ? <CheckCircle className="w-4 h-4 text-[#4CAF50]" /> : <Clock className="w-4 h-4 text-[#F57C00]" />
+    if (status === 'completed') return <CheckCircle className="w-4 h-4 text-[#4CAF50]" />
+    if (status === 'failed' || status === 'rejected') return <XCircle className="w-4 h-4 text-[#f44336]" />
+    return <Clock className="w-4 h-4 text-[#F57C00]" />
   }
   const getStatusText = (status: string) => {
     if (status === 'pending') return 'Pending review'
+    if (status === 'failed' || status === 'rejected') return 'Rejected'
     return status
+  }
+  const getStatusColor = (status: string) => {
+    if (status === 'failed' || status === 'rejected') return 'text-[#f44336]'
+    if (status === 'pending') return 'text-[#F57C00]'
+    return 'text-[#737373]'
   }
 
   const formatTimeAgo = (date: Date) => {
@@ -925,7 +933,7 @@ export default function WalletPage() {
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}
-                        <span className={`text-xs capitalize ${tx.status === 'pending' ? 'text-[#F57C00]' : 'text-[#737373]'}`}>{getStatusText(tx.status)}</span>
+                        <span className={`text-xs capitalize ${getStatusColor(tx.status)}`}>{getStatusText(tx.status)}</span>
                       </div>
                     </div>
                   </div>

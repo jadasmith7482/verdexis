@@ -27,7 +27,19 @@ export default function NotificationBell() {
     if (!getToken()) { setItems([]); setUnread(0); return }
     try {
       const r = await api.listNotifications()
-      setItems(r.notifications)
+      // If a finance-related notification arrived since the last poll
+      // (deposit approved/rejected, transfer received, trade filled), kick
+      // a portfolio refresh so the wallet/holdings update without the user
+      // having to reload the page.
+      setItems((prev) => {
+        const prevIds = new Set(prev.map((n) => n.id))
+        const fresh = r.notifications.filter((n) => !prevIds.has(n.id))
+        const moneyKinds = new Set(['deposit', 'withdraw', 'transfer', 'trade', 'fee', 'wallet'])
+        if (fresh.some((n) => moneyKinds.has(n.kind))) {
+          window.dispatchEvent(new Event('verdexis:portfolio-refresh'))
+        }
+        return r.notifications
+      })
       setUnread(r.unread)
     } catch { /* offline */ }
   }
