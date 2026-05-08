@@ -285,7 +285,17 @@ export function useWeb3() {
         setState((s) => ({ ...s, isConnecting: false, error: 'No account approved' }))
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Connection rejected'
+      // eslint-disable-next-line no-console
+      console.error('[WalletConnect] connect failed', err)
+      const raw = err instanceof Error ? err.message : String(err ?? '')
+      let msg = raw || 'Connection rejected'
+      if (/projectId|project id|unauthorized|not authorized|origin/i.test(raw)) {
+        msg = 'WalletConnect rejected this domain. The project allowlist on cloud.reown.com needs to include this site\u2019s URL.'
+      } else if (/User rejected|user closed|user denied/i.test(raw)) {
+        msg = 'You closed the wallet without approving. Tap WalletConnect again to retry.'
+      } else if (!raw) {
+        msg = 'WalletConnect didn\u2019t respond. Check your network connection and try again.'
+      }
       setState((s) => ({ ...s, isConnecting: false, error: msg }))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

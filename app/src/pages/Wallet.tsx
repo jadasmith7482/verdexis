@@ -874,6 +874,7 @@ export default function WalletPage() {
         onRefresh={() => web3.refreshDiscovered()}
         isConnecting={web3.isConnecting}
         selectedRdns={web3.walletInfo?.rdns}
+        error={web3.error}
       />
 
       <div className="pt-24 pb-16 px-6">

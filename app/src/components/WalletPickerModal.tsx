@@ -12,6 +12,9 @@ interface WalletPickerModalProps {
   onRefresh?: () => Promise<unknown>
   isConnecting: boolean
   selectedRdns?: string | null
+  /** Last connection error from the web3 hook — shown inside the picker so
+   *  the user understands why nothing happened after they tapped a wallet. */
+  error?: string | null
 }
 
 export default function WalletPickerModal({
@@ -22,6 +25,7 @@ export default function WalletPickerModal({
   onRefresh,
   isConnecting,
   selectedRdns,
+  error,
 }: WalletPickerModalProps) {
   const [refreshing, setRefreshing] = useState(false)
 
@@ -89,6 +93,18 @@ export default function WalletPickerModal({
         </div>
 
         <div className="px-6 py-4 overflow-y-auto flex-1">
+          {error && (
+            <div className="mb-3 p-3 rounded-lg bg-[#f44336]/10 border border-[#f44336]/40 text-[11px] text-[#ff8a80]">
+              <strong className="block text-xs text-[#ff8a80] mb-1">Couldn’t connect</strong>
+              {error}
+            </div>
+          )}
+          {isConnecting && (
+            <div className="mb-3 p-3 rounded-lg bg-[#3B99FC]/10 border border-[#3B99FC]/30 text-[11px] text-[#a8d4ff] flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-[#3B99FC] border-t-transparent animate-spin" />
+              Waiting for your wallet to approve the connection…
+            </div>
+          )}
           {/* WalletConnect — always-on, works without any browser extension.
               Shows a QR code on desktop (scan with phone wallet) or hands
               off to the user's installed mobile wallet via deep-link. */}

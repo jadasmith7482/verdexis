@@ -37,27 +37,38 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
   if (!isWalletConnectConfigured()) return Promise.resolve(null)
   if (cached) return cached
   cached = (async () => {
-    const mod = await import('@walletconnect/ethereum-provider')
-    const provider = await mod.EthereumProvider.init({
-      projectId: WC_PROJECT_ID,
-      // Chains we will optionally request to switch to. WalletConnect requires
-      // at least one. Ethereum mainnet is the safe default.
-      chains: [1],
-      // Additional chains we support — wallets supporting EIP-5792 / chain
-      // switching can hop to any of these without a fresh session.
-      optionalChains: [137, 42161, 10, 8453, 56, 43114, 11155111],
-      showQrModal: true,
-      metadata: {
-        name: 'Verdexis',
-        description: 'Verdexis crypto investing — connect your wallet',
-        url: typeof window !== 'undefined' ? window.location.origin : 'https://verdexis.app',
-        icons: [
-          (typeof window !== 'undefined' ? window.location.origin : '') + '/assets/logo.png',
-        ],
-      },
-    })
-    // Cast to our local EIP-1193 type — the WC provider implements it.
-    return provider as unknown as Eip1193Provider
+    try {
+      const mod = await import('@walletconnect/ethereum-provider')
+      const provider = await mod.EthereumProvider.init({
+        projectId: WC_PROJECT_ID,
+        // Chains we will optionally request to switch to. WalletConnect requires
+        // at least one. Ethereum mainnet is the safe default.
+        chains: [1],
+        // Additional chains we support — wallets supporting EIP-5792 / chain
+        // switching can hop to any of these without a fresh session.
+        optionalChains: [137, 42161, 10, 8453, 56, 43114, 11155111],
+        showQrModal: true,
+        metadata: {
+          name: 'Verdexis',
+          description: 'Verdexis crypto investing — connect your wallet',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://verdexis.app',
+          icons: [
+            (typeof window !== 'undefined' ? window.location.origin : '') + '/assets/logo.png',
+          ],
+        },
+      })
+      // Cast to our local EIP-1193 type — the WC provider implements it.
+      return provider as unknown as Eip1193Provider
+    } catch (err) {
+      // Reset cache on failure so the next click can retry. Surface to console
+      // so users on mobile can inspect (Safari → Settings → Advanced → Web
+      // Inspector). Common causes: invalid project ID, origin not in Reown
+      // project's allowlist, or network blocking the WC relay.
+      // eslint-disable-next-line no-console
+      console.error('[WalletConnect] init failed', err)
+      cached = null
+      throw err
+    }
   })()
   return cached
 }
