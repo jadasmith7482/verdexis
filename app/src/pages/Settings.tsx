@@ -908,7 +908,7 @@ function ConnectionsSection() {
               <li key={b.id} className="flex items-center justify-between p-3 bg-[#0f1619] rounded-lg">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-[#E5E5E5] truncate">{b.institution}</p>
-                  <p className="text-xs text-[#737373]">{b.type} · ••{b.accountMask} · {b.status}</p>
+                  <p className="text-xs text-[#737373] capitalize">{b.type} · ••{b.accountMask} · {b.status}</p>
                 </div>
                 <button onClick={() => disconnect(b)} className="text-xs text-[#737373] hover:text-[#f44336] px-2 py-1">Disconnect</button>
               </li>

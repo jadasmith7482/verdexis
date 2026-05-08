@@ -1214,7 +1214,7 @@ export default function WalletPage() {
                           <option value="">Choose a linked bank account…</option>
                           {banks.map((b) => (
                             <option key={b.id} value={b.id}>
-                              {b.institution} · {b.type} ····{b.accountMask}{b.status !== 'verified' ? ` (${b.status})` : ''}
+                              {b.institution} · {b.type[0].toUpperCase() + b.type.slice(1)} ····{b.accountMask}{b.status !== 'verified' ? ` (${b.status[0].toUpperCase() + b.status.slice(1)})` : ''}
                             </option>
                           ))}
                         </select>
@@ -1226,7 +1226,7 @@ export default function WalletPage() {
                               <Banknote className="w-8 h-8 text-[#0C8B44]" />
                               <div>
                                 <p className="text-sm text-[#E5E5E5]">{sel.accountHolder}</p>
-                                <p className="text-xs text-[#737373]">{sel.institution} — {sel.type} ····{sel.accountMask}</p>
+                                <p className="text-xs text-[#737373]">{sel.institution} — {sel.type[0].toUpperCase() + sel.type.slice(1)} ····{sel.accountMask}</p>
                               </div>
                             </div>
                           )

@@ -136,7 +136,7 @@ function AlertsInner() {
                           {a.direction === 'above' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                         </div>
                         <div>
-                          <p className="text-sm text-[#E5E5E5]">{a.name} <span className="text-[#737373]">({a.symbol})</span></p>
+                          <p className="text-sm text-[#E5E5E5]">{a.name} <span className="text-[#737373]">({a.symbol.toUpperCase()})</span></p>
                           <p className="text-[11px] text-[#A0A0A0]">When price goes {a.direction} <span className="text-[#E5E5E5]">{formatPrice(a.target)}</span></p>
                         </div>
                       </div>
