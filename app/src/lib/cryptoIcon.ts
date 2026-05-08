@@ -1,11 +1,21 @@
-// Real cryptocurrency icons from the well-maintained
-// `cryptocurrency-icons` open-source set, served via jsDelivr.
-// https://github.com/spothq/cryptocurrency-icons
-// Color SVGs for crisp rendering at any size.
+// Crypto icons. We resolve a CoinGecko-style id (e.g. "bitcoin") or a ticker
+// symbol (e.g. "btc") to a remote logo URL. The web is full of half-broken
+// icon CDNs — the spothq `cryptocurrency-icons` set we used to rely on
+// hasn't been updated in years and is missing every coin minted after ~2022
+// (TON, APT, ARB, OP, SUI, HYPE, WBT, etc.), which is why the user was
+// seeing broken images everywhere. We now hit CoinCap's PNG icon CDN first
+// (covers the long tail of modern tokens), then fall back through the
+// spothq SVG set, then the data-URI initial.
 
-const CDN = 'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color'
+import type React from 'react'
 
-// CoinGecko id -> ticker symbol used by the icon set.
+// Public, key-less PNG icon CDN that covers most active tokens, keyed by
+// lowercased ticker symbol.
+const COINCAP_CDN = 'https://assets.coincap.io/assets/icons'
+// Long-standing SVG set, used as a secondary fallback. Updated via jsDelivr.
+const SPOTHQ_CDN = 'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color'
+
+// CoinGecko id -> lowercased ticker symbol.
 const ID_TO_SYMBOL: Record<string, string> = {
   bitcoin: 'btc',
   ethereum: 'eth',
@@ -13,10 +23,12 @@ const ID_TO_SYMBOL: Record<string, string> = {
   cardano: 'ada',
   ripple: 'xrp',
   binancecoin: 'bnb',
+  'binance-coin': 'bnb',
   dogecoin: 'doge',
   tron: 'trx',
   tether: 'usdt',
   'usd-coin': 'usdc',
+  'usd-coin-bridged': 'usdc',
   polkadot: 'dot',
   chainlink: 'link',
   avalanche: 'avax',
@@ -24,6 +36,8 @@ const ID_TO_SYMBOL: Record<string, string> = {
   litecoin: 'ltc',
   'matic-network': 'matic',
   polygon: 'matic',
+  'polygon-pos': 'matic',
+  'polygon-ecosystem-token': 'pol',
   'shiba-inu': 'shib',
   uniswap: 'uni',
   'bitcoin-cash': 'bch',
@@ -54,14 +68,87 @@ const ID_TO_SYMBOL: Record<string, string> = {
   zilliqa: 'zil',
   qtum: 'qtum',
   decred: 'dcr',
-  'usd-coin-bridged': 'usdc',
+  sui: 'sui',
+  pepe: 'pepe',
+  bonk: 'bonk',
+  wif: 'wif',
+  'dogwifcoin': 'wif',
+  jupiter: 'jup',
+  'jupiter-exchange-solana': 'jup',
+  pyth: 'pyth',
+  'pyth-network': 'pyth',
+  worldcoin: 'wld',
+  'worldcoin-wld': 'wld',
+  starknet: 'strk',
+  injective: 'inj',
+  'injective-protocol': 'inj',
+  sei: 'sei',
+  'sei-network': 'sei',
+  celestia: 'tia',
+  render: 'rndr',
+  'render-token': 'rndr',
+  fetch: 'fet',
+  'fetch-ai': 'fet',
+  'the-graph': 'grt',
+  maker: 'mkr',
+  aave: 'aave',
+  curve: 'crv',
+  'curve-dao-token': 'crv',
+  lido: 'ldo',
+  'lido-dao': 'ldo',
+  'wrapped-bitcoin': 'wbtc',
+  'staked-ether': 'steth',
+  'wrapped-steth': 'wsteth',
+  dai: 'dai',
+  'true-usd': 'tusd',
+  'first-digital-usd': 'fdusd',
+  'pax-dollar': 'usdp',
+  ondo: 'ondo',
+  'ondo-finance': 'ondo',
+  kaspa: 'kas',
+  'kaspa-2': 'kas',
+  fantom: 'ftm',
+  thorchain: 'rune',
+  hedera: 'hbar',
+  'hedera-hashgraph': 'hbar',
+  flow: 'flow',
+  axie: 'axs',
+  'axie-infinity': 'axs',
+  sandbox: 'sand',
+  'the-sandbox': 'sand',
+  decentraland: 'mana',
+  enjin: 'enj',
+  'enjin-coin': 'enj',
+  chiliz: 'chz',
+  blur: 'blur',
+  pendle: 'pendle',
+  'rocket-pool': 'rpl',
+  arweave: 'ar',
+  helium: 'hnt',
+  'mantle-staked-ether': 'meth',
+  mantle: 'mnt',
+  'kucoin-shares': 'kcs',
+  bittensor: 'tao',
+  bonkswap: 'bonk',
+}
+
+// Resolve to lowercased ticker symbol used by CoinCap / spothq.
+function symbolFor(idOrSymbol: string): string {
+  const key = idOrSymbol.toLowerCase()
+  return ID_TO_SYMBOL[key] ?? key
 }
 
 export function cryptoIconFor(idOrSymbol: string | undefined | null): string | null {
   if (!idOrSymbol) return null
-  const key = idOrSymbol.toLowerCase()
-  const sym = ID_TO_SYMBOL[key] ?? key
-  return `${CDN}/${sym}.svg`
+  return `${COINCAP_CDN}/${symbolFor(idOrSymbol)}@2x.png`
+}
+
+// Returns the secondary URL we should try when the primary CoinCap image
+// 404s. Used by `cryptoIconErrorFallback` to chain through providers.
+function cryptoIconFallbackChain(sym: string): string[] {
+  return [
+    `${SPOTHQ_CDN}/${sym}.svg`,
+  ]
 }
 
 // ---- Stock / equity icons -------------------------------------------------
@@ -170,13 +257,21 @@ export function assetIconFor(
   return cryptoIconFor(idOrSymbol)
 }
 
-// React-friendly onError fallback: replace the broken icon with a coloured
-// initial. Pass as `onError` on an <img>.
-export function cryptoIconErrorFallback(initial: string) {
+// React-friendly onError fallback: walk the secondary CDN chain before
+// substituting an inline coloured-initial SVG. Pass as `onError` on an <img>.
+// The optional `idOrSymbol` enables the multi-CDN fallback chain; without
+// it we just go straight to the initial SVG (legacy behaviour).
+export function cryptoIconErrorFallback(initial: string, idOrSymbol?: string) {
+  const chain = idOrSymbol ? cryptoIconFallbackChain(symbolFor(idOrSymbol)) : []
+  let attempt = 0
   return (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget
+    if (attempt < chain.length) {
+      img.src = chain[attempt]
+      attempt += 1
+      return
+    }
     img.onerror = null
-    // Inline SVG with the first letter as a clean fallback.
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='%230C8B44'/><text x='16' y='21' text-anchor='middle' font-family='Inter,system-ui,sans-serif' font-size='14' font-weight='600' fill='white'>${initial}</text></svg>`
     img.src = `data:image/svg+xml;utf8,${svg}`
   }

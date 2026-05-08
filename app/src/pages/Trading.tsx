@@ -10,7 +10,7 @@ import { Toaster, toast } from 'sonner'
 import {
   Search, Star, BarChart3, Clock, Layers,
 } from 'lucide-react'
-import { cryptoIconFor } from '../lib/cryptoIcon'
+import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
 import { api, getToken } from '../lib/api'
 
@@ -233,7 +233,12 @@ export default function Trading() {
                 <>
                   <div className="flex items-center gap-3">
                     {selectedCrypto && getCryptoLogo(selectedCrypto.id) ? (
-                      <img src={getCryptoLogo(selectedCrypto.id)!} alt={selectedCrypto.name} className="w-10 h-10 rounded-full object-cover" />
+                      <img
+                        src={getCryptoLogo(selectedCrypto.id)!}
+                        alt={selectedCrypto.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                        onError={cryptoIconErrorFallback(selectedCrypto.symbol.toUpperCase()[0] || '?', selectedCrypto.id)}
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">
                         {selectedCrypto?.symbol.toUpperCase()[0]}
@@ -297,7 +302,12 @@ export default function Trading() {
                     <button onClick={() => setSelectedCrypto(crypto)} className="flex-1 flex items-center justify-between p-4 text-left">
                     <div className="flex items-center gap-3">
                       {getCryptoLogo(crypto.id) ? (
-                        <img src={getCryptoLogo(crypto.id)!} alt={crypto.name} className="w-8 h-8 rounded-full object-cover" />
+                        <img
+                          src={getCryptoLogo(crypto.id)!}
+                          alt={crypto.name}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{crypto.symbol.toUpperCase()[0]}</div>
                       )}

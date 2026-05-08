@@ -40,7 +40,7 @@ const partnerLogos = [
   { name: 'Finnhub', image: '/assets/logo-finnhub.png' },
 ]
 
-import { cryptoIconFor } from '../lib/cryptoIcon'
+import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 
 const securityFeatures = [
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit' },
@@ -157,7 +157,12 @@ export default function Home() {
             {[...topCryptos, ...topCryptos, ...topCryptos].map((c, idx) => (
               <Link to={`/asset/${c.id}`} key={`${c.id}-${idx}`} className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
                 {getCryptoLogo(c.id) ? (
-                  <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-5 h-5 rounded-full object-cover" />
+                  <img
+                    src={getCryptoLogo(c.id)!}
+                    alt={c.name}
+                    className="w-5 h-5 rounded-full object-cover"
+                    onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}
+                  />
                 ) : (
                   <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 text-[10px] font-bold text-[#0C8B44] flex items-center justify-center">{c.symbol.toUpperCase()[0]}</div>
                 )}
@@ -281,7 +286,12 @@ export default function Home() {
                   <Link to={`/asset/${c.id}`} key={c.id} className="flex items-center justify-between hover:bg-[#ffffff05] -mx-2 px-2 py-1 rounded-lg transition-colors">
                     <div className="flex items-center gap-3">
                       {getCryptoLogo(c.id) ? (
-                        <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-8 h-8 rounded-full object-cover" />
+                        <img
+                          src={getCryptoLogo(c.id)!}
+                          alt={c.name}
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{c.symbol.toUpperCase()[0]}</div>
                       )}
@@ -379,7 +389,12 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         {getCryptoLogo(c.id) ? (
-                          <img src={getCryptoLogo(c.id)!} alt={c.name} className="w-6 h-6 rounded-full object-cover" />
+                          <img
+                            src={getCryptoLogo(c.id)!}
+                            alt={c.name}
+                            className="w-6 h-6 rounded-full object-cover"
+                            onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}
+                          />
                         ) : (
                           <div className="w-6 h-6 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">{c.symbol.toUpperCase()[0]}</div>
                         )}

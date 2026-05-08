@@ -26,7 +26,7 @@ import { marketData, type CryptoQuote } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, type WalletTransaction } from '../lib/portfolioStore'
-import { assetIconFor } from '../lib/cryptoIcon'
+import { assetIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { useCurrency } from '../lib/currencyContext'
 import { dashboardLayout, DASHBOARD_LAYOUT_EVENT } from '../lib/dashboardLayout'
 import { dcaStore, nextRunMs } from '../lib/dcaStore'
@@ -651,7 +651,12 @@ export default function Dashboard() {
                       <Link to={`/asset/${h.id}`} key={h.id} className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
                         <div className="flex items-center gap-3">
                           {getCryptoLogo(h.symbol || h.id) ? (
-                            <img src={getCryptoLogo(h.symbol || h.id)!} alt={h.name} className="w-9 h-9 rounded-full object-cover" />
+                            <img
+                              src={getCryptoLogo(h.symbol || h.id)!}
+                              alt={h.name}
+                              className="w-9 h-9 rounded-full object-cover"
+                              onError={cryptoIconErrorFallback(h.symbol[0]?.toUpperCase() || '?', h.symbol || h.id)}
+                            />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">
                               {h.symbol[0]}
@@ -768,7 +773,12 @@ export default function Dashboard() {
                     <div key={w.currency} className="flex items-center justify-between p-3 rounded-xl bg-[#1a1a1a]/50">
                       <div className="flex items-center gap-3">
                         {getCryptoLogo(w.currency.toLowerCase()) ? (
-                          <img src={getCryptoLogo(w.currency.toLowerCase())!} alt={w.currency} className="w-7 h-7 rounded-full object-cover" />
+                          <img
+                            src={getCryptoLogo(w.currency.toLowerCase())!}
+                            alt={w.currency}
+                            className="w-7 h-7 rounded-full object-cover"
+                            onError={cryptoIconErrorFallback(w.currency[0]?.toUpperCase() || '?', w.currency.toLowerCase())}
+                          />
                         ) : (
                           <div className="w-7 h-7 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44]">{w.currency[0]}</div>
                         )}
@@ -846,7 +856,12 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between mb-2 gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             {getCryptoLogo(crypto.id) ? (
-                              <img src={getCryptoLogo(crypto.id)!} alt={crypto.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                              <img
+                                src={getCryptoLogo(crypto.id)!}
+                                alt={crypto.name}
+                                className="w-5 h-5 rounded-full object-cover shrink-0"
+                                onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
+                              />
                             ) : (
                               <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{crypto.symbol.toUpperCase()[0]}</div>
                             )}

@@ -6,7 +6,7 @@ import CandleChart from '../components/CandleChart'
 import { marketData, type CryptoQuote, type OhlcRange } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { portfolioStore, type PortfolioHolding, type Trade } from '../lib/portfolioStore'
-import { cryptoIconFor } from '../lib/cryptoIcon'
+import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
 import { Toaster, toast } from 'sonner'
 import { api, getToken } from '../lib/api'
@@ -189,7 +189,12 @@ export default function AssetDetail() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             {logo ? (
-              <img src={logo} alt={symbol} className="w-10 h-10 rounded-full" />
+              <img
+                src={logo ?? undefined}
+                alt={symbol}
+                className="w-10 h-10 rounded-full"
+                onError={cryptoIconErrorFallback(symbol[0] || '?', id)}
+              />
             ) : (
               <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">
                 {symbol[0]}

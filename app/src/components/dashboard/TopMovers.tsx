@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 import { TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import type { CryptoQuote } from '../../lib/marketData'
-import { cryptoIconFor } from '../../lib/cryptoIcon'
+import { cryptoIconFor, cryptoIconErrorFallback } from '../../lib/cryptoIcon'
 import { useCurrency } from '../../lib/currencyContext'
 
 export default function TopMovers({ data }: { data: CryptoQuote[] }) {
@@ -22,7 +22,12 @@ export default function TopMovers({ data }: { data: CryptoQuote[] }) {
     return (
       <Link to={`/asset/${c.id}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0">
         {icon ? (
-          <img src={icon} alt={c.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+          <img
+            src={icon}
+            alt={c.name}
+            className="w-9 h-9 rounded-full object-cover shrink-0"
+            onError={cryptoIconErrorFallback(c.symbol[0]?.toUpperCase() || '?', c.id)}
+          />
         ) : (
           <div className="w-9 h-9 rounded-full bg-[#0C8B44]/15 flex items-center justify-center text-xs font-bold text-[#0C8B44] shrink-0">{c.symbol[0]?.toUpperCase()}</div>
         )}
