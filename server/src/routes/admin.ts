@@ -1275,6 +1275,129 @@ router.post('/users/:id/email', async (req: AuthedRequest, res) => {
   res.status(201).json({ notification: n, deliveredVia: 'in_app' })
 })
 
+// --- on-chain pending deposits -------------------------------------------
+// Admins triage deposits that users initiated from their linked self-custody
+// wallet. The frontend submitted the tx hash on send; admin verifies the tx
+// on a block explorer (link returned in payload), then `approve` credits the
+// user's WalletBalance + creates a Transaction, or `reject` marks it dead.
+
+const ETHERSCAN_BY_CHAIN: Record<string, string> = {
+  '0x1': 'https://etherscan.io/tx/',
+  '0x5': 'https://goerli.etherscan.io/tx/',
+  '0xaa36a7': 'https://sepolia.etherscan.io/tx/',
+  '0x89': 'https://polygonscan.com/tx/',
+  '0xa4b1': 'https://arbiscan.io/tx/',
+  '0xa': 'https://optimistic.etherscan.io/tx/',
+  '0x2105': 'https://basescan.org/tx/',
+  '0x38': 'https://bscscan.com/tx/',
+  '0xa86a': 'https://snowtrace.io/tx/',
+}
+
+router.get('/pending-deposits', async (req, res) => {
+  const status = String(req.query.status ?? 'pending')
+  const rows = await prisma.pendingDeposit.findMany({
+    where: status === 'all' ? {} : { status },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    include: { user: { select: { id: true, email: true, name: true, investmentId: true } } },
+  })
+  const decorated = rows.map((r) => ({
+    ...r,
+    explorerUrl: (ETHERSCAN_BY_CHAIN[r.chainId.toLowerCase()] ?? '') + r.txHash,
+  }))
+  res.json({ pendingDeposits: decorated })
+})
+
+const approvePendingSchema = z.object({
+  // Currency to credit on the Verdexis side. Defaults to the asset symbol
+  // the user submitted (e.g. ETH credits the ETH balance), but admin can
+  // override (e.g. credit USD if pricing was agreed off-chain).
+  currency: z.string().min(1).max(10).optional(),
+  // Override the credited amount. Defaults to the on-chain amount the user
+  // claimed. Useful when the asset price moved or the user sent a different
+  // amount than expected.
+  amount: z.number().positive().optional(),
+  note: z.string().max(500).optional(),
+})
+
+router.post('/pending-deposits/:id/approve', async (req: AuthedRequest, res) => {
+  const parsed = approvePendingSchema.safeParse(req.body ?? {})
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+
+  const pending = await prisma.pendingDeposit.findUnique({ where: { id: req.params.id } })
+  if (!pending) { res.status(404).json({ error: 'Pending deposit not found' }); return }
+  if (pending.status === 'credited') { res.status(409).json({ error: 'Already credited' }); return }
+  if (pending.status === 'rejected') { res.status(409).json({ error: 'Already rejected' }); return }
+
+  const currency = (parsed.data.currency ?? pending.asset).toUpperCase()
+  const amount = parsed.data.amount ?? pending.amount
+  const symbol = currency === 'USD' ? '$' : currency
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId: pending.userId, currency } } })
+    const nextBalance = (existing?.balance ?? 0) + amount
+    const nextAvailable = (existing?.available ?? 0) + amount
+    const balance = await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: pending.userId, currency } },
+      create: { userId: pending.userId, currency, symbol, balance: nextBalance, available: nextAvailable },
+      update: { balance: nextBalance, available: nextAvailable, symbol },
+    })
+    const transaction = await tx.transaction.create({
+      data: {
+        userId: pending.userId,
+        kind: 'deposit',
+        currency,
+        amount,
+        status: 'completed',
+        reference: `On-chain deposit ${pending.txHash.slice(0, 12)}… from ${pending.fromAddress.slice(0, 8)}…${parsed.data.note ? ' — ' + parsed.data.note : ''}`,
+      },
+    })
+    const updated = await tx.pendingDeposit.update({
+      where: { id: pending.id },
+      data: { status: 'credited', creditedTxId: transaction.id, note: parsed.data.note ?? null },
+    })
+    return { balance, transaction, pending: updated }
+  })
+
+  await prisma.notification.create({
+    data: {
+      userId: pending.userId,
+      kind: 'deposit',
+      title: `Deposit credited: ${amount} ${currency}`,
+      body: `Your on-chain deposit (${pending.txHash.slice(0, 14)}…) has been verified and credited.`,
+    },
+  }).catch(() => {})
+
+  await audit(req.userId!, 'pendingDeposit.approve', pending.userId, {
+    pendingDepositId: pending.id, txHash: pending.txHash, currency, amount,
+  })
+  res.json(result)
+})
+
+const rejectPendingSchema = z.object({ note: z.string().max(500).optional() })
+
+router.post('/pending-deposits/:id/reject', async (req: AuthedRequest, res) => {
+  const parsed = rejectPendingSchema.safeParse(req.body ?? {})
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
+  const pending = await prisma.pendingDeposit.findUnique({ where: { id: req.params.id } })
+  if (!pending) { res.status(404).json({ error: 'Not found' }); return }
+  if (pending.status === 'credited') { res.status(409).json({ error: 'Already credited' }); return }
+  const updated = await prisma.pendingDeposit.update({
+    where: { id: pending.id },
+    data: { status: 'rejected', note: parsed.data.note ?? null },
+  })
+  await prisma.notification.create({
+    data: {
+      userId: pending.userId,
+      kind: 'deposit',
+      title: 'Deposit rejected',
+      body: parsed.data.note ?? `On-chain deposit ${pending.txHash.slice(0, 14)}… could not be verified and was not credited.`,
+    },
+  }).catch(() => {})
+  await audit(req.userId!, 'pendingDeposit.reject', pending.userId, { pendingDepositId: pending.id, txHash: pending.txHash, note: parsed.data.note })
+  res.json({ pendingDeposit: updated })
+})
+
 // --- audit log -----------------------------------------------------------
 
 router.get('/audit-old', async (_req, res) => {

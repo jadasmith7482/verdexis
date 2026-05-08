@@ -119,8 +119,8 @@ export function computePortfolioHealth(input: {
   // ---- 3. Cash buffer ----------------------------------------------------
   // USD-only (not stables). Sweet spot 10-30% of net worth.
   const usdCash = wallet
-    .filter((w) => w.currency.toUpperCase() === 'USD')
-    .reduce((s, w) => s + w.balance, 0)
+    .filter((w) => (w.currency || '').toUpperCase() === 'USD')
+    .reduce((s, w) => s + (w.balance || 0), 0)
   const cashPct = usdCash / netWorth
   let cashBuffer: number
   if (cashPct >= 0.10 && cashPct <= 0.30) cashBuffer = 100
@@ -130,8 +130,8 @@ export function computePortfolioHealth(input: {
   // ---- 4. Stable exposure ------------------------------------------------
   // Stablecoins (excluding USD) as a percent of net worth. ~5-20% is ideal.
   const stableValue = wallet
-    .filter((w) => STABLE_SYMBOLS.has(w.currency.toUpperCase()) && w.currency.toUpperCase() !== 'USD')
-    .reduce((s, w) => s + w.balance, 0)
+    .filter((w) => STABLE_SYMBOLS.has((w.currency || '').toUpperCase()) && (w.currency || '').toUpperCase() !== 'USD')
+    .reduce((s, w) => s + (w.balance || 0), 0)
   const stablePct = stableValue / netWorth
   let stableExposure: number
   if (stablePct >= 0.05 && stablePct <= 0.20) stableExposure = 100
@@ -141,11 +141,11 @@ export function computePortfolioHealth(input: {
   // ---- 5. Volatility -----------------------------------------------------
   // Allocation-weighted 7d sparkline vol. Stables/cash contribute 0 vol.
   const quoteById = new Map(market.map((m) => [m.id, m] as const))
-  const quoteBySym = new Map(market.map((m) => [m.symbol.toLowerCase(), m] as const))
+  const quoteBySym = new Map(market.map((m) => [(m.symbol || '').toLowerCase(), m] as const))
   let weightedVol = 0
   for (const h of holdings) {
-    if (STABLE_SYMBOLS.has(h.symbol.toUpperCase())) continue
-    const m = quoteById.get(h.id) ?? quoteBySym.get(h.symbol.toLowerCase())
+    if (STABLE_SYMBOLS.has((h.symbol || '').toUpperCase())) continue
+    const m = quoteById.get(h.id) ?? quoteBySym.get((h.symbol || '').toLowerCase())
     const v = sparklineVol(m?.sparkline_in_7d?.price)
     const w = h.value / netWorth
     weightedVol += v * w

@@ -144,7 +144,7 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
                   {data.recentTx.map((t) => (
                     <Link key={t.id} to={`/admin/users/${t.user.id}`} className="flex items-center justify-between p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/40 transition-colors">
                       <div className="min-w-0">
-                        <p className="text-sm text-[#E5E5E5] capitalize">{t.kind} · {t.amount.toLocaleString()} {t.currency}</p>
+                        <p className="text-sm text-[#E5E5E5] capitalize">{t.kind} · {(t.amount ?? 0).toLocaleString()} {t.currency}</p>
                         <p className="text-[11px] text-[#737373] truncate">{t.user.email}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -191,7 +191,7 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
                     <p className="text-[11px] text-[#737373] truncate">{d.reference || 'No reference'} · {relTime(d.createdAt)} ago</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-base font-medium text-[#E5E5E5]">{d.amount.toLocaleString()} {d.currency}</p>
+                    <p className="text-base font-medium text-[#E5E5E5]">{(d.amount ?? 0).toLocaleString()} {d.currency}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={busyTx === d.id} onClick={() => handleApprove(d.id)} className="px-3 py-1.5 text-xs rounded-lg bg-[#0C8B44] text-white hover:bg-[#0a7539] disabled:opacity-50">Approve</button>

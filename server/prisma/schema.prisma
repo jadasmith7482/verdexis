@@ -43,6 +43,13 @@ model User {
   monthlyTransferLimit Float?
   // Comma-separated CIDR / IP list. Empty / null = no allowlist enforced.
   ipAllowlist  String?
+  // Linked self-custody wallet (EIP-1193 / WalletConnect). Persisted so the
+  // user sees their address everywhere they're signed in, and so deposit
+  // attribution doesn't depend on a single browser's localStorage.
+  walletAddress  String?
+  walletChainId  String?  // EIP-155 hex, e.g. "0x1"
+  walletProvider String?  // human label, e.g. "MetaMask", "WalletConnect"
+  walletLinkedAt DateTime?
   tokenVersion Int      @default(0)        // bump to invalidate outstanding JWTs
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -55,8 +62,45 @@ model User {
   watchlist     Watchlist[]
   alerts        PriceAlert[]
   notifications Notification[]
+  pendingDeposits PendingDeposit[]
   adminAudits   AdminAudit[]   @relation("AdminActor")
   audited       AdminAudit[]   @relation("AdminTarget")
+}
+
+/// On-chain deposit attempt the user kicked off from their linked wallet.
+/// The frontend captures the tx hash + chain immediately on submit; the
+/// admin (or future chain-watcher job) verifies the tx on a block explorer
+/// and credits the user's WalletBalance once it has enough confirmations.
+model PendingDeposit {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Block-explorer transaction hash (0x...).
+  txHash      String   @unique
+  // EIP-155 chain id hex, e.g. "0x1" Ethereum, "0x89" Polygon, "0x2105" Base.
+  chainId     String
+  // Treasury address the funds were sent to (lower-cased).
+  toAddress   String
+  // User's wallet address that sent the funds (lower-cased).
+  fromAddress String
+  // Asset symbol the user thinks they sent ("ETH", "MATIC", ...).
+  asset       String
+  // Amount in the native unit (ETH / MATIC). Stored as Float for parity with
+  // the rest of the schema; small precision loss is acceptable here because
+  // the on-chain receipt is the authoritative record.
+  amount      Float
+  // 'pending' | 'confirmed' | 'credited' | 'rejected'
+  status      String   @default("pending")
+  // Admin / chain-watcher note explaining a status change.
+  note        String?
+  // When status becomes 'credited', this points to the Transaction row that
+  // actually moved the user's WalletBalance.
+  creditedTxId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model PasswordReset {

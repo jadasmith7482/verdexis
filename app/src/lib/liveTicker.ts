@@ -27,7 +27,7 @@ const SYMBOL_TO_COIN_ID: Record<string, string> = {
 }
 
 function canonical(idOrSymbol: string): string {
-  const k = idOrSymbol.toLowerCase()
+  const k = (idOrSymbol || '').toLowerCase()
   return SYMBOL_TO_COIN_ID[k] ?? k
 }
 

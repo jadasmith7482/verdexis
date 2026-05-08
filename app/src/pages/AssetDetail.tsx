@@ -79,8 +79,8 @@ export default function AssetDetail() {
     const refresh = () => {
       const h = portfolioStore.getHoldings().find((x) => x.id === id) ?? null
       setHolding(h)
-      const sym = (h?.symbol ?? coin?.symbol ?? id).toUpperCase()
-      setTrades(portfolioStore.getTrades().filter((t) => t.symbol.toUpperCase() === sym).slice(0, 8))
+      const sym = (h?.symbol ?? coin?.symbol ?? id ?? '').toUpperCase()
+      setTrades(portfolioStore.getTrades().filter((t) => (t.symbol || '').toUpperCase() === sym).slice(0, 8))
     }
     refresh()
     const i = setInterval(refresh, 4000)

@@ -289,8 +289,8 @@ function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; 
               {balances.map((b) => (
                 <tr key={b.id} className="border-t border-[#ffffff05]">
                   <td className="px-4 py-3 text-[#E5E5E5]">{b.symbol} {b.currency}</td>
-                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.balance.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{b.available.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
+                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{(b.balance ?? 0).toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
+                  <td className="px-4 py-3 text-right text-[#A0A0A0]">{(b.available ?? 0).toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
                   <td className="px-4 py-3 text-right text-[11px] text-[#737373]">{new Date(b.updatedAt).toLocaleString()}</td>
                   <td className="px-4 py-3 text-right"><IconButton onClick={() => del(b.id)} aria-label="Delete balance"><Trash2 className="w-4 h-4" /></IconButton></td>
                 </tr>
@@ -346,8 +346,8 @@ function HoldingsTab({ userId, holdings, onChange }: { userId: string; holdings:
               <tr key={h.id} className="border-t border-[#ffffff05]">
                 <td className="px-4 py-3"><p className="text-[#E5E5E5]">{h.symbol}</p><p className="text-[11px] text-[#737373]">{h.name}</p></td>
                 <td className="px-4 py-3 text-[11px] text-[#A0A0A0] capitalize">{h.type}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">{h.amount.toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
-                <td className="px-4 py-3 text-right text-[#A0A0A0]">${h.avgPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">{(h.amount ?? 0).toLocaleString(undefined, { maximumFractionDigits: 8 })}</td>
+                <td className="px-4 py-3 text-right text-[#A0A0A0]">${(h.avgPrice ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="px-4 py-3 text-right"><IconButton onClick={() => del(h.id)} aria-label="Delete holding"><Trash2 className="w-4 h-4" /></IconButton></td>
               </tr>
             ))}

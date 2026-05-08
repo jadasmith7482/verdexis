@@ -56,8 +56,8 @@ export default function CommandPalette() {
   const items = useMemo<Item[]>(() => {
     const q = query.toLowerCase().trim()
     const coinItems: Item[] = coins.map((c) => ({
-      label: `${c.name} (${c.symbol.toUpperCase()})`,
-      hint: formatPrice(c.current_price),
+      label: `${c.name || c.symbol || c.id} (${(c.symbol || c.id || '').toUpperCase()})`,
+      hint: formatPrice(c.current_price ?? 0),
       to: '/trading',
       group: 'Markets',
     }))

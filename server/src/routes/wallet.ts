@@ -324,4 +324,121 @@ router.get('/lookup-recipient', requireAuth, async (req: AuthedRequest, res) => 
   res.json({ user: { email: u.email, name: u.name } })
 })
 
+// --- Self-custody wallet linking --------------------------------------
+// Persist the user's connected EIP-1193 / WalletConnect address on their
+// profile. Address is normalized to lowercase. We don't verify ownership
+// here (no signature challenge yet) — that's a follow-up; for now this
+// just gives admins/audit a record of which wallet a user claims is theirs.
+
+const ETH_ADDRESS = /^0x[a-fA-F0-9]{40}$/
+const CHAIN_HEX = /^0x[a-fA-F0-9]{1,16}$/
+
+const linkWalletSchema = z.object({
+  address: z.string().regex(ETH_ADDRESS, 'Not a valid 0x EVM address'),
+  chainId: z.string().regex(CHAIN_HEX, 'chainId must be 0x-prefixed hex').optional(),
+  provider: z.string().min(1).max(60).optional(),
+})
+
+router.get('/link', requireAuth, async (req: AuthedRequest, res) => {
+  const u = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    select: { walletAddress: true, walletChainId: true, walletProvider: true, walletLinkedAt: true },
+  })
+  res.json({ wallet: u ?? null })
+})
+
+router.post('/link', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = linkWalletSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() })
+    return
+  }
+  const u = await prisma.user.update({
+    where: { id: req.userId! },
+    data: {
+      walletAddress: parsed.data.address.toLowerCase(),
+      walletChainId: parsed.data.chainId?.toLowerCase() ?? null,
+      walletProvider: parsed.data.provider ?? null,
+      walletLinkedAt: new Date(),
+    },
+    select: { walletAddress: true, walletChainId: true, walletProvider: true, walletLinkedAt: true },
+  })
+  res.json({ wallet: u })
+})
+
+router.delete('/link', requireAuth, async (req: AuthedRequest, res) => {
+  await prisma.user.update({
+    where: { id: req.userId! },
+    data: { walletAddress: null, walletChainId: null, walletProvider: null, walletLinkedAt: null },
+  })
+  res.json({ ok: true })
+})
+
+// --- On-chain pending deposits ----------------------------------------
+// User completes a `sendTransaction` from their linked wallet to the admin
+// treasury address. The frontend POSTs the resulting tx hash + chain here
+// IMMEDIATELY (before confirmations). The row stays `pending` until an admin
+// (or a future chain-watcher job) verifies the transaction on a block
+// explorer and credits the user's WalletBalance via /admin endpoint.
+//
+// The unique index on txHash dedupes the same submit being fired twice.
+
+const pendingDepositSchema = z.object({
+  txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, 'Not a valid 32-byte tx hash'),
+  chainId: z.string().regex(CHAIN_HEX),
+  toAddress: z.string().regex(ETH_ADDRESS),
+  fromAddress: z.string().regex(ETH_ADDRESS),
+  asset: z.string().min(1).max(12),
+  amount: z.number().positive().max(1_000_000),
+})
+
+router.post('/pending-deposits', requireAuth, moneyLimiter, async (req: AuthedRequest, res) => {
+  const parsed = pendingDepositSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() })
+    return
+  }
+  const data = {
+    userId: req.userId!,
+    txHash: parsed.data.txHash.toLowerCase(),
+    chainId: parsed.data.chainId.toLowerCase(),
+    toAddress: parsed.data.toAddress.toLowerCase(),
+    fromAddress: parsed.data.fromAddress.toLowerCase(),
+    asset: parsed.data.asset.toUpperCase(),
+    amount: parsed.data.amount,
+    status: 'pending',
+  }
+  try {
+    const row = await prisma.pendingDeposit.create({ data })
+    // Fire a notification so the user sees the pending state in the bell.
+    await prisma.notification.create({
+      data: {
+        userId: req.userId!,
+        kind: 'deposit',
+        title: `Deposit submitted: ${data.amount} ${data.asset}`,
+        body: `On-chain transfer sent. Awaiting confirmations and admin review. Tx: ${data.txHash.slice(0, 14)}…`,
+      },
+    })
+    res.status(201).json({ pendingDeposit: row })
+  } catch (err) {
+    // Most likely the unique tx-hash collision (user retried).
+    const code = (err as { code?: string }).code
+    if (code === 'P2002') {
+      const existing = await prisma.pendingDeposit.findUnique({ where: { txHash: data.txHash } })
+      res.status(200).json({ pendingDeposit: existing, deduped: true })
+      return
+    }
+    throw err
+  }
+})
+
+router.get('/pending-deposits', requireAuth, async (req: AuthedRequest, res) => {
+  const rows = await prisma.pendingDeposit.findMany({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
+  res.json({ pendingDeposits: rows })
+})
+
 export default router
