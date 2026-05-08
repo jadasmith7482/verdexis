@@ -769,8 +769,11 @@ export default function Dashboard() {
                   <Link to="/wallet" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">Manage</Link>
                 </div>
                 <div className="space-y-3">
-                  {wallet.map((w) => (
-                    <div key={w.currency} className="flex items-center justify-between p-3 rounded-xl bg-[#1a1a1a]/50">
+                  {wallet.map((w) => {
+                    const cur = w.currency.toUpperCase()
+                    const isFiat = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'].includes(cur)
+                    const inner = (
+                      <>
                       <div className="flex items-center gap-3">
                         {getCryptoLogo(w.currency.toLowerCase()) ? (
                           <img
@@ -788,8 +791,23 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <span className="text-sm text-[#E5E5E5]">{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
-                    </div>
-                  ))}
+                      </>
+                    )
+                    if (isFiat) {
+                      return (
+                        <div key={w.currency} className="flex items-center justify-between p-3 rounded-xl bg-[#1a1a1a]/50">{inner}</div>
+                      )
+                    }
+                    return (
+                      <Link
+                        key={w.currency}
+                        to={`/asset/${w.currency.toLowerCase()}`}
+                        className="flex items-center justify-between p-3 rounded-xl bg-[#1a1a1a]/50 hover:bg-[#1a1a1a]/80 hover:border-[#0C8B44]/30 border border-transparent transition-colors"
+                      >
+                        {inner}
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -852,7 +870,7 @@ export default function Dashboard() {
                     const sparklinePrices = crypto.sparkline_in_7d?.price.slice(-20) || []
                     const isUp = crypto.price_change_percentage_24h >= 0
                     return (
-                      <div key={crypto.id} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0 overflow-hidden">
+                      <Link to={`/asset/${crypto.id}`} key={crypto.id} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0 overflow-hidden block">
                         <div className="flex items-center justify-between mb-2 gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             {getCryptoLogo(crypto.id) ? (
@@ -889,7 +907,7 @@ export default function Dashboard() {
                             </svg>
                           </div>
                         )}
-                      </div>
+                      </Link>
                     )
                   })}
                 </div>

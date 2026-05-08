@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import CandleChart from '../components/CandleChart'
 import { marketData, type CryptoQuote } from '../lib/marketData'
@@ -42,6 +42,25 @@ export default function Trading() {
   const [submitting, setSubmitting] = useState(false)
   const [, setPortfolioTick] = useState(0)
   const isAuthenticated = !!getToken()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Deep-link: /trading?symbol=bitcoin (or btc) preselects that pair as soon
+  // as the market list arrives. Strips the param after applying so the URL
+  // stays clean if the user clicks around.
+  useEffect(() => {
+    const want = searchParams.get('symbol')
+    if (!want || cryptoData.length === 0) return
+    const lower = want.toLowerCase()
+    const found = cryptoData.find(
+      (c) => c.id.toLowerCase() === lower || c.symbol.toLowerCase() === lower,
+    )
+    if (found) {
+      setSelectedCrypto(found)
+      const next = new URLSearchParams(searchParams)
+      next.delete('symbol')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, cryptoData, setSearchParams])
 
   // Hydrate holdings/wallet on mount + whenever the profile changes (login).
   useEffect(() => {
