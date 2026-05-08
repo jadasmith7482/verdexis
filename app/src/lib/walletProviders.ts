@@ -135,10 +135,18 @@ export function discoverWallets(timeoutMs = 1500): Promise<DiscoveredProvider[]>
 // Persist the user's choice so we can auto-rehydrate the same wallet on next visit.
 export const WALLET_RDNS_STORAGE = 'verdexis_wallet_rdns'
 
-// Detect mobile so we can prefer wallet deep-links over desktop extension installs.
+// Detect mobile / touch so we can prefer WalletConnect over deep-links that
+// open the wallet's in-app browser. Catches: iPhone, iPad (iPadOS 13+ which
+// reports as Mac, so we also check `maxTouchPoints`), Android, and other
+// touch tablets.
 export function isMobile(): boolean {
   if (typeof navigator === 'undefined') return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  const ua = navigator.userAgent || ''
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true
+  // iPadOS 13+ pretends to be desktop Safari. Detect via touch points.
+  const maxTouch = (navigator as Navigator & { maxTouchPoints?: number }).maxTouchPoints ?? 0
+  if (maxTouch > 1 && /Macintosh/i.test(ua)) return true
+  return false
 }
 
 // Always-available wallet options. On mobile we use deep-links that open the
