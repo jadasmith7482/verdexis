@@ -112,19 +112,39 @@ async function fetchOne(product: string): Promise<number | null> {
 }
 
 // GET /api/market/tickers?ids=bitcoin,ethereum,solana
-// Returns: { bitcoin: 81050, ethereum: 3200, ... } — only includes ids we
-// could resolve (missing keys mean upstream failed or coin not supported).
+// Returns: { bitcoin: 81050, ethereum: 3200, ... }. Tries Coinbase Exchange
+// first (sub-2s freshness, no key needed) and falls back to CoinGecko's
+// /simple/price for any id Coinbase doesn't list — so every coin in the
+// app gets a live price, not just the ~25 in COIN_TO_COINBASE.
 router.get('/tickers', async (req, res) => {
   const idsParam = (req.query.ids as string | undefined)?.trim()
   if (!idsParam) { res.json({}); return }
-  const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 50)
+  const ids = idsParam.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 50)
   const out: Record<string, number> = {}
+  // 1) Coinbase Exchange for the fast-path coins.
   await Promise.all(ids.map(async (id) => {
     const product = COIN_TO_COINBASE[id]
     if (!product) return
     const price = await fetchOne(product)
     if (price != null) out[id] = price
   }))
+  // 2) CoinGecko fallback for everything else.
+  const missing = ids.filter((id) => out[id] == null)
+  if (missing.length > 0) {
+    try {
+      const data = (await cgFetch(
+        `/simple/price?ids=${encodeURIComponent(missing.join(','))}&vs_currencies=usd`,
+        15_000,
+      )) as Record<string, { usd?: number }>
+      for (const id of missing) {
+        const p = data?.[id]?.usd
+        if (typeof p === 'number' && isFinite(p)) out[id] = p
+      }
+    } catch (err) {
+      console.warn('[market] tickers coingecko fallback failed:', (err as Error).message)
+    }
+  }
+  res.set('Cache-Control', 'public, max-age=2')
   res.json(out)
 })
 
