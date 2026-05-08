@@ -14,7 +14,7 @@ import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
 import { api, getToken, newIdempotencyKey } from '../lib/api'
 
-const getCryptoLogo = (id: string) => cryptoIconFor(id)
+const getCryptoLogo = (c: { id?: string; symbol?: string; image?: string }) => cryptoIconFor(c)
 
 type OrderType = 'market' | 'limit' | 'stop'
 type OrderSide = 'buy' | 'sell'
@@ -289,9 +289,9 @@ export default function Trading() {
               {selectedCrypto ? (
                 <>
                   <div className="flex items-center gap-3">
-                    {selectedCrypto && getCryptoLogo(selectedCrypto.id) ? (
+                    {selectedCrypto && getCryptoLogo(selectedCrypto) ? (
                       <img
-                        src={getCryptoLogo(selectedCrypto.id)!}
+                        src={getCryptoLogo(selectedCrypto)!}
                         alt={selectedCrypto.name}
                         className="w-10 h-10 rounded-full object-cover"
                         onError={cryptoIconErrorFallback(selectedCrypto.symbol.toUpperCase()[0] || '?', selectedCrypto.id)}
@@ -358,9 +358,9 @@ export default function Trading() {
                   <div key={crypto.id} className={`w-full flex items-stretch ${selectedCrypto?.id === crypto.id ? 'bg-[#0C8B44]/10' : 'hover:bg-[#ffffff05]'} transition-colors`}>
                     <button onClick={() => setSelectedCrypto(crypto)} className="flex-1 flex items-center justify-between p-4 text-left">
                     <div className="flex items-center gap-3">
-                      {getCryptoLogo(crypto.id) ? (
+                      {getCryptoLogo(crypto) ? (
                         <img
-                          src={getCryptoLogo(crypto.id)!}
+                          src={getCryptoLogo(crypto)!}
                           alt={crypto.name}
                           className="w-8 h-8 rounded-full object-cover"
                           onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}

@@ -16,7 +16,7 @@ export default function TopMovers({ data }: { data: CryptoQuote[] }) {
   const losers = sorted.slice(-3).reverse()
 
   const Card = ({ c, kind }: { c: CryptoQuote; kind: 'up' | 'down' }) => {
-    const icon = cryptoIconFor(c.id)
+    const icon = cryptoIconFor(c)
     const color = kind === 'up' ? '#4CAF50' : '#f44336'
     const Icon = kind === 'up' ? TrendingUp : TrendingDown
     return (

@@ -1,17 +1,24 @@
 // Crypto icons. We resolve a CoinGecko-style id (e.g. "bitcoin") or a ticker
 // symbol (e.g. "btc") to a remote logo URL. The web is full of half-broken
-// icon CDNs — the spothq `cryptocurrency-icons` set we used to rely on
-// hasn't been updated in years and is missing every coin minted after ~2022
-// (TON, APT, ARB, OP, SUI, HYPE, WBT, etc.), which is why the user was
-// seeing broken images everywhere. We now hit CoinCap's PNG icon CDN first
-// (covers the long tail of modern tokens), then fall back through the
-// spothq SVG set, then the data-URI initial.
+// icon CDNs — the spothq `cryptocurrency-icons` set hasn't been updated in
+// years (no TON/APT/SUI/HYPE/WBT/PEPE/BONK/etc.) and CoinCap's icon CDN
+// (`assets.coincap.io`) has been flaky/sunset since the Coinbase migration,
+// which is why the user kept seeing broken images.
+//
+// Strategy:
+//   1. If the caller has a CoinGecko market object, use its `image` field
+//      directly — that's the canonical logo CoinGecko serves for every
+//      coin we list, no symbol guessing required.
+//   2. Otherwise (we only know the id/symbol), try jsDelivr's mirror of
+//      the actively-maintained `coinwink/cryptocurrency-logos` PNG set,
+//      which covers ~2k tokens including the modern ones.
+//   3. Fall back to the spothq SVG set for the long tail of older coins.
+//   4. Finally, render a coloured-initial SVG so the slot is never blank.
 
 import type React from 'react'
 
-// Public, key-less PNG icon CDN that covers most active tokens, keyed by
-// lowercased ticker symbol.
-const COINCAP_CDN = 'https://assets.coincap.io/assets/icons'
+// Actively-maintained PNG icon set (~2000 tokens, includes TON/APT/SUI/etc.).
+const COINWINK_CDN = 'https://cdn.jsdelivr.net/gh/coinwink/cryptocurrency-logos@master/coins/32x32'
 // Long-standing SVG set, used as a secondary fallback. Updated via jsDelivr.
 const SPOTHQ_CDN = 'https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color'
 
@@ -138,15 +145,25 @@ function symbolFor(idOrSymbol: string): string {
   return ID_TO_SYMBOL[key] ?? key
 }
 
-export function cryptoIconFor(idOrSymbol: string | undefined | null): string | null {
-  if (!idOrSymbol) return null
-  return `${COINCAP_CDN}/${symbolFor(idOrSymbol)}@2x.png`
+// Accepts either a string id/symbol or a CoinGecko-shaped market object.
+// When we have the market object we prefer its `image` (canonical logo),
+// which is the only way to get a working icon for every coin in the top 250.
+export function cryptoIconFor(
+  input: string | { id?: string; symbol?: string; image?: string | null } | undefined | null,
+): string | null {
+  if (!input) return null
+  if (typeof input === 'object') {
+    if (input.image) return input.image
+    return cryptoIconFor(input.id || input.symbol || '')
+  }
+  return `${COINWINK_CDN}/${symbolFor(input)}.png`
 }
 
-// Returns the secondary URL we should try when the primary CoinCap image
-// 404s. Used by `cryptoIconErrorFallback` to chain through providers.
+// Returns the secondary URLs we should try when the primary image 404s.
+// Used by `cryptoIconErrorFallback` to chain through providers.
 function cryptoIconFallbackChain(sym: string): string[] {
   return [
+    `${COINWINK_CDN}/${sym}.png`,
     `${SPOTHQ_CDN}/${sym}.svg`,
   ]
 }

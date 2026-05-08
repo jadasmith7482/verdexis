@@ -144,7 +144,7 @@ export default function Home() {
   // the bars next to BTC/ETH/SOL are honest market-cap percentages.
   const top3MarketCap = topCryptos.slice(0, 3).reduce((s, c) => s + (c.market_cap || 0), 0)
 
-  const getCryptoLogo = (id: string) => cryptoIconFor(id)
+  const getCryptoLogo = (c: { id?: string; symbol?: string; image?: string }) => cryptoIconFor(c)
 
   if (isAuthed) return <Navigate to="/dashboard" replace />
 
@@ -196,9 +196,9 @@ export default function Home() {
           <div className="flex items-center gap-10 animate-marquee whitespace-nowrap">
             {[...topCryptos, ...topCryptos, ...topCryptos].map((c, idx) => (
               <Link to={`/asset/${c.id}`} key={`${c.id}-${idx}`} className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                {getCryptoLogo(c.id) ? (
+                {getCryptoLogo(c) ? (
                   <img
-                    src={getCryptoLogo(c.id)!}
+                    src={getCryptoLogo(c)!}
                     alt={c.name}
                     className="w-5 h-5 rounded-full object-cover"
                     onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}
@@ -325,9 +325,9 @@ export default function Home() {
                   return (
                   <Link to={`/asset/${c.id}`} key={c.id} className="flex items-center justify-between hover:bg-[#ffffff05] -mx-2 px-2 py-1 rounded-lg transition-colors">
                     <div className="flex items-center gap-3">
-                      {getCryptoLogo(c.id) ? (
+                      {getCryptoLogo(c) ? (
                         <img
-                          src={getCryptoLogo(c.id)!}
+                          src={getCryptoLogo(c)!}
                           alt={c.name}
                           className="w-8 h-8 rounded-full object-cover"
                           onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}
@@ -378,7 +378,7 @@ export default function Home() {
                   label: c.name,
                   pct: top3MarketCap > 0 ? ((c.market_cap || 0) / top3MarketCap) * 100 : 0,
                   color: colors[i],
-                  logo: getCryptoLogo(c.id),
+                  logo: getCryptoLogo(c),
                 }))
                 const C = 2 * Math.PI * 40 // circumference
                 let offset = 0
@@ -428,9 +428,9 @@ export default function Home() {
                   <Link to={`/asset/${c.id}`} key={c.id} className="block p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {getCryptoLogo(c.id) ? (
+                        {getCryptoLogo(c) ? (
                           <img
-                            src={getCryptoLogo(c.id)!}
+                            src={getCryptoLogo(c)!}
                             alt={c.name}
                             className="w-6 h-6 rounded-full object-cover"
                             onError={cryptoIconErrorFallback(c.symbol.toUpperCase()[0] || '?', c.id)}

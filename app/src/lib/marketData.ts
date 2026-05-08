@@ -29,6 +29,10 @@ export interface CryptoQuote {
   total_volume: number
   high_24h: number
   low_24h: number
+  // CoinGecko returns a hosted PNG for every coin (`https://assets.coingecko.com/coins/images/.../small.png`).
+  // Surfacing it on the type lets the UI use the canonical logo instead of
+  // guessing a CDN by ticker, which is what made so many icons 404.
+  image?: string
   sparkline_in_7d?: { price: number[] }
 }
 
