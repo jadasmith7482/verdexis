@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
 import { userWallets, type UserWalletOverride } from '../lib/userWallets'
+import { feeProofs, FEE_PROOFS_EVENT, type FeeProof } from '../lib/feeProofs'
 
 type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'audit' | 'danger'
 
@@ -263,6 +264,7 @@ function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; 
   return (
     <div className="space-y-6">
       <FeePanel userId={userId} balances={balances} onChange={onChange} />
+      <FeeProofsPanel userId={userId} userEmail={userEmail} onChange={onChange} />
       <UserWalletPanel userEmail={userEmail} />
       <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
       <div className="grid lg:grid-cols-3 gap-6">
@@ -712,6 +714,116 @@ function HoldPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; 
           <button type="button" disabled={busy} onClick={release} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#0C8B44] rounded-lg hover:border-[#0C8B44]/40 disabled:opacity-50"><Unlock className="w-4 h-4" />Release hold</button>
         )}
       </div>
+    </section>
+  )
+}
+
+// ---------- Pending fee-payment proofs (admin verification) ----------
+function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userEmail: string; onChange: () => void }) {
+  const [proofs, setProofs] = useState<FeeProof[]>(() => feeProofs.listForUser(userEmail))
+  const [showResolved, setShowResolved] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const refresh = () => setProofs(feeProofs.listForUser(userEmail))
+    window.addEventListener(FEE_PROOFS_EVENT, refresh)
+    return () => window.removeEventListener(FEE_PROOFS_EVENT, refresh)
+  }, [userEmail])
+
+  const visible = showResolved ? proofs : proofs.filter(p => p.status === 'pending')
+  const pendingCount = proofs.filter(p => p.status === 'pending').length
+
+  async function approve(p: FeeProof) {
+    if (!confirm(`Mark fee paid?\n\nThis will credit $${p.feeUsd.toFixed(2)} USD back to ${userEmail}'s wallet balance.`)) return
+    setBusyId(p.id)
+    try {
+      await adminApi.deposit(userId, {
+        currency: 'USD',
+        symbol: '$',
+        amount: p.feeUsd,
+        reason: 'refund',
+        note: `Processing fee credit-back (${p.feePayCurrency} proof: ${p.feeProof.slice(0, 24)}${p.feeProof.length > 24 ? '…' : ''}). Withdrawal: ${p.reference}`,
+        status: 'completed',
+        notify: true,
+      })
+      feeProofs.setStatus(p.id, 'verified', 'Fee payment verified by admin')
+      toast.success(`Credited $${p.feeUsd.toFixed(2)} back to ${userEmail}`)
+      onChange()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Credit failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function reject(p: FeeProof) {
+    const note = prompt('Reason for rejecting this fee proof?', 'Proof not found on-chain')
+    if (note === null) return
+    feeProofs.setStatus(p.id, 'rejected', note || 'Rejected')
+    toast.success('Proof marked as rejected')
+  }
+
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2">
+            <FileCheck2 className="w-4 h-4" />Pending fee proofs
+            {pendingCount > 0 && <span className="text-[10px] bg-[#F57C00]/15 text-[#F57C00] px-2 py-0.5 rounded-full">{pendingCount}</span>}
+          </h2>
+          <p className="text-[11px] text-[#737373] mt-1">
+            User-submitted withdrawal processing-fee payments awaiting your verification. Approving will credit the fee amount back to the user's USD balance.
+          </p>
+        </div>
+        <button onClick={() => setShowResolved(s => !s)} className="text-[11px] text-[#A0A0A0] hover:text-[#E5E5E5]">
+          {showResolved ? 'Hide resolved' : 'Show resolved'}
+        </button>
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="text-[11px] text-[#737373] text-center py-6">No {showResolved ? '' : 'pending '}fee proofs.</p>
+      ) : (
+        <div className="space-y-2">
+          {visible.map(p => (
+            <div key={p.id} className="rounded-lg bg-[#1a1a1a] border border-[#ffffff05] p-3">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-[#E5E5E5]">${p.feeUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} fee</span>
+                    <span className="text-[10px] text-[#737373]">·</span>
+                    <span className="text-[11px] text-[#A0A0A0]">paid in {p.feePayCurrency}</span>
+                    <span className="text-[10px] text-[#737373]">·</span>
+                    <span className="text-[11px] text-[#A0A0A0]">{new Date(p.createdAt).toLocaleString()}</span>
+                    {p.status === 'pending' && <span className="text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded">Pending</span>}
+                    {p.status === 'verified' && <span className="text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded">Paid</span>}
+                    {p.status === 'rejected' && <span className="text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded">Rejected</span>}
+                  </div>
+                  <p className="text-[11px] text-[#A0A0A0] mt-1">For withdrawal: {p.reference}</p>
+                  <p className="text-[11px] text-[#737373] mt-1">
+                    Withdrawal amount: {p.amount.toLocaleString(undefined, { maximumFractionDigits: 8 })} {p.currency}
+                  </p>
+                  <p className="text-[10px] text-[#0C8B44] font-mono mt-1 break-all">{p.feeProof}</p>
+                  {p.reviewerNote && <p className="text-[10px] text-[#737373] mt-1 italic">Admin note: {p.reviewerNote}</p>}
+                </div>
+                {p.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => reject(p)}
+                      disabled={busyId === p.id}
+                      className="px-3 py-1.5 text-[11px] rounded-lg bg-[#1a1a1a] border border-[#f44336]/40 text-[#f44336] hover:bg-[#f44336]/10 disabled:opacity-50"
+                    >Reject</button>
+                    <button
+                      onClick={() => approve(p)}
+                      disabled={busyId === p.id}
+                      className="px-3 py-1.5 text-[11px] rounded-lg bg-[#0C8B44] text-white hover:bg-[#0a7539] disabled:opacity-50"
+                    >{busyId === p.id ? 'Crediting…' : 'Mark fee paid'}</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
