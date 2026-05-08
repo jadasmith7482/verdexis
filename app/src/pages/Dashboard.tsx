@@ -845,9 +845,11 @@ export default function Dashboard() {
                 {!hiddenWidgets.has('staking') && <StakingCard />}
                 {!hiddenWidgets.has('dca') && <DcaCard />}
                 {!hiddenWidgets.has('watchlist') && (
-                  <WatchlistPanel
-                    availableSymbols={cryptoData.slice(0, 10).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }))}
-                  />
+                  <div id="watchlist" className="scroll-mt-24">
+                    <WatchlistPanel
+                      availableSymbols={cryptoData.slice(0, 10).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }))}
+                    />
+                  </div>
                 )}
               </>
             )}

@@ -73,10 +73,12 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-medium text-[#E5E5E5] mb-3 uppercase tracking-[0.05em]">Markets</h4>
             <ul className="space-y-2 text-xs text-[#A0A0A0]">
-              <li><Link to="/trading" className="hover:text-[#0C8B44] transition-colors">Explore crypto</Link></li>
-              <li><Link to="/trading" className="hover:text-[#0C8B44] transition-colors">Explore stocks</Link></li>
+              <li><Link to="/trading?symbol=BTC" className="hover:text-[#0C8B44] transition-colors">Explore crypto</Link></li>
+              <li><Link to="/trading?symbol=AAPL" className="hover:text-[#0C8B44] transition-colors">Explore stocks</Link></li>
               <li><Link to="/news" className="hover:text-[#0C8B44] transition-colors">Market news</Link></li>
+              <li><Link to="/dashboard#watchlist" className="hover:text-[#0C8B44] transition-colors">Watchlist</Link></li>
               <li><Link to="/dashboard" className="hover:text-[#0C8B44] transition-colors">Portfolio overview</Link></li>
+              <li><Link to="/alerts" className="hover:text-[#0C8B44] transition-colors">Price alerts</Link></li>
             </ul>
           </div>
 
@@ -96,9 +98,10 @@ export default function Footer() {
             <h4 className="text-xs font-medium text-[#E5E5E5] mb-3 uppercase tracking-[0.05em]">Support</h4>
             <ul className="space-y-2 text-xs text-[#A0A0A0]">
               <li><Link to="/help" className="hover:text-[#0C8B44] transition-colors">Help center</Link></li>
+              <li><Link to="/help#getting-started" className="hover:text-[#0C8B44] transition-colors">Getting started</Link></li>
               <li><a href="mailto:hello@verdexis.com" className="hover:text-[#0C8B44] transition-colors">Contact us</a></li>
               <li><Link to="/settings" className="hover:text-[#0C8B44] transition-colors">Account settings</Link></li>
-              <li><Link to="/wallet" className="hover:text-[#0C8B44] transition-colors">Payment methods</Link></li>
+              <li><Link to="/wallet?action=deposit" className="hover:text-[#0C8B44] transition-colors">Payment methods</Link></li>
               <li><Link to="/status" className="hover:text-[#0C8B44] transition-colors">Status</Link></li>
               <li><a href="mailto:security@verdexis.com" className="hover:text-[#0C8B44] transition-colors">Report a vulnerability</a></li>
             </ul>
