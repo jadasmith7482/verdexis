@@ -347,8 +347,70 @@ export default function Trading() {
 
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Left Sidebar */}
-            <div className="lg:col-span-3 glass-card overflow-hidden">
+            {/* Left Sidebar — full list on lg+; collapsed dropdown on mobile
+                so the chart and order ticket stay above the fold instead of
+                being pushed below 100+ market rows. */}
+            <details className="lg:hidden glass-card overflow-hidden group">
+              <summary className="flex items-center justify-between gap-3 p-4 cursor-pointer list-none">
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedCrypto && getCryptoLogo(selectedCrypto) ? (
+                    <img
+                      src={getCryptoLogo(selectedCrypto)!}
+                      alt={selectedCrypto.name || selectedCrypto.id}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                      onError={cryptoIconErrorFallback((selectedCrypto.symbol || '?').toUpperCase()[0] || '?', selectedCrypto.id)}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44] shrink-0">{(selectedCrypto?.symbol || '?').toUpperCase()[0]}</div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[#E5E5E5] truncate">{(selectedCrypto?.symbol || selectedCrypto?.id || 'Pick a market').toUpperCase()}</p>
+                    <p className="text-[10px] text-[#737373] truncate">Tap to switch market ({filteredCryptos.length} available)</p>
+                  </div>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-[#737373] group-open:text-[#0C8B44] shrink-0">
+                  <span className="group-open:hidden">Open ▾</span>
+                  <span className="hidden group-open:inline">Close ▴</span>
+                </span>
+              </summary>
+              <div className="border-t border-[#ffffff08]">
+                <div className="p-4 border-b border-[#ffffff08]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
+                    <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search markets..."
+                      className="w-full pl-9 pr-4 py-2 bg-[#1a1a1a] border border-[#ffffff08] rounded-lg text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                  </div>
+                </div>
+                <div className="divide-y divide-[#ffffff05] max-h-[60vh] overflow-y-auto scrollbar-hide">
+                  {filteredCryptos.map((crypto) => (
+                    <div key={crypto.id} className={`w-full flex items-stretch ${selectedCrypto?.id === crypto.id ? 'bg-[#0C8B44]/10' : 'hover:bg-[#ffffff05]'} transition-colors`}>
+                      <button onClick={() => setSelectedCrypto(crypto)} className="flex-1 flex items-center justify-between p-3 text-left">
+                        <div className="flex items-center gap-3">
+                          {getCryptoLogo(crypto) ? (
+                            <img src={getCryptoLogo(crypto)!} alt={crypto.name || crypto.id} className="w-7 h-7 rounded-full object-cover" onError={cryptoIconErrorFallback((crypto.symbol || '?').toUpperCase()[0] || '?', crypto.id)} />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44]">{(crypto.symbol || '?').toUpperCase()[0]}</div>
+                          )}
+                          <div className="text-left">
+                            <p className="text-xs font-medium text-[#E5E5E5]">{(crypto.symbol || crypto.id).toUpperCase()}</p>
+                            <p className="text-[10px] text-[#737373]">{crypto.name || crypto.id}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-[#E5E5E5]">{formatPrice(crypto.current_price ?? 0)}</p>
+                          <p className={`text-[10px] ${(crypto.price_change_percentage_24h ?? 0) >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                            {(crypto.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}{(crypto.price_change_percentage_24h ?? 0).toFixed(2)}%
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+
+            {/* Left Sidebar — desktop */}
+            <div className="hidden lg:block lg:col-span-3 glass-card overflow-hidden">
               <div className="p-4 border-b border-[#ffffff08]">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />

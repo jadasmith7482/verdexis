@@ -11,7 +11,6 @@ import MorningBriefCard from '../components/dashboard/MorningBriefCard'
 import AlertsSummaryCard from '../components/dashboard/AlertsSummaryCard'
 import NewsSnippetCard from '../components/dashboard/NewsSnippetCard'
 import GoalsProgressCard from '../components/dashboard/GoalsProgressCard'
-import ConnectedAccountsCard from '../components/dashboard/ConnectedAccountsCard'
 import CategoryBreakdownCard from '../components/dashboard/CategoryBreakdownCard'
 import StakingCard from '../components/dashboard/StakingCard'
 import DcaCard from '../components/dashboard/DcaCard'
@@ -39,22 +38,27 @@ import {
   TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight,
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
   PieChart, Activity, Lock,
-  ArrowRight, CircleDollarSign, Gem, Layers,
+  ArrowRight, Gem, Layers,
   History, Star, Repeat, Coins, Settings as SettingsIcon,
 } from 'lucide-react'
 
 const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
 
-// Compact relative-time formatter for the recent activity rows ("2m", "3h",
-// "5d"). Keeps the row dense without losing the "when" signal.
+// Compact relative-time formatter for recent activity rows. Stays compact
+// ("2m", "3h", "5d") for things that happened recently, but switches to an
+// actual locale date once the row is more than 30 days old — a backdated
+// transaction reading "338d ago" looks unprofessional next to the modern
+// rows, so admins / users see e.g. "Mar 12, 2025" instead.
 function relativeTimeShort(d: Date): string {
   const sec = Math.max(1, Math.round((Date.now() - d.getTime()) / 1000))
   if (sec < 60) return `${sec}s ago`
   if (sec < 3600) return `${Math.round(sec / 60)}m ago`
   if (sec < 86_400) return `${Math.round(sec / 3600)}h ago`
   if (sec < 86_400 * 30) return `${Math.round(sec / 86_400)}d ago`
-  if (sec < 86_400 * 365) return `${Math.round(sec / (86_400 * 30))}mo ago`
-  return `${Math.round(sec / (86_400 * 365))}y ago`
+  // Older than ~a month — show the actual date instead of a noisy
+  // relative count. Includes the year only if it's not the current year.
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString(undefined, sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
@@ -591,11 +595,11 @@ export default function Dashboard() {
             <TopMovers data={cryptoData} />
           )}
 
-          {/* Top Stats Row */}
+          {/* Top Stats Row — deduped: 'Total Net Worth' lives in the hero
+              card above, so this row covers the next three KPIs only. */}
           {isAuthenticated && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               {[
-                { label: 'Total Net Worth', value: fmtMoney(totalValue), change: `${dayChangePercent >= 0 ? '+' : ''}${dayChangePercent.toFixed(2)}%`, positive: dayChangePercent >= 0, icon: CircleDollarSign },
                 { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp },
                 { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
                 { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
@@ -979,9 +983,9 @@ export default function Dashboard() {
             {/* New widget row 2 — connected accounts + categories (2-up wide) */}
             {isAuthenticated && (
               <>
-                {!hiddenWidgets.has('connectedAccounts') && (
-                  <div className="lg:col-span-1"><ConnectedAccountsCard /></div>
-                )}
+                {/* ConnectedAccountsCard removed from homepage — banks/wallets
+                    live on /wallet and /settings now to keep the dashboard
+                    focused on portfolio + market signal. */}
                 {!hiddenWidgets.has('categoryBreakdown') && (
                   <div className="lg:col-span-2"><CategoryBreakdownCard holdings={holdings} totalValue={positionsValue} /></div>
                 )}

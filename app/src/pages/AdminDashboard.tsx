@@ -237,7 +237,7 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
                       {d.user.suspended && <span className="text-[9px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-1.5 py-0.5 rounded">Susp</span>}
                       {d.user.kycStatus !== 'approved' && <span className="text-[9px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-1.5 py-0.5 rounded">KYC {d.user.kycStatus}</span>}
                     </div>
-                    <p className="text-[11px] text-[#737373] truncate">{d.reference || 'No reference'} · {relTime(d.createdAt)} ago</p>
+                    <p className="text-[11px] text-[#737373] truncate">{d.reference || 'No reference'} · {relTime(d.createdAt)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-base font-medium text-[#E5E5E5]">{(d.amount ?? 0).toLocaleString()} {d.currency}</p>
@@ -289,7 +289,7 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
                       <a href={d.explorerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#3B99FC] hover:underline font-mono">
                         {d.txHash.slice(0, 14)}…{d.txHash.slice(-6)} <ExternalLink className="w-3 h-3" />
                       </a>
-                      <span className="text-[#737373]"> · {relTime(d.createdAt)} ago</span>
+                      <span className="text-[#737373]"> · {relTime(d.createdAt)}</span>
                     </p>
                   </div>
                   <div className="text-right">
@@ -335,7 +335,7 @@ function BroadcastCard({ last }: { last: AdminStats['lastBroadcast'] }) {
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2"><Clock className="w-4 h-4" /><span>Last broadcast</span></div>
       {last ? (
         <>
-          <p className="text-sm text-[#E5E5E5]">{relTime(last.at)} ago</p>
+          <p className="text-sm text-[#E5E5E5]">{relTime(last.at)}</p>
           <p className="text-[10px] text-[#737373] truncate">{last.by ?? 'system'}</p>
         </>
       ) : (
@@ -346,11 +346,17 @@ function BroadcastCard({ last }: { last: AdminStats['lastBroadcast'] }) {
 }
 
 function relTime(iso: string): string {
-  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (sec < 60) return `${sec}s`
-  if (sec < 3600) return `${Math.floor(sec / 60)}m`
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h`
-  return `${Math.floor(sec / 86400)}d`
+  const d = new Date(iso)
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000)
+  if (sec < 60) return `${sec}s ago`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
+  // Within the last month — still useful as relative.
+  if (sec < 86400 * 30) return `${Math.floor(sec / 86400)}d ago`
+  // Older (e.g. backdated transactions) — show actual date so admins don't
+  // see meaningless counts like "338d". Year only if not current year.
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString(undefined, sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function statusColor(status: string): string {

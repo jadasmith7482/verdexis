@@ -103,12 +103,17 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    // overflow-y-auto + items-start sm:items-center keeps the modal scrollable
+    // from the top of the viewport on short / mobile screens — previously the
+    // form bled below the fold and users had to scroll the whole page to see
+    // the submit button. p-4 keeps a margin all around so the close button
+    // never touches the viewport edge.
+    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md glass-card overflow-hidden" style={{ background: 'rgba(15,22,25,0.95)', backdropFilter: 'blur(24px)' }}>
+      <div className="relative w-full max-w-md glass-card overflow-hidden my-auto" style={{ background: 'rgba(15,22,25,0.95)', backdropFilter: 'blur(24px)' }}>
         {/* Close button */}
         <button
           type="button"

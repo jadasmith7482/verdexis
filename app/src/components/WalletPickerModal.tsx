@@ -37,8 +37,17 @@ export default function WalletPickerModal({
 
   // Hide install options for any wallet that's already detected.
   const detectedRdns = new Set(discovered.map((d) => d.info.rdns))
-  const installOptions = WALLET_INSTALL_OPTIONS.filter((w) => !detectedRdns.has(w.rdns))
+  let installOptions = WALLET_INSTALL_OPTIONS.filter((w) => !detectedRdns.has(w.rdns))
   const onMobile = isMobile()
+  // On mobile, the deep-link "open" buttons would yank the user out of this
+  // browser tab and into the wallet's own in-app browser, where they'd see
+  // a fresh copy of Verdexis with no session and have to log in again. When
+  // WalletConnect is configured, prefer the WC button at the top (which
+  // connects back to THIS tab via wc: URI) and only show entries that the
+  // user genuinely needs to install.
+  if (onMobile && isWalletConnectConfigured()) {
+    installOptions = installOptions.filter((w) => !w.deepLink)
+  }
 
   return (
     <div
@@ -163,8 +172,8 @@ export default function WalletPickerModal({
               </p>
               <p className="text-xs text-[#737373] mt-1">
                 {onMobile
-                  ? 'Tap a wallet below — it will open Verdexis inside that wallet\u2019s in-app browser, where you can connect with one tap. If the app isn\u2019t installed, the link will take you to the App Store / Play Store first.'
-                  : 'If you just installed one, click the refresh icon above. Otherwise pick one below — the link will open the wallet directly if it\u2019s already installed, or prompt you to install it.'}
+                  ? 'Use the WalletConnect button above to connect any installed mobile wallet \u2014 the wallet app will pop up to approve the connection and bring you back here. The list below is for installing a new wallet from the app store.'
+                  : 'If you just installed one, click the refresh icon above. Otherwise pick one below \u2014 the link will open the wallet directly if it\u2019s already installed, or prompt you to install it.'}
               </p>
             </div>
           )}
@@ -178,7 +187,9 @@ export default function WalletPickerModal({
               </p>
               {onMobile && discovered.length === 0 && (
                 <p className="text-[11px] text-[#A0A0A0] mb-3">
-                  Tap any wallet below to open Verdexis inside its in-app browser — you can connect from there in one tap.
+                  Tap a wallet below if you need to install it. Already have a wallet?
+                  Use the WalletConnect button at the top &mdash; it connects back to
+                  Verdexis without leaving this page.
                 </p>
               )}
               <div className="space-y-2">
