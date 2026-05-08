@@ -85,13 +85,13 @@ export default function Trading() {
   }, [selectedCrypto?.id])
 
   useEffect(() => {
-    fetchData()
-    const interval = setInterval(fetchData, 5000)
+    void fetchData(false)
+    const interval = setInterval(() => void fetchData(true), 5000)
     return () => clearInterval(interval)
   }, [])
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true)
     const data = await marketData.getCryptoList()
     setCryptoData(data)
     if (data && data.length) {
@@ -112,7 +112,7 @@ export default function Trading() {
       })
     }
     setRecentTrades(portfolioStore.getTrades().slice(0, 10) as unknown as PublicTrade[])
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   // Fetch real order book + last public trades from Coinbase via our proxy.
