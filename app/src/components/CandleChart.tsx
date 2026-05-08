@@ -130,6 +130,10 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
       borderRadius: 12,
       height: 500,
       styledMode: false,
+      // Don't let trackpad/mouse-wheel gestures zoom the chart — users
+      // navigate via our range picker + the navigator strip below.
+      zooming: { mouseWheel: { enabled: false }, type: undefined },
+      pinchType: undefined,
     },
     title: { text: undefined },
     credits: { enabled: false },
@@ -167,12 +171,22 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
         gridLineColor: '#13191c',
         lineWidth: 0,
         visible: true,
+        // Pad the price axis so candles don't touch the top/bottom edges —
+        // makes price action readable instead of looking maxed-out.
+        startOnTick: false,
+        endOnTick: false,
+        minPadding: 0.08,
+        maxPadding: 0.08,
       },
       {
         top: '80%',
         height: '20%',
         gridLineColor: '#13191c',
         labels: { style: { color: '#737373' } },
+        startOnTick: false,
+        endOnTick: false,
+        minPadding: 0.05,
+        maxPadding: 0.05,
       },
     ],
     tooltip: {

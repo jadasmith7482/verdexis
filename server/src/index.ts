@@ -66,6 +66,11 @@ app.use(
       cb(new Error(`CORS blocked: ${origin}`))
     },
     credentials: true,
+    // Idempotency-Key powers safe retries on money-mutating endpoints.
+    // Without listing it here the browser strips the header on cross-origin
+    // POSTs and the server can't dedupe duplicates.
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+    exposedHeaders: ['Idempotent-Replay'],
   }),
 )
 app.use(express.json({ limit: '512kb' }))

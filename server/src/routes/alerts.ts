@@ -57,19 +57,28 @@ router.post('/check', requireAuth, async (req: AuthedRequest, res) => {
     if (!tick) continue
     const hit = alert.direction === 'above' ? tick.price >= alert.target : tick.price <= alert.target
     if (hit) {
-      await prisma.priceAlert.update({
-        where: { id: alert.id },
-        data: { triggered: true, triggeredAt: new Date(), active: false },
-      })
-      await prisma.notification.create({
-        data: {
-          userId,
-          kind: 'alert',
-          title: `${alert.name} ${alert.direction} $${alert.target}`,
-          body: `Current price: $${tick.price.toFixed(2)}`,
-        },
-      })
-      triggered.push(alert)
+      // Atomically flip the alert AND create the notification so we never
+      // end up with a "triggered" alert that the user was never notified
+      // about (or vice-versa) when one of the two writes fails.
+      try {
+        await prisma.$transaction([
+          prisma.priceAlert.update({
+            where: { id: alert.id },
+            data: { triggered: true, triggeredAt: new Date(), active: false },
+          }),
+          prisma.notification.create({
+            data: {
+              userId,
+              kind: 'alert',
+              title: `${alert.name} ${alert.direction} $${alert.target}`,
+              body: `Current price: $${tick.price.toFixed(2)}`,
+            },
+          }),
+        ])
+        triggered.push(alert)
+      } catch (e) {
+        console.warn('[alerts] failed to trigger', alert.id, (e as Error).message)
+      }
     }
   }
   res.json({ triggered: triggered.length })

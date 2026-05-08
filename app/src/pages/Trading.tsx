@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
-import { api, getToken } from '../lib/api'
+import { api, getToken, newIdempotencyKey } from '../lib/api'
 
 const getCryptoLogo = (id: string) => cryptoIconFor(id)
 
@@ -209,6 +209,10 @@ export default function Trading() {
     const qty = qtyNum
     const tradePrice = previewPrice
     setSubmitting(true)
+    // ONE key per user-confirmed trade. Server idempotency middleware will
+    // collapse retries (network drop after submit, double-click, StrictMode)
+    // to a single fill.
+    const tradeKey = newIdempotencyKey()
     try {
       const result = await api.postTrade({
         symbol: selectedCrypto.symbol.toUpperCase(),
@@ -217,7 +221,7 @@ export default function Trading() {
         amount: qty,
         price: tradePrice,
         type: 'crypto',
-      })
+      }, tradeKey)
       // Use the server's filled values (Alpaca / DB-confirmed) so the toast
       // matches the actual books, not the optimistic client estimate.
       const fillQty = result.trade.amount

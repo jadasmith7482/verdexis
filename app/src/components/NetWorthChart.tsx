@@ -39,6 +39,12 @@ export default function NetWorthChart({ series, benchmark, range, isUp, height =
         height,
         spacing: [4, 0, 4, 0],
         animation: false,
+        // Disable trackpad/mouse-wheel zoom — on touchpads a stray two-finger
+        // gesture would silently zoom the chart and the user has no obvious
+        // way to reset it. We render our own range picker for navigation.
+        zooming: { mouseWheel: { enabled: false }, type: undefined },
+        panning: { enabled: false, type: 'x' },
+        pinchType: undefined,
       },
       title: { text: undefined },
       credits: { enabled: false },
@@ -68,6 +74,13 @@ export default function NetWorthChart({ series, benchmark, range, isUp, height =
       yAxis: {
         opposite: false,
         gridLineColor: '#ffffff08',
+        // Breathing room so a steady balance ($50,100–$50,300) doesn't look
+        // like a roller coaster filling the entire chart height. Highstock's
+        // default crops to exact data min/max with zero padding.
+        startOnTick: false,
+        endOnTick: false,
+        minPadding: 0.15,
+        maxPadding: 0.15,
         labels: {
           style: { color: '#737373', fontSize: '10px' },
           formatter() {

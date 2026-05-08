@@ -4,8 +4,19 @@
 import { useEffect, useState } from 'react'
 import { Sparkles, Clock } from 'lucide-react'
 import { stakingStore, pendingRewardFor, STAKING_EVENT, type StakingPosition } from '../../lib/stakingStore'
+import { portfolioStore } from '../../lib/portfolioStore'
 
-const ASSET_USD: Record<string, number> = { ETH: 3500, BTC: 67000, SOL: 175, USDC: 1, USDT: 1, DAI: 1 }
+// Static fallback prices for headline assets when no live quote has been
+// observed yet (e.g. on a fresh page load before marketData has run).
+const ASSET_USD_FALLBACK: Record<string, number> = { ETH: 3500, BTC: 67000, SOL: 175, USDC: 1, USDT: 1, DAI: 1 }
+
+function priceFor(asset: string): number {
+  // Prefer live quotes from the portfolio store so non-headline assets
+  // (e.g. ADA, DOT, MATIC, custom tokens) don't silently price at $0.
+  const live = portfolioStore.getQuote(asset)
+  if (typeof live === 'number' && live > 0) return live
+  return ASSET_USD_FALLBACK[asset.toUpperCase()] ?? 0
+}
 
 export default function StakingCard() {
   const [positions, setPositions] = useState<StakingPosition[]>(stakingStore.list())
@@ -19,11 +30,11 @@ export default function StakingCard() {
 
   const totalPendingUsd = positions.reduce((s, p) => {
     const r = pendingRewardFor(p)
-    return s + r.rewardAsset * (ASSET_USD[p.asset] || 0)
+    return s + r.rewardAsset * priceFor(p.asset)
   }, 0)
-  const totalStakedUsd = positions.reduce((s, p) => s + p.principal * (ASSET_USD[p.asset] || 0), 0)
+  const totalStakedUsd = positions.reduce((s, p) => s + p.principal * priceFor(p.asset), 0)
   const blendedApy = totalStakedUsd > 0
-    ? positions.reduce((s, p) => s + (p.principal * (ASSET_USD[p.asset] || 0) * p.apy), 0) / totalStakedUsd
+    ? positions.reduce((s, p) => s + (p.principal * priceFor(p.asset) * p.apy), 0) / totalStakedUsd
     : 0
 
   return (

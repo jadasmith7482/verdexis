@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '../db.js'
 import { requireAuth, type AuthedRequest } from '../auth.js'
 import { brokerEnabled, submitPaperOrder } from '../broker.js'
+import { idempotency } from '../idempotency.js'
 
 const router = Router()
 
@@ -33,7 +34,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ trades })
 })
 
-router.post('/', requireAuth, tradeLimiter, async (req: AuthedRequest, res) => {
+router.post('/', requireAuth, tradeLimiter, idempotency(), async (req: AuthedRequest, res) => {
   const parsed = tradeSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid input' })

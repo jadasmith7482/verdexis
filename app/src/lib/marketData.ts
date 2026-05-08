@@ -133,7 +133,10 @@ class MarketDataService {
       const timeout = setTimeout(() => controller.abort(), 5000)
 
       const response = await fetch(
-        `${CG_PROXY}/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=true`,
+        // 250 coins by market cap — the max CoinGecko returns per page, and
+        // what the server proxy clamps to. Earlier values (20, then 100)
+        // left the Trading and Markets pages feeling sparse.
+        `${CG_PROXY}/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true`,
         { signal: controller.signal }
       )
       clearTimeout(timeout)

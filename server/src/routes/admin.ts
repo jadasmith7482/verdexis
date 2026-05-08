@@ -8,6 +8,7 @@ import { requireAuth, requireAdmin, type AuthedRequest } from '../auth.js'
 import { env } from '../env.js'
 import { getHistoricalPrice, getCurrentCryptoPrice } from '../historicalPrice.js'
 import { generateInvestmentId } from '../investmentId.js'
+import { idempotency } from '../idempotency.js'
 
 const router = Router()
 
@@ -387,7 +388,7 @@ const depositSchema = z.object({
     .optional(),
 })
 
-router.post('/users/:id/deposit', async (req: AuthedRequest, res) => {
+router.post('/users/:id/deposit', idempotency(), async (req: AuthedRequest, res) => {
   const parsed = depositSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const userId = req.params.id
@@ -656,7 +657,7 @@ router.get('/deposits/pending', async (_req, res) => {
   res.json({ deposits: items })
 })
 
-router.post('/deposits/:tid/approve', async (req: AuthedRequest, res) => {
+router.post('/deposits/:tid/approve', idempotency(), async (req: AuthedRequest, res) => {
   const tx = await prisma.transaction.findUnique({ where: { id: req.params.tid } })
   if (!tx) { res.status(404).json({ error: 'Deposit request not found' }); return }
   if (tx.kind !== 'deposit') { res.status(400).json({ error: 'Not a deposit transaction' }); return }
@@ -1081,7 +1082,7 @@ const transferSchema = z.object({
   notify: z.boolean().default(true),
 })
 
-router.post('/transfer', async (req: AuthedRequest, res) => {
+router.post('/transfer', idempotency(), async (req: AuthedRequest, res) => {
   const parsed = transferSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const { fromUserId, toUserId, currency, amount, reason, note, allowNegative } = parsed.data
@@ -1145,7 +1146,7 @@ const feeSchema = z.object({
   notify: z.boolean().default(true),
 })
 
-router.post('/users/:id/fee', async (req: AuthedRequest, res) => {
+router.post('/users/:id/fee', idempotency(), async (req: AuthedRequest, res) => {
   const parsed = feeSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
   const userId = req.params.id

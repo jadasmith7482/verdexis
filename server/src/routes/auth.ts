@@ -117,20 +117,32 @@ router.post('/signup', authLimiter, async (req, res) => {
   }
   const passwordHash = await bcrypt.hash(password, 12)
   const investmentId = await generateInvestmentId()
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name,
-      passwordHash,
-      investmentId,
-      // First user signed up with an admin-listed email starts as admin.
-      role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
-      // Seed a USD wallet so the user can deposit immediately.
-      walletBalances: {
-        create: [{ currency: 'USD', symbol: '$', balance: 0, available: 0 }],
+  let user
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        passwordHash,
+        investmentId,
+        // First user signed up with an admin-listed email starts as admin.
+        role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
+        // Seed a USD wallet so the user can deposit immediately.
+        walletBalances: {
+          create: [{ currency: 'USD', symbol: '$', balance: 0, available: 0 }],
+        },
       },
-    },
-  })
+    })
+  } catch (e) {
+    // Race: another request created this email between findUnique and create.
+    // Surface 409 instead of bubbling a Prisma error to the client.
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/Unique constraint failed/i.test(msg) || /P2002/.test(msg)) {
+      res.status(409).json({ error: 'Email already registered' })
+      return
+    }
+    throw e
+  }
   if (user.role === 'admin') await ensureAdminTreasury(user.id)
   const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
   res.status(201).json({ token, user: publicUser(user) })

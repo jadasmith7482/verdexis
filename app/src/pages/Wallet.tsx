@@ -11,7 +11,7 @@ import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../l
 import type { Web3Payout } from '../lib/depositInstructions'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
-import { api, getToken } from '../lib/api'
+import { api, getToken, newIdempotencyKey } from '../lib/api'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
@@ -148,6 +148,7 @@ export default function WalletPage() {
         sendingToOther
           ? `On-chain ETH to ${toLabel} · tx ${short}`
           : `On-chain ETH from ${web3.shortAddress} · tx ${short}`,
+        newIdempotencyKey(),
       )
       setWeb3LastTx({ hash, amount: amt, to: sendingToOther ? recipientRaw : (web3.address ?? '') })
       setWeb3TransferAmount('')
@@ -272,7 +273,7 @@ export default function WalletPage() {
           return
         }
         const ref = wireInstructions.reference || 'Wire deposit'
-        portfolioStore.addTransaction('deposit', amt, 'USD', `Wire to ${wireInstructions.bankName} · ${ref}`)
+        portfolioStore.addTransaction('deposit', amt, 'USD', `Wire to ${wireInstructions.bankName} · ${ref}`, newIdempotencyKey())
         setTransferStatus({
           kind: 'success',
           title: 'Wire deposit submitted',
@@ -293,7 +294,7 @@ export default function WalletPage() {
         return
       }
       const description = `ACH from ${bank.institution} ····${bank.accountMask}`
-      portfolioStore.addTransaction('deposit', amt, 'USD', description)
+      portfolioStore.addTransaction('deposit', amt, 'USD', description, newIdempotencyKey())
       setTransferStatus({
         kind: 'success',
         title: 'ACH deposit submitted',
@@ -307,7 +308,7 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Ask an admin to set one.` })
       return
     }
-    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`)
+    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`, newIdempotencyKey())
     setTransferStatus({
       kind: 'success',
       title: 'Deposit submitted',
@@ -341,7 +342,7 @@ export default function WalletPage() {
       reference = `${selectedCurrency} withdrawal to ${recipient.trim().slice(0, 12)}…`
     }
     const amt = -parseFloat(amount)
-    portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference)
+    portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference, newIdempotencyKey())
     setTransferStatus({
       kind: 'success',
       title: 'Withdrawal sent',
@@ -370,12 +371,17 @@ export default function WalletPage() {
         return
       }
       setTransferSending(true)
+      // Generate ONE key per user-initiated transfer so the server-side
+      // /transfer call AND the local mirror call collapse to a single
+      // settlement even if the network drops mid-request and the user
+      // retries (or the browser auto-retries).
+      const txKey = newIdempotencyKey()
       try {
         if (getToken()) {
-          await api.transferToUser({ recipientEmail: email, currency: transferCurrency, amount: amt, note: transferNote.trim() || undefined })
+          await api.transferToUser({ recipientEmail: email, currency: transferCurrency, amount: amt, note: transferNote.trim() || undefined }, txKey)
         }
         // Reflect locally either way (offline-friendly).
-        portfolioStore.addTransaction('transfer', -amt, transferCurrency, `Sent to ${email}${transferNote ? ' — ' + transferNote : ''}`)
+        portfolioStore.addTransaction('transfer', -amt, transferCurrency, `Sent to ${email}${transferNote ? ' — ' + transferNote : ''}`, txKey)
         setTransferStatus({
           kind: 'success',
           title: 'Transfer sent',
@@ -402,9 +408,9 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Insufficient USD balance.' })
       return
     }
-    portfolioStore.addTransaction('transfer', amt, 'USD', `Convert to ${selectedCurrency}`)
+    portfolioStore.addTransaction('transfer', amt, 'USD', `Convert to ${selectedCurrency}`, newIdempotencyKey())
     const receiveAmt = Math.abs(amt) / getUsdRate(selectedCurrency)
-    portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Converted from USD`)
+    portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Converted from USD`, newIdempotencyKey())
     setTransferStatus({
       kind: 'success',
       title: 'Conversion complete',
@@ -443,7 +449,7 @@ export default function WalletPage() {
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return }
     const source = incomeSource.trim() || (incomeKind === 'dividend' ? 'Dividend payment' : 'Interest income')
-    portfolioStore.addTransaction(incomeKind, amt, selectedCurrency, source)
+    portfolioStore.addTransaction(incomeKind, amt, selectedCurrency, source, newIdempotencyKey())
     toast.success(`Logged ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency} ${incomeKind}`)
     setAmount('')
     setIncomeSource('')
@@ -539,7 +545,7 @@ export default function WalletPage() {
         const amount = parseFloat(amountRaw)
         const currency = (currencyRaw || 'USD').toUpperCase().trim()
         if (!allowedTypes.includes(type) || !isFinite(amount)) { skipped++; continue }
-        portfolioStore.addTransaction(type, amount, currency, (descriptionRaw || 'Imported').replace(/^"|"$/g, ''))
+        portfolioStore.addTransaction(type, amount, currency, (descriptionRaw || 'Imported').replace(/^"|"$/g, ''), newIdempotencyKey())
         imported++
       }
       setTransactions(portfolioStore.getTransactions())

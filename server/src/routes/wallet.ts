@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import { requireAuth, type AuthedRequest } from '../auth.js'
+import { idempotency } from '../idempotency.js'
 
 const router = Router()
 
@@ -36,7 +37,7 @@ const txSchema = z.object({
   reference: z.string().max(200).optional(),
 })
 
-router.post('/transactions', requireAuth, moneyLimiter, async (req: AuthedRequest, res) => {
+router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (req: AuthedRequest, res) => {
   const parsed = txSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid input' })
@@ -202,7 +203,7 @@ const userTransferSchema = z.object({
   note: z.string().max(200).optional(),
 })
 
-router.post('/transfer', requireAuth, moneyLimiter, async (req: AuthedRequest, res) => {
+router.post('/transfer', requireAuth, moneyLimiter, idempotency(), async (req: AuthedRequest, res) => {
   const parsed = userTransferSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid input' })

@@ -66,11 +66,36 @@ export function clearStoredAuth() {
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) || ''
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+// Generate an idempotency key for money-mutating requests. Use the platform
+// crypto.randomUUID when available (every modern browser + secure context),
+// falling back to a 22-char base36 string built from crypto.getRandomValues
+// or Math.random as a last resort.
+export function newIdempotencyKey(): string {
+  try {
+    const c = (typeof crypto !== 'undefined' ? crypto : undefined)
+    if (c?.randomUUID) return c.randomUUID()
+    if (c?.getRandomValues) {
+      const buf = new Uint8Array(16)
+      c.getRandomValues(buf)
+      return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('')
+    }
+  } catch { /* fall through */ }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`
+}
+
+interface RequestOpts extends RequestInit {
+  /** Send `Idempotency-Key: <value>` so server-side retries are deduped.
+   *  The caller is responsible for generating the key ONCE per logical
+   *  user action — re-using the same key on retry is the whole point. */
+  idempotencyKey?: string
+}
+
+async function request<T>(path: string, init: RequestOpts = {}): Promise<T> {
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
+  if (init.idempotencyKey) headers.set('Idempotency-Key', init.idempotencyKey)
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers })
   let body: unknown
@@ -145,19 +170,31 @@ export const api = {
 
   // Wallet
   getWallet: () => request<{ balances: unknown[]; transactions: unknown[] }>('/api/wallet'),
-  postTransaction: (tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; symbol?: string; amount: number; reference?: string }) =>
-    request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx) }),
-  transferToUser: (payload: { recipientEmail: string; currency: string; amount: number; note?: string }) =>
-    request<{ recipient: { email: string; name: string | null } }>('/api/wallet/transfer', { method: 'POST', body: JSON.stringify(payload) }),
+  postTransaction: (
+    tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; symbol?: string; amount: number; reference?: string },
+    idempotencyKey?: string,
+  ) =>
+    request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx), idempotencyKey }),
+  transferToUser: (
+    payload: { recipientEmail: string; currency: string; amount: number; note?: string },
+    idempotencyKey?: string,
+  ) =>
+    request<{ recipient: { email: string; name: string | null } }>(
+      '/api/wallet/transfer',
+      { method: 'POST', body: JSON.stringify(payload), idempotencyKey },
+    ),
   lookupRecipient: (email: string) =>
     request<{ user: { email: string; name: string | null } }>(`/api/wallet/lookup-recipient?email=${encodeURIComponent(email)}`),
 
   // Trades
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),
-  postTrade: (t: { symbol: string; name?: string; side: 'buy' | 'sell'; amount: number; price: number; type?: 'crypto' | 'stock' | 'etf' }) =>
+  postTrade: (
+    t: { symbol: string; name?: string; side: 'buy' | 'sell'; amount: number; price: number; type?: 'crypto' | 'stock' | 'etf' },
+    idempotencyKey?: string,
+  ) =>
     request<{ trade: { id: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }; broker: { id: string; venue: string } | null }>(
       '/api/trades',
-      { method: 'POST', body: JSON.stringify(t) },
+      { method: 'POST', body: JSON.stringify(t), idempotencyKey },
     ),
 
   // Market data (server-side proxy)

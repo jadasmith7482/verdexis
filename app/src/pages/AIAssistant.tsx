@@ -74,17 +74,28 @@ export default function AIAssistant() {
     setInput('')
     setLoading(true)
 
-    const response = await aiService.processQuery(userMessage.content, persona)
-
-    const assistantMessage: ChatMessage = {
-      role: 'assistant',
-      content: response,
-      timestamp: new Date(),
-      persona,
+    try {
+      const response = await aiService.processQuery(userMessage.content, persona)
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: response,
+        timestamp: new Date(),
+        persona,
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (err) {
+      // Surface the failure in-line so the user sees something went wrong
+      // instead of a frozen “thinking…” state. Don’t throw — keep the input usable.
+      const detail = err instanceof Error ? err.message : 'Unknown error'
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: `Sorry, I couldn’t process that request: ${detail}. Please try again.`,
+        timestamp: new Date(),
+        persona,
+      }])
+    } finally {
+      setLoading(false)
     }
-
-    setMessages((prev) => [...prev, assistantMessage])
-    setLoading(false)
   }
 
   const handleQuickPrompt = (prompt: string) => {

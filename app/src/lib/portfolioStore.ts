@@ -292,7 +292,7 @@ class PortfolioStoreImpl {
     return [...this.transactions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }
 
-  executeTrade(symbol: string, name: string, side: 'buy' | 'sell', price: number, quantity: number, type: string): Trade {
+  executeTrade(symbol: string, name: string, side: 'buy' | 'sell', price: number, quantity: number, type: string, idempotencyKey?: string): Trade {
     const total = price * quantity
     const trade: Trade = {
       id: Date.now().toString(),
@@ -308,12 +308,13 @@ class PortfolioStoreImpl {
       if (existingIdx >= 0) {
         const h = this.holdings[existingIdx]
         const newQty = h.quantity + quantity
-        h.avgBuyPrice = (h.avgBuyPrice * h.quantity + price * quantity) / newQty
+        h.avgBuyPrice = newQty > 0 ? (h.avgBuyPrice * h.quantity + price * quantity) / newQty : 0
         h.quantity = newQty
         h.currentPrice = price
         h.value = newQty * price
-        h.pnl = h.value - h.avgBuyPrice * newQty
-        h.pnlPercent = (h.pnl / (h.avgBuyPrice * newQty)) * 100
+        const cost = h.avgBuyPrice * newQty
+        h.pnl = h.value - cost
+        h.pnlPercent = cost > 0 ? (h.pnl / cost) * 100 : 0
       } else {
         this.holdings.push({
           id: symbol.toLowerCase(), symbol, name, quantity,
@@ -326,6 +327,11 @@ class PortfolioStoreImpl {
       h.quantity = Math.max(0, h.quantity - quantity)
       h.currentPrice = price
       h.value = h.quantity * price
+      // Recompute P&L against the (unchanged) average cost basis so the
+      // dashboard doesn't keep showing stale pre-sell P&L numbers.
+      const cost = h.avgBuyPrice * h.quantity
+      h.pnl = h.value - cost
+      h.pnlPercent = cost > 0 ? (h.pnl / cost) * 100 : 0
       if (h.quantity === 0) this.holdings.splice(existingIdx, 1)
     }
 
@@ -334,7 +340,7 @@ class PortfolioStoreImpl {
     this.save(STORAGE_KEYS.holdings, this.holdings)
 
     if (getToken()) {
-      api.postTrade({ symbol, name, side, amount: quantity, price, type: 'crypto' })
+      api.postTrade({ symbol, name, side, amount: quantity, price, type: 'crypto' }, idempotencyKey)
         .then(() => this.hydrate(true))
         .catch(() => { /* offline; local cache wins */ })
     }
@@ -342,7 +348,7 @@ class PortfolioStoreImpl {
     return trade
   }
 
-  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', amount: number, currency: string, description: string): WalletTransaction {
+  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', amount: number, currency: string, description: string, idempotencyKey?: string): WalletTransaction {
     // User deposits require admin approval on the server (status='pending',
     // no balance credit) unless the actor is an admin. Mirror that locally
     // so the UI doesn't show inflated balances or "completed" badges for
@@ -379,7 +385,7 @@ class PortfolioStoreImpl {
     }
 
     if (getToken()) {
-      api.postTransaction({ kind: type, currency, symbol: symbolFor(currency), amount: Math.abs(amount), reference: description })
+      api.postTransaction({ kind: type, currency, symbol: symbolFor(currency), amount: Math.abs(amount), reference: description }, idempotencyKey)
         .then(() => this.hydrate(true))
         .catch(() => { /* offline; local cache wins */ })
     }

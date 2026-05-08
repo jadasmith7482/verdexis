@@ -9,7 +9,7 @@ import { portfolioStore, type PortfolioHolding, type Trade } from '../lib/portfo
 import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
 import { Toaster, toast } from 'sonner'
-import { api, getToken } from '../lib/api'
+import { api, getToken, newIdempotencyKey } from '../lib/api'
 import {
   ArrowLeft, Star, TrendingUp, TrendingDown,
   ArrowDownUp, Wallet, Activity, BarChart3,
@@ -132,10 +132,11 @@ export default function AssetDetail() {
     // separately by the user (out of scope for the Trade endpoint).
     const side: 'buy' | 'sell' = tab === 'swap' ? 'sell' : tab
     setSubmitting(true)
+    const tradeKey = newIdempotencyKey()
     try {
       const result = await api.postTrade({
         symbol, name, side, amount: numAmount, price, type: 'crypto',
-      })
+      }, tradeKey)
       const fillQty = result.trade.amount
       const fillPrice = result.trade.price
       if (tab === 'swap') {

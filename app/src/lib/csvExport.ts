@@ -3,7 +3,12 @@
 
 function csvEscape(v: unknown): string {
   if (v == null) return ''
-  const s = String(v)
+  let s = String(v)
+  // CSV “formula injection” defence: cells that begin with =, +, -, @ or a
+  // leading tab/CR are interpreted as a formula by Excel/Google Sheets and
+  // can be used to exfiltrate data or run shell commands when the file is
+  // opened. Prefix a single quote so the cell renders as plain text.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
   return s
 }

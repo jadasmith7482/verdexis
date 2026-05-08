@@ -306,8 +306,13 @@ router.get('/coingecko/ohlc', async (req, res) => {
   const vs = ((req.query.vs_currency as string | undefined) || 'usd').toLowerCase()
   const days = parseInt((req.query.days as string) || '1', 10) || 1
   if (!id || !/^[a-z0-9-]+$/.test(id)) { res.status(400).json({ error: 'bad_id' }); return }
+  // Bound `days` to a sane CoinGecko-supported range and validate `vs` so a
+  // malformed query string can't smuggle extra params into the upstream URL.
+  const safeDays = Math.min(365, Math.max(1, days))
+  if (!/^[a-z]{3,10}$/.test(vs)) { res.status(400).json({ error: 'bad_vs' }); return }
+  const ohlcQs = new URLSearchParams({ vs_currency: vs, days: String(safeDays) }).toString()
   try {
-    const data = await cgFetch(`/coins/${id}/ohlc?vs_currency=${vs}&days=${days}`, 60_000)
+    const data = await cgFetch(`/coins/${id}/ohlc?${ohlcQs}`, 60_000)
     if (Array.isArray(data) && data.length > 0) {
       res.set('Cache-Control', 'public, max-age=45')
       res.json(data)

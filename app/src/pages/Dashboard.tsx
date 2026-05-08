@@ -43,7 +43,9 @@ import {
 const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
-  if (!prices || prices.length === 0) return ''
+  // Need at least 2 points to draw a line. With 1 point, `width / 0` = Infinity
+  // and the resulting SVG path is full of NaN coordinates.
+  if (!prices || prices.length < 2) return ''
   const min = Math.min(...prices)
   const max = Math.max(...prices)
   const range = max - min || 1
@@ -260,7 +262,12 @@ export default function Dashboard() {
         const quote = cryptoData.find((c) => c.id === s.assetId || c.symbol.toUpperCase() === s.asset)
         if (!quote || quote.current_price <= 0) continue
         const qty = s.amountUsd / quote.current_price
-        portfolioStore.executeTrade(s.asset, s.name, 'buy', quote.current_price, qty, 'dca')
+        // Deterministic key: same schedule + same scheduled run-slot will
+        // ALWAYS produce the same idempotency key, so even if the tab
+        // reloads or the timer double-fires we never DCA twice for one slot.
+        const slot = nextRunMs(s)
+        const dcaKey = `dca-${s.id}-${slot}`.replace(/[^A-Za-z0-9_\-:.]/g, '-').slice(0, 128)
+        portfolioStore.executeTrade(s.asset, s.name, 'buy', quote.current_price, qty, 'dca', dcaKey.length >= 8 ? dcaKey : `dca-${slot}-${s.id.padStart(8, '0')}`)
         dcaStore.markRun(s.id)
         toast.success(`Auto-bought ${qty.toFixed(6)} ${s.asset} ($${s.amountUsd})`)
       }
