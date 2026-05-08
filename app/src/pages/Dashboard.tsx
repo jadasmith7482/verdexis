@@ -40,10 +40,22 @@ import {
   BrainCircuit, Zap, Sparkles, AlertTriangle, BarChart3,
   PieChart, Activity, Lock,
   ArrowRight, CircleDollarSign, Gem, Layers,
-  History, Star, Repeat, Coins, Receipt, Settings as SettingsIcon,
+  History, Star, Repeat, Coins, Settings as SettingsIcon,
 } from 'lucide-react'
 
 const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
+
+// Compact relative-time formatter for the recent activity rows ("2m", "3h",
+// "5d"). Keeps the row dense without losing the "when" signal.
+function relativeTimeShort(d: Date): string {
+  const sec = Math.max(1, Math.round((Date.now() - d.getTime()) / 1000))
+  if (sec < 60) return `${sec}s ago`
+  if (sec < 3600) return `${Math.round(sec / 60)}m ago`
+  if (sec < 86_400) return `${Math.round(sec / 3600)}h ago`
+  if (sec < 86_400 * 30) return `${Math.round(sec / 86_400)}d ago`
+  if (sec < 86_400 * 365) return `${Math.round(sec / (86_400 * 30))}mo ago`
+  return `${Math.round(sec / (86_400 * 365))}y ago`
+}
 
 function getSparklinePath(prices: number[], width: number, height: number): string {
   // Need at least 2 points to draw a line. With 1 point, `width / 0` = Infinity
@@ -505,22 +517,47 @@ export default function Dashboard() {
                       <Link to="/activity" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">View all</Link>
                     </div>
                     <div className="space-y-1">
-                      {transactions.slice(0, 5).map((tx) => (
-                        <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
-                              {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
+                      {transactions.slice(0, 5).map((tx) => {
+                        const isFiat = tx.currency === 'USD' || tx.currency === 'USDC' || tx.currency === 'USDT'
+                        const fmtAmt = Math.abs(tx.amount).toLocaleString(undefined, {
+                          minimumFractionDigits: isFiat ? 2 : 0,
+                          maximumFractionDigits: isFiat ? 2 : 8,
+                        })
+                        const sign = tx.amount >= 0 ? '+' : '-'
+                        const when = relativeTimeShort(new Date(tx.timestamp))
+                        const isPending = tx.status === 'pending'
+                        return (
+                          <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
+                                {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>
+                                <p className="text-[11px] text-[#737373] flex items-center gap-1.5 truncate">
+                                  <span className="capitalize">{tx.type}</span>
+                                  <span>·</span>
+                                  <span>{when}</span>
+                                  {isPending && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="text-[#FF9800]">Pending</span>
+                                    </>
+                                  )}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>
-                              <p className="text-[11px] text-[#737373] capitalize">{tx.type}</p>
+                            <div className="text-right shrink-0 ml-3">
+                              <p className={`text-sm tabular-nums ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                                {sign}{fmtAmt} {tx.currency}
+                              </p>
+                              <p className="text-[10px] text-[#737373] uppercase tracking-[0.04em]">
+                                {tx.amount >= 0 ? 'Credit' : 'Debit'}
+                              </p>
                             </div>
-                          </div>
-                          <span className={`text-sm shrink-0 ml-3 ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                            {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: tx.currency === 'USD' ? 2 : 0, maximumFractionDigits: tx.currency === 'USD' ? 2 : 8 })} {tx.currency}
-                          </span>
-                        </Link>
-                      ))}
+                          </Link>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -690,7 +727,6 @@ export default function Dashboard() {
                   { label: 'Set Alert', icon: AlertTriangle, path: '/alerts', color: '#F57C00', desc: 'Price alerts' },
                   { label: 'Goals', icon: Gem, path: '/goals', color: '#4CAF50', desc: 'Track goals' },
                   { label: 'News', icon: Layers, path: '/news', color: '#2196F3', desc: 'Markets' },
-                  { label: 'Statements', icon: Receipt, path: '/activity?filter=deposit', color: '#00ACC1', desc: 'Tax / proof' },
                   { label: 'Settings', icon: SettingsIcon, path: '/settings', color: '#757575', desc: 'Preferences' },
                 ].map((action) => (
                   <Link key={action.label} to={action.path}
