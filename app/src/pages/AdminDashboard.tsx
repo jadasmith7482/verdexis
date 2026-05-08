@@ -6,6 +6,7 @@ import { adminApi, type AdminStats } from '../lib/adminApi'
 import {
   Users, ShieldCheck, Ban, Briefcase, ArrowLeftRight, Bell,
   Banknote, UserPlus, MegaphoneIcon, Settings as Cog, Activity, FileCheck2, Lock, ArrowDownToLine, Clock,
+  Link2 as LinkIcon, ExternalLink,
 } from 'lucide-react'
 
 export default function AdminDashboard() {
@@ -27,6 +28,9 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
   const [pendingDeposits, setPendingDeposits] = useState<Awaited<ReturnType<typeof adminApi.listPendingDeposits>>['deposits']>([])
   const [pendingLoading, setPendingLoading] = useState(true)
   const [busyTx, setBusyTx] = useState<string | null>(null)
+  const [onchain, setOnchain] = useState<Awaited<ReturnType<typeof adminApi.listOnchainDeposits>>['pendingDeposits']>([])
+  const [onchainLoading, setOnchainLoading] = useState(true)
+  const [busyOnchain, setBusyOnchain] = useState<string | null>(null)
 
   useEffect(() => {
     adminApi.stats()
@@ -42,9 +46,17 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
       .catch(() => { /* surfaced when admin acts */ })
       .finally(() => setPendingLoading(false))
   }
+  const refreshOnchain = () => {
+    setOnchainLoading(true)
+    adminApi.listOnchainDeposits('pending')
+      .then((r) => setOnchain(r.pendingDeposits))
+      .catch(() => { /* surfaced when admin acts */ })
+      .finally(() => setOnchainLoading(false))
+  }
   useEffect(() => {
     refreshPending()
-    const t = setInterval(refreshPending, 30_000)
+    refreshOnchain()
+    const t = setInterval(() => { refreshPending(); refreshOnchain() }, 30_000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -69,6 +81,43 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
     } catch (e) {
       toast.error((e as { error?: string }).error || 'Rejection failed')
     } finally { setBusyTx(null) }
+  }
+
+  async function handleApproveOnchain(d: typeof onchain[number]) {
+    // Admin can override the credited currency / amount via prompts. Default
+    // to the asset+amount the user submitted, which is usually correct.
+    const currencyInput = window.prompt(
+      `Credit user as which currency?\n(Default: ${d.asset}. Type USD to credit cash equivalent instead.)`,
+      d.asset,
+    )
+    if (currencyInput === null) return
+    const amountInput = window.prompt(
+      `Credit how much ${currencyInput}?\n(Default: ${d.amount} — the on-chain amount.)`,
+      String(d.amount),
+    )
+    if (amountInput === null) return
+    const amount = Number(amountInput)
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error('Invalid amount'); return }
+    const note = window.prompt('Optional note for the audit log / user notification:', '') || undefined
+    setBusyOnchain(d.id)
+    try {
+      await adminApi.approveOnchainDeposit(d.id, { currency: currencyInput.trim().toUpperCase(), amount, note })
+      toast.success(`Credited ${amount} ${currencyInput} to ${d.user.email}`)
+      refreshOnchain()
+    } catch (e) {
+      toast.error((e as { error?: string }).error || 'Approval failed')
+    } finally { setBusyOnchain(null) }
+  }
+  async function handleRejectOnchain(d: typeof onchain[number]) {
+    const note = window.prompt('Reason for rejection (shown to user)?', '') || ''
+    setBusyOnchain(d.id)
+    try {
+      await adminApi.rejectOnchainDeposit(d.id, note)
+      toast.success('On-chain deposit rejected')
+      refreshOnchain()
+    } catch (e) {
+      toast.error((e as { error?: string }).error || 'Rejection failed')
+    } finally { setBusyOnchain(null) }
   }
 
   return (
@@ -196,6 +245,59 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={busyTx === d.id} onClick={() => handleApprove(d.id)} className="px-3 py-1.5 text-xs rounded-lg bg-[#0C8B44] text-white hover:bg-[#0a7539] disabled:opacity-50">Approve</button>
                     <button type="button" disabled={busyTx === d.id} onClick={() => handleReject(d.id)} className="px-3 py-1.5 text-xs rounded-lg bg-[#1a1a1a] border border-[#f44336]/40 text-[#f44336] hover:bg-[#f44336]/10 disabled:opacity-50">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* On-chain pending deposits (from connected self-custody wallets) */}
+        <section className="mt-6 rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2">
+              <LinkIcon className="w-4 h-4 text-[#3B99FC]" /> On-chain deposit approvals
+              {onchain.length > 0 && (
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#3B99FC]/15 text-[#3B99FC]">{onchain.length}</span>
+              )}
+            </h2>
+            <button type="button" onClick={refreshOnchain} className="text-[11px] text-[#A0A0A0] hover:text-[#0C8B44]">Refresh</button>
+          </div>
+          <p className="text-[11px] text-[#737373] mb-3">
+            Deposits initiated from a user&rsquo;s connected self-custody wallet (MetaMask / WalletConnect / etc.) to the admin treasury address.
+            Click the tx hash to verify on-chain, then approve to credit the user.
+          </p>
+          {onchainLoading ? (
+            <p className="text-xs text-[#737373]">Loading…</p>
+          ) : onchain.length === 0 ? (
+            <p className="text-xs text-[#737373]">No on-chain deposits awaiting verification.</p>
+          ) : (
+            <div className="space-y-2">
+              {onchain.map((d) => (
+                <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05]">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link to={`/admin/users/${d.user.id}`} className="text-sm text-[#E5E5E5] hover:text-[#0C8B44]">{d.user.name}</Link>
+                      <span className="text-[#737373]">·</span>
+                      <span className="text-[11px] text-[#737373]">{d.user.email}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-[#3B99FC] bg-[#3B99FC]/10 px-1.5 py-0.5 rounded">Chain {d.chainId}</span>
+                    </div>
+                    <p className="text-[11px] text-[#737373] truncate font-mono mt-1">
+                      from {d.fromAddress.slice(0, 10)}…{d.fromAddress.slice(-6)} → {d.toAddress.slice(0, 10)}…{d.toAddress.slice(-6)}
+                    </p>
+                    <p className="text-[10px] text-[#737373] mt-1">
+                      <a href={d.explorerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#3B99FC] hover:underline font-mono">
+                        {d.txHash.slice(0, 14)}…{d.txHash.slice(-6)} <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <span className="text-[#737373]"> · {relTime(d.createdAt)} ago</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-medium text-[#E5E5E5]">{d.amount} {d.asset}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" disabled={busyOnchain === d.id} onClick={() => handleApproveOnchain(d)} className="px-3 py-1.5 text-xs rounded-lg bg-[#0C8B44] text-white hover:bg-[#0a7539] disabled:opacity-50">Approve & credit</button>
+                    <button type="button" disabled={busyOnchain === d.id} onClick={() => handleRejectOnchain(d)} className="px-3 py-1.5 text-xs rounded-lg bg-[#1a1a1a] border border-[#f44336]/40 text-[#f44336] hover:bg-[#f44336]/10 disabled:opacity-50">Reject</button>
                   </div>
                 </div>
               ))}

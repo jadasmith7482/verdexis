@@ -219,6 +219,41 @@ export const adminApi = {
   rejectDeposit: (txId: string, reason?: string) =>
     request<{ transaction: AdminTransaction }>(`/api/admin/deposits/${txId}/reject`, { method: 'POST', body: JSON.stringify({ reason: reason || '' }) }),
 
+  // --- On-chain (PendingDeposit) approval queue ---
+  // These come from users who connected a self-custody wallet and sent ETH
+  // (or other native asset) to the admin treasury address. Admin verifies
+  // the tx hash on a block explorer (explorerUrl is included in the row)
+  // and approves to credit the user's WalletBalance.
+  listOnchainDeposits: (status: 'pending' | 'credited' | 'rejected' | 'all' = 'pending') =>
+    request<{
+      pendingDeposits: Array<{
+        id: string
+        userId: string
+        txHash: string
+        chainId: string
+        toAddress: string
+        fromAddress: string
+        asset: string
+        amount: number
+        status: string
+        note: string | null
+        creditedTxId: string | null
+        createdAt: string
+        explorerUrl: string
+        user: { id: string; email: string; name: string; investmentId: string | null }
+      }>
+    }>(`/api/admin/pending-deposits?status=${status}`),
+  approveOnchainDeposit: (id: string, payload: { currency?: string; amount?: number; note?: string } = {}) =>
+    request<{ balance: AdminWalletBalance; transaction: AdminTransaction; pending: { id: string; status: string } }>(
+      `/api/admin/pending-deposits/${id}/approve`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  rejectOnchainDeposit: (id: string, note?: string) =>
+    request<{ pendingDeposit: { id: string; status: string } }>(
+      `/api/admin/pending-deposits/${id}/reject`,
+      { method: 'POST', body: JSON.stringify({ note: note || '' }) },
+    ),
+
   listUsers: (params: { q?: string; page?: number; limit?: number; role?: 'user' | 'admin' | 'all'; suspended?: 'true' | 'false' | 'all' } = {}) => {
     const q = new URLSearchParams()
     if (params.q) q.set('q', params.q)
