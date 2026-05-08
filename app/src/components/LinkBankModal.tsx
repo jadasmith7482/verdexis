@@ -136,6 +136,13 @@ export default function LinkBankModal({ isOpen, onClose, onLinked }: LinkBankMod
         <div className="p-6">
           {step === 'choose-method' && (
             <div className="space-y-3">
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#0C8B44]/5 border border-[#0C8B44]/15 text-[11px] text-[#A0A0A0]">
+                <span className="text-[#0C8B44]">●</span>
+                <div className="space-y-0.5">
+                  <p><span className="text-[#E5E5E5]">Daily limits:</span> $10 min · $100,000 max per ACH transfer.</p>
+                  <p><span className="text-[#E5E5E5]">Funds available:</span> instant verification — same day · micro-deposits — 1-3 business days.</p>
+                </div>
+              </div>
               <button
                 onClick={() => { setVerificationMethod('instant'); setStep('instant-credentials') }}
                 className="w-full text-left p-4 rounded-xl border border-[#ffffff10] hover:border-[#0C8B44]/40 hover:bg-[#0C8B44]/5 transition-all group"

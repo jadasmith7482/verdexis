@@ -665,7 +665,12 @@ export default function Dashboard() {
                           )}
                           <div>
                             <p className="text-sm font-medium text-[#E5E5E5]">{h.name}</p>
-                            <p className="text-xs text-[#737373]">{h.quantity.toLocaleString()} {h.symbol}</p>
+                            <p className="text-xs text-[#737373]">
+                              {h.quantity.toLocaleString()} {h.symbol}
+                              {h.avgBuyPrice > 0 && (
+                                <span className="ml-1.5 text-[#555]">· avg ${h.avgBuyPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              )}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">

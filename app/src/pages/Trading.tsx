@@ -8,7 +8,7 @@ import { portfolioStore } from '../lib/portfolioStore'
 import WatchlistPanel from '../components/WatchlistPanel'
 import { Toaster, toast } from 'sonner'
 import {
-  Search, Star, BarChart3, Clock, Layers,
+  Search, Star, BarChart3, Clock, Layers, AlertTriangle, X,
 } from 'lucide-react'
 import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { formatPrice } from '@/lib/utils'
@@ -19,6 +19,11 @@ const getCryptoLogo = (id: string) => cryptoIconFor(id)
 type OrderType = 'market' | 'limit' | 'stop'
 type OrderSide = 'buy' | 'sell'
 type TimeRange = '1H' | '1D' | '1W' | '1M' | '1Y'
+
+// Trading fee charged on every order (0.10%). Surfaced in the order preview
+// so the user always sees what they're paying before they confirm.
+const TRADING_FEE_BPS = 10 // basis points (0.10%)
+const TRADING_FEE_RATE = TRADING_FEE_BPS / 10_000
 
 interface Level { price: number; size: number }
 interface PublicTrade { id: number; time: string; price: number; size: number; side: 'buy' | 'sell' }
@@ -40,6 +45,7 @@ export default function Trading() {
   const [bookAsks, setBookAsks] = useState<Level[]>([])
   const [livePrice, setLivePrice] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [, setPortfolioTick] = useState(0)
   const isAuthenticated = !!getToken()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -142,7 +148,24 @@ export default function Trading() {
     setWatchlist((prev) => (prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]))
   }
 
-  const handleTrade = async () => {
+  // Live values used by both the inline order summary and the confirm modal.
+  // We compute these once so the preview the user clicks "Confirm" on is the
+  // same one they were looking at on the form.
+  const qtyNum = parseFloat(amount) || 0
+  const previewPrice = orderType === 'market'
+    ? (livePrice ?? selectedCrypto?.current_price ?? 0)
+    : parseFloat(price || '0')
+  const subtotal = qtyNum * previewPrice
+  const feeAmount = subtotal * TRADING_FEE_RATE
+  const totalCost = orderSide === 'buy' ? subtotal + feeAmount : subtotal - feeAmount
+  const usdBalance = portfolioStore.getWallet().find(w => w.currency === 'USD')?.balance ?? 0
+  const heldQty = selectedCrypto
+    ? (portfolioStore.getHoldings().find(h => h.symbol.toUpperCase() === selectedCrypto.symbol.toUpperCase())?.quantity ?? 0)
+    : 0
+  const hasInsufficientCash = orderSide === 'buy' && totalCost > usdBalance && qtyNum > 0
+  const hasInsufficientCoin = orderSide === 'sell' && qtyNum > heldQty && qtyNum > 0
+
+  const handleTrade = () => {
     if (!isAuthenticated) {
       toast.error('Please log in to trade')
       return
@@ -155,26 +178,36 @@ export default function Trading() {
       toast.error('Please enter a valid price')
       return
     }
-    const qty = parseFloat(amount)
-    const tradePrice = orderType === 'market'
-      ? (livePrice ?? selectedCrypto.current_price)
-      : parseFloat(price || '0')
-
+    if (hasInsufficientCash) {
+      toast.error('Insufficient USD balance', {
+        description: `You need $${totalCost.toFixed(2)} (incl. fee) but only have $${usdBalance.toFixed(2)}.`,
+      })
+      return
+    }
+    if (hasInsufficientCoin) {
+      toast.error(`Insufficient ${selectedCrypto.symbol.toUpperCase()} balance`, {
+        description: `You hold ${heldQty} but tried to sell ${qtyNum}.`,
+      })
+      return
+    }
     // Limit/stop orders need to wait for the market to cross the trigger.
-    // For now we treat them as 'good for the next tick': if the market is
-    // already past the trigger we fill at the limit price; otherwise we
-    // refuse and tell the user to use a market order or wait.
     if (orderType === 'limit' || orderType === 'stop') {
       const last = livePrice ?? selectedCrypto.current_price
-      const triggered = orderSide === 'buy' ? last <= tradePrice : last >= tradePrice
+      const triggered = orderSide === 'buy' ? last <= previewPrice : last >= previewPrice
       if (!triggered) {
         toast.error(`${orderType} order not eligible yet`, {
-          description: `Market is at $${last.toFixed(2)} · trigger $${tradePrice.toFixed(2)}. Try a market order or wait for the price.`,
+          description: `Market is at $${last.toFixed(2)} · trigger $${previewPrice.toFixed(2)}. Try a market order or wait for the price.`,
         })
         return
       }
     }
+    setConfirmOpen(true)
+  }
 
+  const submitTrade = async () => {
+    if (!selectedCrypto) return
+    const qty = qtyNum
+    const tradePrice = previewPrice
     setSubmitting(true)
     try {
       const result = await api.postTrade({
@@ -202,6 +235,7 @@ export default function Trading() {
       setRecentTrades(portfolioStore.getTrades().slice(0, 10) as unknown as PublicTrade[])
       setAmount('')
       setPrice('')
+      setConfirmOpen(false)
     } catch (e) {
       const err = e as { error?: string; status?: number }
       toast.error('Trade rejected', { description: err.error || 'Server error' })
@@ -472,16 +506,36 @@ export default function Trading() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between py-3 border-t border-[#ffffff08] mb-4">
-                <span className="text-sm text-[#A0A0A0]">Total</span>
-                <span className="text-lg font-medium text-[#E5E5E5]">
-                  ${amount ? (parseFloat(amount) * (orderType === 'market' ? (selectedCrypto?.current_price || 0) : parseFloat(price || '0'))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                </span>
+              <div className="space-y-1.5 py-3 border-t border-[#ffffff08] mb-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#A0A0A0]">Subtotal</span>
+                  <span className="text-[#E5E5E5]">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#A0A0A0]">Fee ({(TRADING_FEE_RATE * 100).toFixed(2)}%)</span>
+                  <span className="text-[#E5E5E5]">${feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex items-center justify-between pt-1.5 border-t border-[#ffffff05]">
+                  <span className="text-sm text-[#A0A0A0]">{orderSide === 'buy' ? 'Total cost' : 'You receive'}</span>
+                  <span className="text-base font-medium text-[#E5E5E5]">
+                    ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {(hasInsufficientCash || hasInsufficientCoin) && (
+                  <div className="flex items-start gap-1.5 mt-2 px-2 py-1.5 rounded-md bg-[#f44336]/10 border border-[#f44336]/30 text-[#f44336]">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span className="text-[11px]">
+                      {hasInsufficientCash
+                        ? `Need $${(totalCost - usdBalance).toFixed(2)} more — deposit funds or lower amount.`
+                        : `You only hold ${heldQty} ${selectedCrypto?.symbol.toUpperCase()}.`}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <button onClick={handleTrade} disabled={submitting}
+              <button onClick={handleTrade} disabled={submitting || hasInsufficientCash || hasInsufficientCoin}
                 className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderSide === 'buy' ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#f44336] text-white hover:bg-[#d32f2f]'}`}>
-                {submitting ? 'Submitting…' : `${orderSide === 'buy' ? 'Buy' : 'Sell'} ${selectedCrypto?.symbol.toUpperCase() || 'BTC'}`}
+                {submitting ? 'Submitting…' : `Review ${orderSide === 'buy' ? 'Buy' : 'Sell'} ${selectedCrypto?.symbol.toUpperCase() || 'BTC'}`}
               </button>
 
               <Link to="/alerts" className="mt-2 block text-center text-[11px] text-[#737373] hover:text-[#0C8B44] transition-colors">
@@ -520,6 +574,74 @@ export default function Trading() {
           </div>
         </div>
       </div>
+
+      {/* Order confirmation modal — last line of defence before money moves. */}
+      {confirmOpen && selectedCrypto && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => !submitting && setConfirmOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-[#111] border border-[#ffffff10] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[#E5E5E5]">Confirm {orderSide === 'buy' ? 'Buy' : 'Sell'} Order</h2>
+                <p className="text-xs text-[#737373] mt-0.5">Review the details before placing this trade.</p>
+              </div>
+              <button onClick={() => !submitting && setConfirmOpen(false)} className="text-[#737373] hover:text-[#E5E5E5] transition-colors" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5 py-4 border-y border-[#ffffff08] text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">Asset</span>
+                <span className="text-[#E5E5E5]">{selectedCrypto.name} ({selectedCrypto.symbol.toUpperCase()})</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">Order type</span>
+                <span className="text-[#E5E5E5] capitalize">{orderType}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">Amount</span>
+                <span className="text-[#E5E5E5]">{qtyNum} {selectedCrypto.symbol.toUpperCase()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">{orderType === 'market' ? 'Est. price' : 'Limit price'}</span>
+                <span className="text-[#E5E5E5]">${previewPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">Subtotal</span>
+                <span className="text-[#E5E5E5]">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#A0A0A0]">Fee ({(TRADING_FEE_RATE * 100).toFixed(2)}%)</span>
+                <span className="text-[#E5E5E5]">${feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-[#ffffff05]">
+                <span className="text-[#E5E5E5] font-medium">{orderSide === 'buy' ? 'Total cost' : 'You receive'}</span>
+                <span className="text-base font-semibold text-[#E5E5E5]">
+                  ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {orderType === 'market' && (
+              <div className="flex items-start gap-2 mt-4 px-3 py-2 rounded-lg bg-[#ffffff05] text-[11px] text-[#A0A0A0]">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#fbbf24]" />
+                <span>Market orders execute at the best available price. Final fill may differ slightly from the estimate.</span>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setConfirmOpen(false)} disabled={submitting}
+                className="flex-1 py-3 rounded-xl text-sm font-medium border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#ffffff20] transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={submitTrade} disabled={submitting}
+                className={`flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderSide === 'buy' ? 'bg-[#0C8B44] hover:bg-[#0a7539]' : 'bg-[#f44336] hover:bg-[#d32f2f]'}`}>
+                {submitting ? 'Placing order…' : `Confirm ${orderSide === 'buy' ? 'Buy' : 'Sell'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
