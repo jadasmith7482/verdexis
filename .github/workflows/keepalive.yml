@@ -1,0 +1,56 @@
+name: Keep Render awake
+
+# Render free-tier web services spin down after ~15 minutes of inactivity.
+# Pinging /api/health every 10 minutes from GitHub Actions keeps the
+# container warm and avoids the 30–60s cold-start on the next user visit.
+#
+# Configure the target URL by setting either:
+#   - a repo variable RENDER_URL (Settings → Secrets and variables → Actions → Variables), or
+#   - a repo secret RENDER_URL (if you'd rather keep it private).
+# Examples: https://verdexis.onrender.com  (no trailing slash)
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve target URL
+        id: target
+        run: |
+          URL="${{ vars.RENDER_URL }}"
+          if [ -z "$URL" ]; then URL="${{ secrets.RENDER_URL }}"; fi
+          if [ -z "$URL" ]; then URL="https://verdexis.onrender.com"; fi
+          # Strip trailing slash
+          URL="${URL%/}"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Pinging $URL/api/health"
+
+      - name: Ping /api/health
+        run: |
+          set -e
+          for i in 1 2 3; do
+            CODE=$(curl -sS -o /tmp/body -w "%{http_code}" --max-time 60 \
+              -H "User-Agent: verdexis-keepalive/1.0 (+github-actions)" \
+              "${{ steps.target.outputs.url }}/api/health" || echo "000")
+            echo "Attempt $i → HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              cat /tmp/body || true
+              exit 0
+            fi
+            sleep $((i * 15))
+          done
+          echo "Health check failed after 3 attempts"
+          cat /tmp/body || true
+          exit 1
