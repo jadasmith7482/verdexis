@@ -23,6 +23,13 @@ const schema = z.object({
   // aggressively rate-limits/blocks shared cloud egress IPs.
   COINGECKO_API_KEY: z.string().optional(),
   COINGECKO_API_TIER: z.enum(['demo', 'pro']).default('demo'),
+  // Optional Finnhub key (60 req/min free) for stock/forex/crypto news.
+  FINNHUB_API_KEY: z.string().optional(),
+  // Optional Twelve Data key (800 req/day free) — used as a higher-volume
+  // fallback to Alpha Vantage for stock quotes / time series.
+  TWELVE_DATA_API_KEY: z.string().optional(),
+  // Optional NewsAPI.org key — server-side aggregator used by the News page.
+  NEWS_API_KEY: z.string().optional(),
 })
 
 const parsed = schema.safeParse(process.env)

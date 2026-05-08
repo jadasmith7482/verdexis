@@ -359,4 +359,175 @@ router.get('/coingecko/simple-price', async (req, res) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// News aggregator
+// ---------------------------------------------------------------------------
+// GET /api/market/news?category=general
+// Tries NewsAPI first (richer + multi-source), falls back to Finnhub. Both
+// keys live server-side so they're never shipped in the JS bundle.
+type NewsItem = {
+  id: string
+  headline: string
+  summary?: string
+  source?: string
+  url?: string
+  image?: string
+  datetime?: number
+  category?: string
+}
+const newsCache = new Map<string, { data: NewsItem[]; ts: number }>()
+const NEWS_TTL_MS = 60_000
+
+router.get('/news', async (req, res) => {
+  const category = ((req.query.category as string | undefined) || 'general').toLowerCase()
+  const cacheKey = `news:${category}`
+  const cached = newsCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < NEWS_TTL_MS) {
+    res.set('Cache-Control', 'public, max-age=45')
+    res.json(cached.data)
+    return
+  }
+  const errors: string[] = []
+  // Provider 1: NewsAPI.org
+  if (env.NEWS_API_KEY) {
+    try {
+      const q = category === 'crypto' || category === 'defi'
+        ? 'cryptocurrency OR bitcoin OR ethereum'
+        : category === 'macro' ? 'inflation OR "federal reserve" OR economy'
+        : category === 'stocks' ? 'stocks OR markets OR earnings'
+        : 'finance OR markets'
+      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=en&sortBy=publishedAt&pageSize=30&apiKey=${env.NEWS_API_KEY}`
+      const data = (await httpsGetJson(url, 6000)) as {
+        articles?: Array<{ title: string; description?: string; source?: { name?: string }; url?: string; urlToImage?: string; publishedAt?: string }>
+      }
+      const items: NewsItem[] = (data.articles ?? [])
+        .filter((a) => a.title && a.url)
+        .map((a, i) => ({
+          id: `na-${i}-${a.publishedAt ?? ''}`,
+          headline: a.title,
+          summary: a.description ?? '',
+          source: a.source?.name ?? 'NewsAPI',
+          url: a.url,
+          image: a.urlToImage ?? '',
+          datetime: a.publishedAt ? Math.floor(new Date(a.publishedAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
+          category,
+        }))
+      if (items.length > 0) {
+        newsCache.set(cacheKey, { data: items, ts: Date.now() })
+        res.set('Cache-Control', 'public, max-age=45')
+        res.json(items)
+        return
+      }
+      errors.push('newsapi: empty')
+    } catch (err) {
+      errors.push(`newsapi: ${(err as Error).message}`)
+    }
+  }
+  // Provider 2: Finnhub
+  if (env.FINNHUB_API_KEY) {
+    try {
+      const finnhubCat = category === 'stocks' ? 'general'
+        : category === 'macro' ? 'forex'
+        : category === 'defi' ? 'crypto'
+        : category === 'all' ? 'general'
+        : category
+      const url = `https://finnhub.io/api/v1/news?category=${encodeURIComponent(finnhubCat)}&token=${env.FINNHUB_API_KEY}`
+      const data = (await httpsGetJson(url, 6000)) as Array<{
+        id?: number; headline?: string; summary?: string; source?: string; url?: string; image?: string; datetime?: number; category?: string
+      }>
+      const items: NewsItem[] = (Array.isArray(data) ? data : [])
+        .filter((a) => a.headline && a.url)
+        .slice(0, 30)
+        .map((a, i) => ({
+          id: String(a.id ?? `fh-${i}`),
+          headline: a.headline ?? '',
+          summary: a.summary ?? '',
+          source: a.source ?? 'Finnhub',
+          url: a.url,
+          image: a.image ?? '',
+          datetime: a.datetime,
+          category: a.category ?? category,
+        }))
+      if (items.length > 0) {
+        newsCache.set(cacheKey, { data: items, ts: Date.now() })
+        res.set('Cache-Control', 'public, max-age=45')
+        res.json(items)
+        return
+      }
+      errors.push('finnhub: empty')
+    } catch (err) {
+      errors.push(`finnhub: ${(err as Error).message}`)
+    }
+  }
+  // Stale cache fallback
+  if (cached) { res.json(cached.data); return }
+  res.status(502).json({ error: 'news_unavailable', detail: errors.join('; ') || 'no providers configured' })
+})
+
+// ---------------------------------------------------------------------------
+// Stock quote (Twelve Data primary, Alpha Vantage fallback)
+// ---------------------------------------------------------------------------
+// GET /api/market/stock-quote?symbol=AAPL
+const stockCache = new Map<string, { data: unknown; ts: number }>()
+router.get('/stock-quote', async (req, res) => {
+  const symbol = ((req.query.symbol as string | undefined) || '').trim().toUpperCase()
+  if (!symbol || !/^[A-Z0-9.\-]{1,12}$/.test(symbol)) { res.status(400).json({ error: 'bad_symbol' }); return }
+  const cached = stockCache.get(symbol)
+  if (cached && Date.now() - cached.ts < 30_000) {
+    res.set('Cache-Control', 'public, max-age=20')
+    res.json(cached.data)
+    return
+  }
+  const errors: string[] = []
+  if (env.TWELVE_DATA_API_KEY) {
+    try {
+      const data = (await httpsGetJson(
+        `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${env.TWELVE_DATA_API_KEY}`,
+        6000,
+      )) as { symbol?: string; name?: string; close?: string; change?: string; percent_change?: string; status?: string; message?: string }
+      if (data.status === 'error' || !data.close) throw new Error(data.message || 'twelve data error')
+      const out = {
+        symbol: data.symbol ?? symbol,
+        name: data.name ?? symbol,
+        price: parseFloat(data.close),
+        change: data.change ? parseFloat(data.change) : 0,
+        changePercent: data.percent_change ? parseFloat(data.percent_change) : 0,
+        source: 'twelvedata',
+      }
+      stockCache.set(symbol, { data: out, ts: Date.now() })
+      res.set('Cache-Control', 'public, max-age=20')
+      res.json(out)
+      return
+    } catch (err) {
+      errors.push(`twelvedata: ${(err as Error).message}`)
+    }
+  }
+  if (env.ALPHA_VANTAGE_KEY) {
+    try {
+      const data = (await httpsGetJson(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${env.ALPHA_VANTAGE_KEY}`,
+        6000,
+      )) as { 'Global Quote'?: Record<string, string> }
+      const q = data['Global Quote']
+      if (!q || !q['05. price']) throw new Error('alphavantage empty')
+      const out = {
+        symbol,
+        name: symbol,
+        price: parseFloat(q['05. price']),
+        change: parseFloat(q['09. change'] ?? '0'),
+        changePercent: parseFloat((q['10. change percent'] ?? '0').replace('%', '')),
+        source: 'alphavantage',
+      }
+      stockCache.set(symbol, { data: out, ts: Date.now() })
+      res.set('Cache-Control', 'public, max-age=20')
+      res.json(out)
+      return
+    } catch (err) {
+      errors.push(`alphavantage: ${(err as Error).message}`)
+    }
+  }
+  if (cached) { res.json(cached.data); return }
+  res.status(502).json({ error: 'stock_unavailable', detail: errors.join('; ') || 'no providers configured' })
+})
+
 export default router
