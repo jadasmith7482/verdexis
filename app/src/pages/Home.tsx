@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
@@ -7,6 +7,7 @@ import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
 import { aiService, type AIInsight } from '../lib/aiService'
 import { marketData, type CryptoQuote } from '../lib/marketData'
+import { liveTicker } from '../lib/liveTicker'
 import { formatPrice, formatUsdCompact } from '@/lib/utils'
 import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
@@ -64,6 +65,7 @@ export default function Home() {
 
   const [insights, setInsights] = useState<AIInsight[]>([])
   const [cryptoData, setCryptoData] = useState<CryptoQuote[]>([])
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({})
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup')
   const [loading, setLoading] = useState(true)
@@ -71,12 +73,40 @@ export default function Home() {
     marketData.getCryptoList().then(setCryptoData)
     aiService.getPortfolioInsights().then(setInsights)
     setLoading(false)
+    // Refresh the snapshot list (sparklines, market caps, 24h %) every 30s
+    // so even sections that key off CryptoQuote (not just liveTicker) stay
+    // fresh while the visitor is on the landing page.
+    const refresh = setInterval(() => {
+      marketData.getCryptoList().then(setCryptoData)
+    }, 30_000)
+    return () => clearInterval(refresh)
   }, [])
+
+  // Subscribe to live ticker for the top-5 coins so the marquee + preview
+  // prices visibly tick every ~2s instead of being frozen on the snapshot
+  // captured at mount. We key by coingecko id (the same id liveTicker uses
+  // internally) and merge into a Record we read with useMemo below.
+  const topIds = cryptoData.slice(0, 5).map((c) => c.id).join(',')
+  useEffect(() => {
+    if (!topIds) return
+    const ids = topIds.split(',')
+    const unsubs = ids.map((id) => liveTicker.subscribe(id, (p) => {
+      setLivePrices((prev) => (prev[id] === p ? prev : { ...prev, [id]: p }))
+    }))
+    return () => { unsubs.forEach((u) => u()) }
+  }, [topIds])
 
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
   const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
 
-  const topCryptos = cryptoData.slice(0, 5)
+  // Overlay live ticker prices on top of the CoinGecko snapshot so every
+  // place that reads `current_price` automatically gets the fresh value.
+  const liveCryptos = useMemo(() => cryptoData.map((c) => {
+    const p = livePrices[c.id]
+    return p != null && p > 0 ? { ...c, current_price: p } : c
+  }), [cryptoData, livePrices])
+
+  const topCryptos = liveCryptos.slice(0, 5)
   // Live total market cap of the top 5 cryptos shown in the preview. This is
   // an actual public market metric — not a fake "net worth".
   const totalValue = topCryptos.reduce((sum, c) => sum + (c.market_cap || 0), 0)
@@ -90,10 +120,20 @@ export default function Home() {
   const change24hAbs = totalValue - previousValue
   const change24hPct = previousValue > 0 ? (change24hAbs / previousValue) * 100 : 0
   // BTC 7-day sparkline drives the preview chart so what the user sees on the
-  // landing page is the same data the dashboard would show.
-  const heroSparkline = topCryptos.find((c) => c.id === 'bitcoin')?.sparkline_in_7d?.price
+  // landing page is the same data the dashboard would show. Append the live
+  // BTC price to the tail so the rightmost bar visibly grows/shrinks every
+  // ~2s as new ticks arrive.
+  const baseHeroSparkline = topCryptos.find((c) => c.id === 'bitcoin')?.sparkline_in_7d?.price
     ?? topCryptos[0]?.sparkline_in_7d?.price
     ?? []
+  const heroLivePrice = livePrices['bitcoin'] ?? topCryptos.find((c) => c.id === 'bitcoin')?.current_price
+  const heroSparkline = useMemo(() => {
+    if (baseHeroSparkline.length === 0) return baseHeroSparkline
+    if (heroLivePrice == null || heroLivePrice <= 0) return baseHeroSparkline
+    const last = baseHeroSparkline[baseHeroSparkline.length - 1]
+    if (Math.abs(heroLivePrice - last) / Math.max(last, 1e-9) < 1e-6) return baseHeroSparkline
+    return [...baseHeroSparkline.slice(1), heroLivePrice]
+  }, [baseHeroSparkline, heroLivePrice])
   const heroSparkSlim = heroSparkline.length > 30
     ? heroSparkline.filter((_, i) => i % Math.ceil(heroSparkline.length / 30) === 0).slice(0, 30)
     : heroSparkline
@@ -167,7 +207,7 @@ export default function Home() {
                   <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 text-[10px] font-bold text-[#0C8B44] flex items-center justify-center">{c.symbol.toUpperCase()[0]}</div>
                 )}
                 <span className="text-[#E5E5E5] font-medium">{c.symbol.toUpperCase()}</span>
-                <span className="text-[#A0A0A0]">{formatPrice(c.current_price)}</span>
+                <span className="text-[#A0A0A0] tabular-nums">{formatPrice(c.current_price)}</span>
                 <span className={c.price_change_percentage_24h >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}>
                   {c.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(c.price_change_percentage_24h).toFixed(2)}%
                 </span>
@@ -299,7 +339,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="w-24 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#0C8B44]" style={{ width: `${share.toFixed(1)}%` }} /></div>
-                      <span className="text-sm text-[#A0A0A0] w-20 text-right">{formatPrice(c.current_price)}</span>
+                      <span className="text-sm text-[#A0A0A0] w-20 text-right tabular-nums">{formatPrice(c.current_price)}</span>
                     </div>
                   </Link>
                   )
