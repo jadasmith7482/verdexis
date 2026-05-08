@@ -169,7 +169,7 @@ export default function Home() {
           <p className="text-base md:text-lg text-[#A0A0A0] max-w-lg mx-auto mb-10 leading-relaxed">Connect your wallets, automate your trades, and watch your net worth grow with institutional-grade AI analysis powered by real-time market data.</p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <button onClick={openSignup} className="px-8 py-3.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Start Free &mdash; Sign Up</button>
-            <Link to="/trading" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 transition-colors"><Play className="w-4 h-4" />Explore Markets</Link>
+            <Link to="/markets" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 transition-colors"><Play className="w-4 h-4" />Explore Markets</Link>
           </div>
           <p className="text-xs text-[#737373] mt-4">No credit card required. Free forever plan available. <button onClick={openLogin} className="text-[#0C8B44] hover:text-[#00E676] underline-offset-4 hover:underline transition-colors">Already have an account? Sign in</button></p>
         </div>
@@ -644,7 +644,7 @@ export default function Home() {
               <p className="text-[#A0A0A0] max-w-xl mx-auto mb-8">Sign up to get AI-powered trading, portfolio management and real-time market intelligence in one workspace.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button onClick={openSignup} className="px-8 py-3.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Get Started Free</button>
-                <Link to="/trading" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44] transition-colors">Explore Markets</Link>
+                <Link to="/markets" className="flex items-center gap-2 px-8 py-3.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg hover:border-[#0C8B44]/30 hover:text-[#0C8B44] transition-colors">Explore Markets</Link>
               </div>
               <div className="flex items-center justify-center gap-6 mt-8 text-xs text-[#737373]">
                 <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />No credit card required</span>

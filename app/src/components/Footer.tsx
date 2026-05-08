@@ -73,6 +73,7 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-medium text-[#E5E5E5] mb-3 uppercase tracking-[0.05em]">Markets</h4>
             <ul className="space-y-2 text-xs text-[#A0A0A0]">
+              <li><Link to="/markets" className="hover:text-[#0C8B44] transition-colors">All markets</Link></li>
               <li><Link to="/trading?symbol=BTC" className="hover:text-[#0C8B44] transition-colors">Explore crypto</Link></li>
               <li><Link to="/trading?symbol=AAPL" className="hover:text-[#0C8B44] transition-colors">Explore stocks</Link></li>
               <li><Link to="/news" className="hover:text-[#0C8B44] transition-colors">Market news</Link></li>

@@ -47,7 +47,7 @@ export default function TopMovers({ data }: { data: CryptoQuote[] }) {
     <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff05] p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-medium text-[#E5E5E5]">Top Movers · 24h</h3>
-        <Link to="/trading" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
+        <Link to="/markets" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
           All markets <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
