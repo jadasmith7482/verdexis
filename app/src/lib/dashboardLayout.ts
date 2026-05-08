@@ -6,6 +6,8 @@ const STORAGE_KEY = 'verdexis_dashboard_widgets'
 const EVENT = 'verdexis:dashboard-widgets'
 
 export type WidgetId =
+  | 'morningBrief'
+  | 'portfolioHealth'
   | 'topMovers'
   | 'watchlist'
   | 'alertsSummary'
@@ -19,6 +21,8 @@ export type WidgetId =
 export interface WidgetMeta { id: WidgetId; label: string; description: string }
 
 export const ALL_WIDGETS: WidgetMeta[] = [
+  { id: 'morningBrief', label: 'Morning Brief', description: 'AI-style daily summary' },
+  { id: 'portfolioHealth', label: 'Portfolio Health', description: '0-100 health score' },
   { id: 'topMovers', label: 'Top Movers', description: '24h gainers + losers' },
   { id: 'watchlist', label: 'Watchlist', description: 'Pinned assets' },
   { id: 'alertsSummary', label: 'Price Alerts', description: 'Active + triggered' },

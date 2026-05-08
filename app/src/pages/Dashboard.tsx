@@ -6,6 +6,8 @@ import Footer from '../components/Footer'
 import RiskMetricsCard from '../components/RiskMetricsCard'
 import { Skeleton } from '../components/Skeleton'
 import TopMovers from '../components/dashboard/TopMovers'
+import PortfolioHealthCard from '../components/dashboard/PortfolioHealthCard'
+import MorningBriefCard from '../components/dashboard/MorningBriefCard'
 import AlertsSummaryCard from '../components/dashboard/AlertsSummaryCard'
 import NewsSnippetCard from '../components/dashboard/NewsSnippetCard'
 import GoalsProgressCard from '../components/dashboard/GoalsProgressCard'
@@ -30,6 +32,7 @@ import { portfolioStore, type PortfolioHolding, type Trade, type WalletBalance, 
 import { assetIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { useCurrency } from '../lib/currencyContext'
 import { dashboardLayout, DASHBOARD_LAYOUT_EVENT } from '../lib/dashboardLayout'
+import { computePortfolioHealth } from '../lib/portfolioHealth'
 import { dcaStore, nextRunMs } from '../lib/dcaStore'
 import { Toaster, toast } from 'sonner'
 import {
@@ -573,6 +576,42 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+
+          {/* Morning Brief + Portfolio Health — the new "command center" row */}
+          {isAuthenticated && (() => {
+            const health = computePortfolioHealth({
+              holdings,
+              wallet,
+              market: cryptoData,
+              netWorth: totalValue,
+            })
+            const showBrief = !hiddenWidgets.has('morningBrief')
+            const showHealth = !hiddenWidgets.has('portfolioHealth')
+            if (!showBrief && !showHealth) return null
+            return (
+              <div className={`grid grid-cols-1 ${showBrief && showHealth ? 'lg:grid-cols-2' : ''} gap-4 mb-6`}>
+                {showBrief && (
+                  <MorningBriefCard
+                    holdings={holdings}
+                    market={cryptoData}
+                    netWorth={totalValue}
+                    dayChangePercent={dayChangePercent}
+                    health={health}
+                    fmtMoney={fmtMoney}
+                    userName={userName}
+                  />
+                )}
+                {showHealth && (
+                  <PortfolioHealthCard
+                    holdings={holdings}
+                    wallet={wallet}
+                    market={cryptoData}
+                    netWorth={totalValue}
+                  />
+                )}
+              </div>
+            )
+          })()}
 
           {/* Performance Metrics — inspired by Wealthfolio analytics */}
           {isAuthenticated && (() => {
