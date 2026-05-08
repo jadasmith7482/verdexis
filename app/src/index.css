@@ -62,6 +62,71 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Smooth in-page anchor scrolling. Honours reduced-motion below. */
+  html { scroll-behavior: smooth; }
+
+  /* Themed text selection — our brand green instead of the OS blue. */
+  ::selection {
+    background: rgba(12, 139, 68, 0.35);
+    color: #ffffff;
+  }
+  ::-moz-selection {
+    background: rgba(12, 139, 68, 0.35);
+    color: #ffffff;
+  }
+
+  /* Slim dark scrollbar that matches the canvas. WebKit + Firefox. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(12, 139, 68, 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+    transition: background 0.2s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(12, 139, 68, 0.55);
+    background-clip: padding-box;
+  }
+
+  /* Consistent keyboard focus ring — only when navigating by keyboard, so
+     mouse clicks stay quiet. */
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid rgba(12, 139, 68, 0.7);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  /* Inputs get a softer inset glow instead of an outline so the layout
+     doesn't shift. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(12, 139, 68, 0.45);
+  }
+
+  /* Auto-fill on Chrome turns inputs bright yellow by default. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: #E5E5E5;
+    transition: background-color 5000s ease-in-out 0s;
+    box-shadow: 0 0 0 1000px #1a1a1a inset;
+    caret-color: #E5E5E5;
+  }
+
   /* Mobile fit: stop a single wide child (chart, table, big card) from
      stretching the page wider than the viewport, which makes the browser
      "zoom out" and clip the layout on phones. */
@@ -231,4 +296,64 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee { animation: none; }
+  html { scroll-behavior: auto; }
+  .page-fade-in { animation: none !important; }
+}
+
+/* Subtle page fade-in. Apply via the `page-fade-in` class on the root
+   wrapper of each page (or globally on <main>). */
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-fade-in {
+  animation: pageFadeIn 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Sonner toast theming — match the dark glass look of the rest of the app
+   and replace the default white background. */
+[data-sonner-toaster][data-theme='dark'] {
+  --normal-bg: rgba(15, 22, 25, 0.92);
+  --normal-border: rgba(255, 255, 255, 0.08);
+  --normal-text: #E5E5E5;
+  --success-bg: rgba(15, 22, 25, 0.95);
+  --success-border: rgba(12, 139, 68, 0.45);
+  --success-text: #4CAF50;
+  --error-bg: rgba(15, 22, 25, 0.95);
+  --error-border: rgba(244, 67, 54, 0.45);
+  --error-text: #f44336;
+  --info-bg: rgba(15, 22, 25, 0.95);
+  --info-border: rgba(33, 150, 243, 0.45);
+  --info-text: #2196F3;
+}
+[data-sonner-toaster] [data-sonner-toast] {
+  backdrop-filter: blur(16px);
+  border-radius: 12px !important;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Image polish — fade in once decoded so we don't get a sudden pop and
+   broken-image flicker is invisible. */
+img {
+  font-style: italic; /* hides the URL alt-text flicker on slow loads */
+}
+img[loading='lazy'] {
+  opacity: 0;
+  animation: imgFadeIn 320ms ease-out forwards;
+}
+@keyframes imgFadeIn {
+  to { opacity: 1; }
+}
+
+/* Buttons — give every interactive surface a tiny press feedback so taps
+   feel responsive. Excludes form inputs. */
+button:active:not(:disabled),
+[role='button']:active {
+  transform: scale(0.98);
+  transition: transform 80ms ease;
+}
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
 }

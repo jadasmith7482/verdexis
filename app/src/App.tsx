@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
 import CookieBanner from './components/CookieBanner'
 import OfflineToast from './components/OfflineToast'
@@ -48,7 +48,24 @@ export default function App() {
     <ErrorBoundary>
       <ScrollToTop />
       <Suspense fallback={<PageFallback />}>
-        <Routes>
+        <RoutedPages />
+      </Suspense>
+      <CommandPalette />
+      <CookieBanner />
+      <OfflineToast />
+      <AlertChecker />
+      <Toaster position="top-right" theme="dark" richColors />
+    </ErrorBoundary>
+  )
+}
+
+// Keyed wrapper so navigating between routes triggers the page-fade-in
+// animation defined in index.css. Pure presentational polish — no state.
+function RoutedPages() {
+  const location = useLocation()
+  return (
+    <div key={location.pathname} className="page-fade-in">
+      <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/trading" element={<Trading />} />
@@ -75,12 +92,6 @@ export default function App() {
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Suspense>
-      <CommandPalette />
-      <CookieBanner />
-      <OfflineToast />
-      <AlertChecker />
-      <Toaster position="top-right" theme="dark" richColors />
-    </ErrorBoundary>
+      </div>
   )
 }
