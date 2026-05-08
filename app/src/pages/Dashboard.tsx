@@ -4,6 +4,7 @@ import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
 import Footer from '../components/Footer'
 import RiskMetricsCard from '../components/RiskMetricsCard'
+import { Skeleton } from '../components/Skeleton'
 import TopMovers from '../components/dashboard/TopMovers'
 import AlertsSummaryCard from '../components/dashboard/AlertsSummaryCard'
 import NewsSnippetCard from '../components/dashboard/NewsSnippetCard'
@@ -861,8 +862,18 @@ export default function Dashboard() {
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="w-8 h-8 border-2 border-[#0C8B44]/30 border-t-[#0C8B44] rounded-full animate-spin" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="w-5 h-5 rounded-full" />
+                        <Skeleton className="h-3 w-12" />
+                      </div>
+                      <Skeleton className="h-5 w-20" />
+                      <Skeleton className="h-3 w-14" />
+                      <Skeleton className="h-7 w-full" />
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">

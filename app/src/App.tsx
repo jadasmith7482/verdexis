@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import ScrollToTop from './components/ScrollToTop'
+import DocumentTitle from './components/DocumentTitle'
 import CookieBanner from './components/CookieBanner'
 import OfflineToast from './components/OfflineToast'
 import RequireAuth from './components/RequireAuth'
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ScrollToTop />
+      <DocumentTitle />
       <Suspense fallback={<PageFallback />}>
         <RoutedPages />
       </Suspense>
