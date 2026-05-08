@@ -24,6 +24,30 @@ import {
 type TabType = 'overview' | 'deposit' | 'withdraw' | 'transfer' | 'income'
 type IncomeKind = 'dividend' | 'interest'
 type UsdMethod = 'ach' | 'wire'
+type UsdWithdrawMethod = 'ach' | 'wire' | 'cashiers_check' | 'check'
+
+interface WireRecipientInfo {
+  beneficiaryName: string
+  beneficiaryAddress: string
+  bankName: string
+  routingNumber: string
+  accountNumber: string
+  swiftCode: string
+  memo: string
+}
+
+interface CheckDeliveryInfo {
+  payTo: string
+  addressLine1: string
+  addressLine2: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+  phone: string
+  delivery: 'standard' | 'priority' | 'overnight'
+  memo: string
+}
 
 export default function WalletPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -81,6 +105,28 @@ export default function WalletPage() {
   const [selectedBankId, setSelectedBankId] = useState<string>('')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
   const [usdMethod, setUsdMethod] = useState<UsdMethod>('ach')
+  const [usdWithdrawMethod, setUsdWithdrawMethod] = useState<UsdWithdrawMethod>('ach')
+  const [wireInfo, setWireInfo] = useState<WireRecipientInfo>({
+    beneficiaryName: '',
+    beneficiaryAddress: '',
+    bankName: '',
+    routingNumber: '',
+    accountNumber: '',
+    swiftCode: '',
+    memo: '',
+  })
+  const [checkInfo, setCheckInfo] = useState<CheckDeliveryInfo>({
+    payTo: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'United States',
+    phone: '',
+    delivery: 'standard',
+    memo: '',
+  })
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
   const wireInstructions = useMemo(
@@ -325,16 +371,49 @@ export default function WalletPage() {
     }
     let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
     if (selectedCurrency === 'USD') {
-      const bank = banks.find(b => b.id === selectedBankId)
-      if (!bank) {
-        setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Select a destination bank account, or link one first.' })
-        return
+      if (usdWithdrawMethod === 'ach') {
+        const bank = banks.find(b => b.id === selectedBankId)
+        if (!bank) {
+          setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Select a destination bank account, or link one first.' })
+          return
+        }
+        if (bank.status !== 'verified') {
+          setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `${bank.institution} ····${bank.accountMask} is not verified yet.` })
+          return
+        }
+        reference = `ACH to ${bank.institution} ····${bank.accountMask}`
+      } else if (usdWithdrawMethod === 'wire') {
+        const required: Array<[keyof WireRecipientInfo, string]> = [
+          ['beneficiaryName', 'beneficiary name'],
+          ['bankName', 'beneficiary bank name'],
+          ['routingNumber', 'routing / ABA number'],
+          ['accountNumber', 'account number'],
+        ]
+        const missing = required.find(([k]) => !wireInfo[k].trim())
+        if (missing) {
+          setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Wire transfer requires ${missing[1]}.` })
+          return
+        }
+        const mask = wireInfo.accountNumber.slice(-4)
+        reference = `Wire to ${wireInfo.beneficiaryName.trim()} · ${wireInfo.bankName.trim()} ····${mask}`
+      } else if (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check') {
+        const required: Array<[keyof CheckDeliveryInfo, string]> = [
+          ['payTo', 'payee name'],
+          ['addressLine1', 'street address'],
+          ['city', 'city'],
+          ['state', 'state / region'],
+          ['postalCode', 'postal code'],
+          ['country', 'country'],
+        ]
+        const missing = required.find(([k]) => !checkInfo[k].trim())
+        if (missing) {
+          setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Check delivery requires ${missing[1]}.` })
+          return
+        }
+        const label = usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'
+        const deliveryLabel = checkInfo.delivery === 'overnight' ? 'overnight' : checkInfo.delivery === 'priority' ? 'priority' : 'standard mail'
+        reference = `${label} to ${checkInfo.payTo.trim()} · ${checkInfo.city.trim()}, ${checkInfo.state.trim()} (${deliveryLabel})`
       }
-      if (bank.status !== 'verified') {
-        setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `${bank.institution} ····${bank.accountMask} is not verified yet.` })
-        return
-      }
-      reference = `ACH to ${bank.institution} ····${bank.accountMask}`
     } else if (!recipient.trim()) {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Enter a ${selectedCurrency} destination address.` })
       return
@@ -343,10 +422,17 @@ export default function WalletPage() {
     }
     const amt = -parseFloat(amount)
     portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference, newIdempotencyKey())
+    let successMessage = `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`
+    if (selectedCurrency === 'USD' && usdWithdrawMethod === 'wire') {
+      successMessage += ' Wire submitted for review — funds typically arrive in 1 business day after approval.'
+    } else if (selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')) {
+      const eta = checkInfo.delivery === 'overnight' ? '1 business day' : checkInfo.delivery === 'priority' ? '2–3 business days' : '5–7 business days'
+      successMessage += ` ${usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'} will be mailed to ${checkInfo.payTo.trim()} after review (est. ${eta}).`
+    }
     setTransferStatus({
       kind: 'success',
       title: 'Withdrawal sent',
-      message: `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`,
+      message: successMessage,
     })
     setAmount('')
     setRecipient('')
@@ -1189,58 +1275,150 @@ export default function WalletPage() {
                   </div>
                 )}
                 {selectedCurrency === 'USD' && (
-                  <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08]">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-[#737373]">Destination Account</p>
-                      <button type="button" onClick={() => setLinkBankOpen(true)} className="text-[11px] text-[#0C8B44] hover:text-[#0a7539]">+ Link new bank</button>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-[#A0A0A0] mb-2 block">Withdrawal Method</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          { key: 'ach', label: 'ACH', desc: '1–3 days · Free' },
+                          { key: 'wire', label: 'Wire', desc: 'Same day · $25' },
+                          { key: 'cashiers_check', label: "Cashier's Check", desc: 'Mail · $10' },
+                          { key: 'check', label: 'Paper Check', desc: 'Mail · $5' },
+                        ] as const).map((m) => (
+                          <button
+                            key={m.key}
+                            type="button"
+                            onClick={() => setUsdWithdrawMethod(m.key)}
+                            className={`p-3 rounded-xl border text-left transition-all ${usdWithdrawMethod === m.key ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#ffffff20]'}`}
+                          >
+                            <p className="text-sm text-[#E5E5E5]">{m.label}</p>
+                            <p className="text-[11px] text-[#737373] mt-0.5">{m.desc}</p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    {banks.length === 0 ? (
-                      <div className="flex items-center gap-3">
-                        <Banknote className="w-8 h-8 text-[#737373]" />
-                        <div>
-                          <p className="text-sm text-[#E5E5E5]">No bank accounts linked</p>
-                          <p className="text-xs text-[#737373]">Link a checking or savings account to receive ACH withdrawals.</p>
+
+                    {usdWithdrawMethod === 'ach' && (
+                      <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08]">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-[#737373]">Destination Account</p>
+                          <button type="button" onClick={() => setLinkBankOpen(true)} className="text-[11px] text-[#0C8B44] hover:text-[#0a7539]">+ Link new bank</button>
+                        </div>
+                        {banks.length === 0 ? (
+                          <div className="flex items-center gap-3">
+                            <Banknote className="w-8 h-8 text-[#737373]" />
+                            <div>
+                              <p className="text-sm text-[#E5E5E5]">No bank accounts linked</p>
+                              <p className="text-xs text-[#737373]">Link a checking or savings account to receive ACH withdrawals.</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <label htmlFor="withdraw-bank" className="sr-only">Destination bank account</label>
+                            <select
+                              id="withdraw-bank"
+                              value={selectedBankId}
+                              onChange={(e) => setSelectedBankId(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                            >
+                              <option value="">Choose a linked bank account…</option>
+                              {banks.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.institution} · {b.type[0].toUpperCase() + b.type.slice(1)} ····{b.accountMask}{b.status !== 'verified' ? ` (${b.status[0].toUpperCase() + b.status.slice(1)})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {(() => {
+                              const sel = banks.find(b => b.id === selectedBankId)
+                              if (!sel) return null
+                              return (
+                                <div className="flex items-center gap-3 mt-3">
+                                  <Banknote className="w-8 h-8 text-[#0C8B44]" />
+                                  <div>
+                                    <p className="text-sm text-[#E5E5E5]">{sel.accountHolder}</p>
+                                    <p className="text-xs text-[#737373]">{sel.institution} — {sel.type[0].toUpperCase() + sel.type.slice(1)} ····{sel.accountMask}</p>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {usdWithdrawMethod === 'wire' && (
+                      <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08] space-y-3">
+                        <p className="text-xs text-[#737373]">Recipient bank details (domestic or international)</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <WireField label="Beneficiary name *" value={wireInfo.beneficiaryName} onChange={(v) => setWireInfo({ ...wireInfo, beneficiaryName: v })} placeholder="Full legal name" />
+                          <WireField label="Beneficiary address" value={wireInfo.beneficiaryAddress} onChange={(v) => setWireInfo({ ...wireInfo, beneficiaryAddress: v })} placeholder="Street, city, country" />
+                          <WireField label="Bank name *" value={wireInfo.bankName} onChange={(v) => setWireInfo({ ...wireInfo, bankName: v })} placeholder="e.g. Chase Bank" />
+                          <WireField label="Routing / ABA *" value={wireInfo.routingNumber} onChange={(v) => setWireInfo({ ...wireInfo, routingNumber: v.replace(/[^0-9]/g, '') })} placeholder="9-digit" />
+                          <WireField label="Account number *" value={wireInfo.accountNumber} onChange={(v) => setWireInfo({ ...wireInfo, accountNumber: v.replace(/[^0-9]/g, '') })} placeholder="Recipient account #" />
+                          <WireField label="SWIFT / BIC (intl.)" value={wireInfo.swiftCode} onChange={(v) => setWireInfo({ ...wireInfo, swiftCode: v.toUpperCase() })} placeholder="Required for non-US" />
+                          <div className="sm:col-span-2">
+                            <WireField label="Memo / reference" value={wireInfo.memo} onChange={(v) => setWireInfo({ ...wireInfo, memo: v })} placeholder="Optional message to recipient" />
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <>
-                        <label htmlFor="withdraw-bank" className="sr-only">Destination bank account</label>
-                        <select
-                          id="withdraw-bank"
-                          value={selectedBankId}
-                          onChange={(e) => setSelectedBankId(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
-                        >
-                          <option value="">Choose a linked bank account…</option>
-                          {banks.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.institution} · {b.type[0].toUpperCase() + b.type.slice(1)} ····{b.accountMask}{b.status !== 'verified' ? ` (${b.status[0].toUpperCase() + b.status.slice(1)})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        {(() => {
-                          const sel = banks.find(b => b.id === selectedBankId)
-                          if (!sel) return null
-                          return (
-                            <div className="flex items-center gap-3 mt-3">
-                              <Banknote className="w-8 h-8 text-[#0C8B44]" />
-                              <div>
-                                <p className="text-sm text-[#E5E5E5]">{sel.accountHolder}</p>
-                                <p className="text-xs text-[#737373]">{sel.institution} — {sel.type[0].toUpperCase() + sel.type.slice(1)} ····{sel.accountMask}</p>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </>
+                    )}
+
+                    {(usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check') && (
+                      <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08] space-y-3">
+                        <p className="text-xs text-[#737373]">
+                          {usdWithdrawMethod === 'cashiers_check' ? "We'll cut a cashier's check" : "We'll print a check"} and mail it to the address below.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="sm:col-span-2">
+                            <WireField label="Pay to the order of *" value={checkInfo.payTo} onChange={(v) => setCheckInfo({ ...checkInfo, payTo: v })} placeholder="Full legal name on check" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <WireField label="Address line 1 *" value={checkInfo.addressLine1} onChange={(v) => setCheckInfo({ ...checkInfo, addressLine1: v })} placeholder="Street address" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <WireField label="Address line 2" value={checkInfo.addressLine2} onChange={(v) => setCheckInfo({ ...checkInfo, addressLine2: v })} placeholder="Apt, suite, unit (optional)" />
+                          </div>
+                          <WireField label="City *" value={checkInfo.city} onChange={(v) => setCheckInfo({ ...checkInfo, city: v })} placeholder="City" />
+                          <WireField label="State / Region *" value={checkInfo.state} onChange={(v) => setCheckInfo({ ...checkInfo, state: v })} placeholder="State or province" />
+                          <WireField label="Postal code *" value={checkInfo.postalCode} onChange={(v) => setCheckInfo({ ...checkInfo, postalCode: v })} placeholder="ZIP / postal" />
+                          <WireField label="Country *" value={checkInfo.country} onChange={(v) => setCheckInfo({ ...checkInfo, country: v })} placeholder="Country" />
+                          <WireField label="Phone" value={checkInfo.phone} onChange={(v) => setCheckInfo({ ...checkInfo, phone: v })} placeholder="For courier (optional)" />
+                          <div>
+                            <label className="text-xs text-[#A0A0A0] mb-1.5 block">Delivery speed</label>
+                            <select
+                              value={checkInfo.delivery}
+                              onChange={(e) => setCheckInfo({ ...checkInfo, delivery: e.target.value as CheckDeliveryInfo['delivery'] })}
+                              className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
+                            >
+                              <option value="standard">Standard mail (5–7 business days)</option>
+                              <option value="priority">Priority mail (2–3 business days · +$10)</option>
+                              <option value="overnight">Overnight courier (1 business day · +$25)</option>
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <WireField label="Memo on check" value={checkInfo.memo} onChange={(v) => setCheckInfo({ ...checkInfo, memo: v })} placeholder="Optional note (e.g. invoice #)" />
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
                 <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
-                  <span className="text-sm text-[#A0A0A0]">Network Fee</span>
-                  <span className="text-sm text-[#E5E5E5]">{selectedCurrency === 'USD' ? '$0.00' : `0.001 ${selectedCurrency}`}</span>
+                  <span className="text-sm text-[#A0A0A0]">{selectedCurrency === 'USD' ? 'Processing Fee' : 'Network Fee'}</span>
+                  <span className="text-sm text-[#E5E5E5]">{selectedCurrency === 'USD'
+                    ? (usdWithdrawMethod === 'ach' ? '$0.00'
+                      : usdWithdrawMethod === 'wire' ? '$25.00'
+                      : usdWithdrawMethod === 'cashiers_check' ? `$${(10 + (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)).toFixed(2)}`
+                      : `$${(5 + (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)).toFixed(2)}`)
+                    : `0.001 ${selectedCurrency}`}</span>
                 </div>
                 <button onClick={handleWithdraw} className="w-full py-3.5 bg-[#f44336] text-white text-sm font-medium rounded-xl hover:bg-[#d32f2f] transition-colors">
-                  Withdraw {selectedCurrency}
+                  {selectedCurrency === 'USD'
+                    ? (usdWithdrawMethod === 'ach' ? 'Send ACH withdrawal'
+                      : usdWithdrawMethod === 'wire' ? 'Send wire transfer'
+                      : usdWithdrawMethod === 'cashiers_check' ? "Mail cashier's check"
+                      : 'Mail check')
+                    : `Withdraw ${selectedCurrency}`}
                 </button>
               </div>
             </div>
@@ -1445,6 +1623,21 @@ export default function WalletPage() {
         </div>
       </div>
       <Footer />
+    </div>
+  )
+}
+
+function WireField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div>
+      <label className="text-xs text-[#A0A0A0] mb-1.5 block">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]"
+      />
     </div>
   )
 }
