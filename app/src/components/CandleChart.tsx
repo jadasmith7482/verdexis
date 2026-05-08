@@ -21,15 +21,8 @@ const RANGE_REFRESH_MS: Record<OhlcRange, number> = {
   '1Y': 60 * 60_000,
 }
 
-// Map our internal range to a `selected` index inside Highstock's
-// rangeSelector buttons we render below (1m, 4m, 8m, YTD, All).
-const RANGE_TO_SELECTED: Record<OhlcRange, number> = {
-  '1H': 0,
-  '1D': 0,
-  '1W': 0,
-  '1M': 0,
-  '1Y': 4,
-}
+// (We render our own range picker; Highstock's rangeSelector buttons are
+// disabled — see options.rangeSelector below.)
 
 /**
  * Highstock candlestick chart with Acceleration Bands overlay and Awesome
@@ -75,24 +68,61 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
     return () => { cancelled = true; clearInterval(interval) }
   }, [coinId, range, reloadKey])
 
-  // Splice the live price onto the last candle so it visibly ticks between
-  // OHLC refreshes (which are heavily cached server-side).
+  // The static OHLC frame — only rebuilt when the user changes coin/range or
+  // the upstream OHLC fetch lands. Live ticks update the chart imperatively
+  // (see effect below) so we don't pay a full options-rebuild every 2s.
   const effectiveLivePrice = tickerPrice ?? livePrice
-  const merged = useMemo<Candle[]>(() => {
-    if (candles.length === 0 || effectiveLivePrice == null || !isFinite(effectiveLivePrice)) return candles
-    const out = candles.slice()
-    const last = { ...out[out.length - 1] }
-    last.close = effectiveLivePrice
-    last.high = Math.max(last.high, effectiveLivePrice)
-    last.low = Math.min(last.low, effectiveLivePrice)
-    out[out.length - 1] = last
-    return out
-  }, [candles, effectiveLivePrice])
-
   const ohlcData = useMemo(
-    () => merged.map((c) => [c.time, c.open, c.high, c.low, c.close]),
-    [merged],
+    () => candles.map((c) => [c.time, c.open, c.high, c.low, c.close]),
+    [candles],
   )
+
+  // Imperative live-price update: redraw the last candle's close and move
+  // the horizontal price line to the new value. This is the standard
+  // Highstock pattern for sub-second updates and is what actually makes the
+  // chart visibly tick (a 1¢ change spliced onto a $79k candle is invisible
+  // by itself).
+  useEffect(() => {
+    const chart = chartRef.current?.chart
+    if (!chart || candles.length === 0 || effectiveLivePrice == null || !isFinite(effectiveLivePrice)) return
+    const series = chart.get('price') as Highcharts.Series | undefined
+    const yAxis = chart.yAxis?.[0]
+    if (series && series.points && series.points.length > 0) {
+      const last = series.points[series.points.length - 1]
+      const lastCandle = candles[candles.length - 1]
+      const newHigh = Math.max(lastCandle.high, effectiveLivePrice)
+      const newLow = Math.min(lastCandle.low, effectiveLivePrice)
+      try {
+        // Update without redraw=true twice; the addPlotLine below will redraw.
+        last.update(
+          [lastCandle.time, lastCandle.open, newHigh, newLow, effectiveLivePrice],
+          false,
+          false,
+        )
+      } catch { /* point may have been disposed mid-update */ }
+    }
+    if (yAxis) {
+      try {
+        yAxis.removePlotLine('live-price')
+        yAxis.addPlotLine({
+          id: 'live-price',
+          value: effectiveLivePrice,
+          color: '#0C8B44',
+          width: 1,
+          dashStyle: 'ShortDash',
+          zIndex: 5,
+          label: {
+            text: `$${effectiveLivePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            align: 'right',
+            x: -8,
+            y: -4,
+            style: { color: '#0C8B44', fontSize: '10px', fontWeight: 'bold' },
+          },
+        })
+      } catch { /* axis disposed */ }
+    }
+    chart.redraw(false)
+  }, [effectiveLivePrice, candles])
 
   const options = useMemo<Highcharts.Options>(() => ({
     chart: {
@@ -103,32 +133,11 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
     },
     title: { text: undefined },
     credits: { enabled: false },
-    rangeSelector: {
-      buttons: [
-        { type: 'month', count: 1, text: '1m', title: 'View 1 month' },
-        { type: 'month', count: 4, text: '4m', title: 'View 4 months' },
-        { type: 'month', count: 8, text: '8m', title: 'View 8 months' },
-        { type: 'ytd', text: 'YTD', title: 'View year to date' },
-        { type: 'all', count: 1, text: 'All', title: 'View All' },
-      ],
-      buttonTheme: {
-        fill: 'none',
-        stroke: 'none',
-        'stroke-width': 0,
-        r: 8,
-        style: { color: '#A0A0A0', fontWeight: 'bold' },
-        states: {
-          select: { fill: 'transparent', style: { color: '#0C8B44' } },
-          hover: { style: { color: '#E5E5E5' } },
-        },
-      },
-      inputBoxBorderColor: '#1f2937',
-      inputBoxWidth: 110,
-      inputBoxHeight: 18,
-      inputStyle: { color: '#A0A0A0', fontWeight: 'bold' },
-      labelStyle: { color: '#737373', fontWeight: 'bold' },
-      selected: RANGE_TO_SELECTED[range],
-    },
+    // We render our own range picker above the chart; Highstock's built-in
+    // rangeSelector buttons (1m, 4m, 8m, YTD, All) didn't match our 1H/1D/
+    // 1W/1M/1Y data ranges and would auto-clip the visible window away from
+    // the live tail.
+    rangeSelector: { enabled: false },
     plotOptions: {
       series: { marker: { enabled: false } },
       candlestick: {
@@ -222,7 +231,7 @@ export default function CandleChart({ coinId, symbol, livePrice, range }: Props)
     )
   }
 
-  if (error || merged.length === 0) {
+  if (error || candles.length === 0) {
     return (
       <div className="h-[500px] w-full flex flex-col items-center justify-center gap-3">
         <div className="text-xs text-[#737373] text-center max-w-sm">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import AuthModal from '../components/AuthModal'
@@ -55,6 +55,73 @@ function getSparklinePath(prices: number[], width: number, height: number): stri
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
     })
     .join(' ')
+}
+
+// Tiny child that subscribes to liveTicker for one coin so its price text
+// and the tail of its sparkline visibly tick every ~2 seconds, instead of
+// being frozen between the parent's 30s CoinGecko refreshes.
+function LiveMarketCard({
+  crypto,
+  fmtMoney,
+}: {
+  crypto: CryptoQuote
+  fmtMoney: (n: number) => string
+}) {
+  const baseSpark = crypto.sparkline_in_7d?.price.slice(-20) ?? []
+  const [livePrice, setLivePrice] = useState<number>(crypto.current_price)
+  useEffect(() => {
+    setLivePrice(liveTicker.getPrice(crypto.id) ?? crypto.current_price)
+    const unsub = liveTicker.subscribe(crypto.id, (p) => setLivePrice(p))
+    return unsub
+  }, [crypto.id, crypto.current_price])
+  // Append the live price to the sparkline tail so the curve crawls forward
+  // as new ticks arrive, instead of staying snapshot-still.
+  const sparklinePrices = useMemo(() => {
+    if (baseSpark.length === 0) return baseSpark
+    const last = baseSpark[baseSpark.length - 1]
+    if (Math.abs(livePrice - last) / Math.max(last, 1e-9) < 1e-6) return baseSpark
+    return [...baseSpark.slice(1), livePrice]
+  }, [baseSpark, livePrice])
+  const isUp = crypto.price_change_percentage_24h >= 0
+  return (
+    <Link to={`/asset/${crypto.id}`} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0 overflow-hidden block">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {getCryptoLogo(crypto.id) ? (
+            <img
+              src={getCryptoLogo(crypto.id)!}
+              alt={crypto.name}
+              className="w-5 h-5 rounded-full object-cover shrink-0"
+              onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
+            />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{crypto.symbol.toUpperCase()[0]}</div>
+          )}
+          <span className="text-xs font-medium text-[#E5E5E5] truncate">{crypto.symbol.toUpperCase()}</span>
+        </div>
+        {isUp ? <TrendingUp className="w-3 h-3 text-[#4CAF50] shrink-0" /> : <TrendingDown className="w-3 h-3 text-[#f44336] shrink-0" />}
+      </div>
+      <p className="text-base font-light text-[#E5E5E5] truncate tabular-nums">{fmtMoney(livePrice)}</p>
+      <p className={`text-[11px] mt-0.5 truncate ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+        {isUp ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
+      </p>
+      {sparklinePrices.length > 0 && (
+        <div className="mt-2 h-7">
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-full">
+            <path
+              d={getSparklinePath(sparklinePrices, 100, 30)}
+              fill="none"
+              stroke={isUp ? '#4CAF50' : '#f44336'}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.7"
+            />
+          </svg>
+        </div>
+      )}
+    </Link>
+  )
 }
 
 export default function Dashboard() {
@@ -884,50 +951,9 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                  {cryptoData.slice(0, 6).map((crypto) => {
-                    const sparklinePrices = crypto.sparkline_in_7d?.price.slice(-20) || []
-                    const isUp = crypto.price_change_percentage_24h >= 0
-                    return (
-                      <Link to={`/asset/${crypto.id}`} key={crypto.id} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all min-w-0 overflow-hidden block">
-                        <div className="flex items-center justify-between mb-2 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {getCryptoLogo(crypto.id) ? (
-                              <img
-                                src={getCryptoLogo(crypto.id)!}
-                                alt={crypto.name}
-                                className="w-5 h-5 rounded-full object-cover shrink-0"
-                                onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
-                              />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{crypto.symbol.toUpperCase()[0]}</div>
-                            )}
-                            <span className="text-xs font-medium text-[#E5E5E5] truncate">{crypto.symbol.toUpperCase()}</span>
-                          </div>
-                          {isUp ? <TrendingUp className="w-3 h-3 text-[#4CAF50] shrink-0" /> : <TrendingDown className="w-3 h-3 text-[#f44336] shrink-0" />}
-                        </div>
-                        <p className="text-base font-light text-[#E5E5E5] truncate">{fmtMoney(crypto.current_price)}</p>
-                        <p className={`text-[11px] mt-0.5 truncate ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                          {isUp ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
-                        </p>
-                        {/* SVG Sparkline */}
-                        {sparklinePrices.length > 0 && (
-                          <div className="mt-2 h-7">
-                            <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-full">
-                              <path
-                                d={getSparklinePath(sparklinePrices, 100, 30)}
-                                fill="none"
-                                stroke={isUp ? '#4CAF50' : '#f44336'}
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                opacity="0.7"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </Link>
-                    )
-                  })}
+                  {cryptoData.slice(0, 6).map((crypto) => (
+                    <LiveMarketCard key={crypto.id} crypto={crypto} fmtMoney={fmtMoney} />
+                  ))}
                 </div>
               )}
             </div>
