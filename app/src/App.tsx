@@ -14,6 +14,7 @@ import { Toaster } from 'sonner'
 const Home = lazy(() => import('./pages/Home'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Trading = lazy(() => import('./pages/Trading'))
+const Markets = lazy(() => import('./pages/Markets'))
 const AIAssistant = lazy(() => import('./pages/AIAssistant'))
 const Wallet = lazy(() => import('./pages/Wallet'))
 const News = lazy(() => import('./pages/News'))
@@ -72,6 +73,7 @@ function RoutedPages() {
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/trading" element={<Trading />} />
+          <Route path="/markets" element={<Markets />} />
           <Route path="/ai" element={<RequireAuth><AIAssistant /></RequireAuth>} />
           <Route path="/wallet" element={<RequireAuth><Wallet /></RequireAuth>} />
           <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />

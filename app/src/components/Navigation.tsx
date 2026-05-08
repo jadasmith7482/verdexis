@@ -8,14 +8,16 @@ import { api, clearStoredAuth, getToken } from '../lib/api'
 import { useWeb3 } from '../hooks/use-web3'
 
 const publicLinks = [
-  { label: 'Markets', path: '/trading' },
+  { label: 'Markets', path: '/markets' },
+  { label: 'Trade', path: '/trading' },
   { label: 'News', path: '/news' },
   { label: 'Pricing', path: '/#pricing' },
 ]
 
 const privateLinks = [
   { label: 'Dashboard', path: '/dashboard' },
-  { label: 'Markets', path: '/trading' },
+  { label: 'Markets', path: '/markets' },
+  { label: 'Trade', path: '/trading' },
   { label: 'News', path: '/news' },
   { label: 'AI Analyst', path: '/ai' },
   { label: 'Wallet', path: '/wallet' },

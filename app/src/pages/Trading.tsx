@@ -50,11 +50,11 @@ export default function Trading() {
   const isAuthenticated = !!getToken()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Deep-link: /trading?symbol=bitcoin (or btc) preselects that pair as soon
-  // as the market list arrives. Strips the param after applying so the URL
-  // stays clean if the user clicks around.
+  // Deep-link: /trading?symbol=bitcoin (or ?asset=bitcoin / ?symbol=btc)
+  // preselects that pair as soon as the market list arrives. Strips the
+  // param after applying so the URL stays clean if the user clicks around.
   useEffect(() => {
-    const want = searchParams.get('symbol')
+    const want = searchParams.get('symbol') || searchParams.get('asset')
     if (!want || cryptoData.length === 0) return
     const lower = want.toLowerCase()
     const found = cryptoData.find(
@@ -64,6 +64,7 @@ export default function Trading() {
       setSelectedCrypto(found)
       const next = new URLSearchParams(searchParams)
       next.delete('symbol')
+      next.delete('asset')
       setSearchParams(next, { replace: true })
     }
   }, [searchParams, cryptoData, setSearchParams])
@@ -579,73 +580,149 @@ export default function Trading() {
         </div>
       </div>
 
-      {/* Order confirmation modal — last line of defence before money moves. */}
-      {confirmOpen && selectedCrypto && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => !submitting && setConfirmOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-[#111] border border-[#ffffff10] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-[#E5E5E5]">Confirm {orderSide === 'buy' ? 'Buy' : 'Sell'} Order</h2>
-                <p className="text-xs text-[#737373] mt-0.5">Review the details before placing this trade.</p>
+      {/* Order confirmation modal — receipt-style. Last line of defence
+          before money moves: shows asset, full cost breakdown, before/after
+          balances, and any risk warnings (concentration, large order, etc.). */}
+      {confirmOpen && selectedCrypto && (() => {
+        const sym = selectedCrypto.symbol.toUpperCase()
+        const icon = cryptoIconFor(selectedCrypto)
+        const netWorth = portfolioStore.getNetWorth()
+        // Position size after fill, as a % of net worth. Used for the
+        // concentration warning that institutional desks always show.
+        const currentPositionValue = (heldQty) * (livePrice ?? selectedCrypto.current_price)
+        const newPositionValue = orderSide === 'buy'
+          ? currentPositionValue + subtotal
+          : Math.max(0, currentPositionValue - subtotal)
+        const newPositionPct = netWorth > 0 ? (newPositionValue / netWorth) * 100 : 0
+        const cashAfter = orderSide === 'buy' ? usdBalance - totalCost : usdBalance + totalCost
+        const heldQtyAfter = orderSide === 'buy' ? heldQty + qtyNum : Math.max(0, heldQty - qtyNum)
+        const concentrationWarn = orderSide === 'buy' && newPositionPct > 40
+        const largeOrderWarn = subtotal > netWorth * 0.25 && netWorth > 0
+        const sideColor = orderSide === 'buy' ? '#0C8B44' : '#f44336'
+        return (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => !submitting && setConfirmOpen(false)}>
+            <div className="w-full max-w-lg rounded-2xl bg-[#0a0f10] border border-[#ffffff10] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Header strip — color matches the side */}
+              <div className="px-6 pt-5 pb-4 border-b border-[#ffffff08] flex items-start justify-between" style={{ background: `linear-gradient(180deg, ${sideColor}15 0%, transparent 100%)` }}>
+                <div className="flex items-center gap-3">
+                  {icon && (
+                    <img
+                      src={icon}
+                      alt={selectedCrypto.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                      onError={cryptoIconErrorFallback(sym[0] || '?', selectedCrypto.id)}
+                    />
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full"
+                        style={{ background: `${sideColor}25`, color: sideColor }}
+                      >
+                        {orderSide === 'buy' ? 'Buy' : 'Sell'} · {orderType}
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-medium text-[#E5E5E5] mt-1">
+                      {orderSide === 'buy' ? 'Review buy order' : 'Review sell order'}
+                    </h2>
+                    <p className="text-[11px] text-[#737373]">{selectedCrypto.name} · {sym}/USD</p>
+                  </div>
+                </div>
+                <button onClick={() => !submitting && setConfirmOpen(false)} className="text-[#737373] hover:text-[#E5E5E5] transition-colors -mt-1" aria-label="Close">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => !submitting && setConfirmOpen(false)} className="text-[#737373] hover:text-[#E5E5E5] transition-colors" aria-label="Close">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="space-y-2.5 py-4 border-y border-[#ffffff08] text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">Asset</span>
-                <span className="text-[#E5E5E5]">{selectedCrypto.name} ({selectedCrypto.symbol.toUpperCase()})</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">Order type</span>
-                <span className="text-[#E5E5E5] capitalize">{orderType}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">Amount</span>
-                <span className="text-[#E5E5E5]">{qtyNum} {selectedCrypto.symbol.toUpperCase()}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">{orderType === 'market' ? 'Est. price' : 'Limit price'}</span>
-                <span className="text-[#E5E5E5]">${previewPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">Subtotal</span>
-                <span className="text-[#E5E5E5]">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#A0A0A0]">Fee ({(TRADING_FEE_RATE * 100).toFixed(2)}%)</span>
-                <span className="text-[#E5E5E5]">${feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-[#ffffff05]">
-                <span className="text-[#E5E5E5] font-medium">{orderSide === 'buy' ? 'Total cost' : 'You receive'}</span>
-                <span className="text-base font-semibold text-[#E5E5E5]">
-                  ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
+              {/* Order receipt */}
+              <div className="px-6 py-5">
+                <div className="rounded-xl bg-[#0f1619]/70 border border-[#ffffff05] p-4 space-y-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#A0A0A0]">Quantity</span>
+                    <span className="text-[#E5E5E5] tabular-nums">{qtyNum.toLocaleString(undefined, { maximumFractionDigits: 8 })} {sym}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#A0A0A0]">{orderType === 'market' ? 'Estimated price' : 'Limit price'}</span>
+                    <span className="text-[#E5E5E5] tabular-nums">${previewPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#A0A0A0]">Subtotal</span>
+                    <span className="text-[#E5E5E5] tabular-nums">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#A0A0A0]">Trading fee ({(TRADING_FEE_RATE * 100).toFixed(2)}%)</span>
+                    <span className="text-[#E5E5E5] tabular-nums">${feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[#ffffff08]">
+                    <span className="text-[#E5E5E5] font-medium">{orderSide === 'buy' ? 'Total cost' : 'You receive'}</span>
+                    <span className="text-lg font-medium tabular-nums" style={{ color: sideColor }}>
+                      ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
 
-            {orderType === 'market' && (
-              <div className="flex items-start gap-2 mt-4 px-3 py-2 rounded-lg bg-[#ffffff05] text-[11px] text-[#A0A0A0]">
-                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#fbbf24]" />
-                <span>Market orders execute at the best available price. Final fill may differ slightly from the estimate.</span>
-              </div>
-            )}
+                {/* Before / after summary */}
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="rounded-xl bg-[#0f1619]/70 border border-[#ffffff05] p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-1">USD balance</p>
+                    <p className="text-sm text-[#A0A0A0] tabular-nums">${usdBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] text-[#737373]">→</span>
+                      <span className={`text-sm tabular-nums ${cashAfter < 0 ? 'text-[#f44336]' : 'text-[#E5E5E5]'}`}>
+                        ${cashAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#0f1619]/70 border border-[#ffffff05] p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-1">{sym} position</p>
+                    <p className="text-sm text-[#A0A0A0] tabular-nums">{heldQty.toLocaleString(undefined, { maximumFractionDigits: 6 })}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] text-[#737373]">→</span>
+                      <span className="text-sm text-[#E5E5E5] tabular-nums">{heldQtyAfter.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setConfirmOpen(false)} disabled={submitting}
-                className="flex-1 py-3 rounded-xl text-sm font-medium border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#ffffff20] transition-colors disabled:opacity-50">
-                Cancel
-              </button>
-              <button onClick={submitTrade} disabled={submitting}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${orderSide === 'buy' ? 'bg-[#0C8B44] hover:bg-[#0a7539]' : 'bg-[#f44336] hover:bg-[#d32f2f]'}`}>
-                {submitting ? 'Placing order…' : `Confirm ${orderSide === 'buy' ? 'Buy' : 'Sell'}`}
-              </button>
+                {/* Risk warnings — only render when applicable */}
+                {(concentrationWarn || largeOrderWarn || orderType === 'market') && (
+                  <div className="mt-4 space-y-2">
+                    {concentrationWarn && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#FF9800]/10 border border-[#FF9800]/20 text-[11px] text-[#FF9800]">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>After this trade, {sym} would be {newPositionPct.toFixed(0)}% of your net worth — high single-asset concentration.</span>
+                      </div>
+                    )}
+                    {largeOrderWarn && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#FF9800]/10 border border-[#FF9800]/20 text-[11px] text-[#FF9800]">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>This order is over 25% of your net worth. Double-check the amount.</span>
+                      </div>
+                    )}
+                    {orderType === 'market' && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#ffffff05] text-[11px] text-[#A0A0A0]">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#fbbf24]" />
+                        <span>Market orders execute at the best available price. Final fill may differ from the estimate.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer actions */}
+              <div className="px-6 pb-5 flex gap-2">
+                <button onClick={() => setConfirmOpen(false)} disabled={submitting}
+                  className="flex-1 py-3 rounded-xl text-sm font-medium border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#ffffff20] transition-colors disabled:opacity-50">
+                  Cancel
+                </button>
+                <button onClick={submitTrade} disabled={submitting}
+                  className="flex-1 py-3 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: sideColor }}>
+                  {submitting ? 'Placing order…' : `Confirm ${orderSide === 'buy' ? 'Buy' : 'Sell'}`}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
