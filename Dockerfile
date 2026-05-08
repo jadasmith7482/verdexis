@@ -9,7 +9,10 @@ WORKDIR /web
 COPY app/package.json app/package-lock.json* ./
 RUN npm install --no-audit --no-fund
 COPY app/ ./
-ENV NODE_OPTIONS=--max-old-space-size=1024
+# Vite + Rollup peak well over 1 GiB after the WalletConnect / @web3icons
+# additions; 1024 MB triggers SIGABRT (exit 134). 4096 leaves headroom on
+# Render/Railway free-tier 8 GiB build VMs.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 # --- server build stage ---------------------------------------------------
