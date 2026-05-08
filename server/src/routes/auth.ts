@@ -12,11 +12,22 @@ const router = Router()
 
 const ADMIN_EMAILS = env.ADMIN_EMAILS.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
 
+// Auth limiter. Keyed by IP **and** the submitted email/username so users
+// sharing a VPN / NAT exit-IP don't lock each other out — a single bad
+// actor brute-forcing one account no longer blocks everyone else behind
+// the same VPN. Successful logins don't count toward the limit either,
+// so legitimate users can sign in repeatedly without burning quota.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const body = (req.body ?? {}) as { identifier?: string; email?: string }
+    const id = String(body.identifier || body.email || '').trim().toLowerCase()
+    return `${req.ip || 'anon'}|${id}`
+  },
 })
 
 const signupSchema = z.object({

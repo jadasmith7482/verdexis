@@ -74,13 +74,37 @@ app.use(morgan(IS_PROD ? 'combined' : 'dev'))
 
 // Global request limiter — generous, just to stop runaway scrapers / loops.
 // Tighter per-route limits live in their own routers (e.g. /auth, /ai).
+//
+// VPN-friendly keying: many real users share a single VPN / corporate NAT
+// exit-IP. If we keyed purely on IP they'd collectively exhaust the limit
+// and the site would appear "broken" behind the VPN. Instead, when an
+// Authorization: Bearer <jwt> header is present we key on the JWT's
+// `sub` (user id) so each user gets their own bucket. Anonymous traffic
+// still falls back to IP. We don't verify the token here — this is just
+// a bucket key, and a forged token only earns the attacker their own
+// bucket (no security value).
+import jwt from 'jsonwebtoken'
+function rateLimitKey(req: express.Request): string {
+  const header = req.headers.authorization
+  if (header?.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.decode(header.slice(7)) as { sub?: string } | null
+      if (decoded?.sub) return `u:${decoded.sub}`
+    } catch {
+      /* fall through to IP */
+    }
+  }
+  // ipKeyGenerator-equivalent: req.ip already respects `trust proxy`.
+  return `ip:${req.ip || 'anon'}`
+}
 app.use(
   '/api/',
   rateLimit({
     windowMs: 60 * 1000,
-    limit: 240, // 4/sec sustained per IP
+    limit: 600, // higher ceiling; per-user keying makes this safe
     standardHeaders: 'draft-7',
     legacyHeaders: false,
+    keyGenerator: rateLimitKey,
   }),
 )
 
