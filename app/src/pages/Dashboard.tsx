@@ -976,7 +976,7 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-lg font-medium text-[#E5E5E5]">Market Overview</h3>
                 </div>
-                <Link to="/trading" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
+                <Link to="/markets" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
                   Full Markets <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>

@@ -218,7 +218,7 @@ export default function AssetDetail() {
                 <Star className={`w-4 h-4 ${watch ? 'fill-current' : ''}`} />
               </button>
               <Link
-                to="/trading"
+                to={`/trading?asset=${id}`}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-2 text-xs text-[#A0A0A0] hover:text-[#0C8B44] border border-[#ffffff10] hover:border-[#0C8B44]/30 rounded-lg transition-colors"
               >
                 <BarChart3 className="w-3 h-3" /> Pro Trading

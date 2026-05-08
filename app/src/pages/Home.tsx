@@ -421,7 +421,7 @@ export default function Home() {
             <div className="liquid-card col-span-1 md:col-span-2 p-8" style={{ '--fill-color': 'rgba(12,139,68,0.1)' } as React.CSSProperties}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-medium text-[#E5E5E5]">Live Markets</h3>
-                <Link to="/trading" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">View All <ChevronRight className="w-3 h-3" /></Link>
+                <Link to="/markets" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">View All <ChevronRight className="w-3 h-3" /></Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {topCryptos.slice(0, 3).map((c) => (

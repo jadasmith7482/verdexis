@@ -353,14 +353,22 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-2">
-            {row.kind === 'trade' && (
-              <Link
-                to={`/asset/${row.data.symbol.toLowerCase()}`}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#0f1619] border border-[#ffffff10] text-xs text-[#E5E5E5] hover:border-[#0C8B44]/40"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> View {row.data.symbol}
-              </Link>
-            )}
+            {row.kind === 'trade' && (() => {
+              // Resolve the trade's symbol to a CoinGecko id by looking it up
+              // in current holdings (which carry both id and symbol). Falls
+              // back to the lowercased symbol so the link is at least valid.
+              const sym = row.data.symbol.toUpperCase()
+              const match = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)
+              const slug = match?.id ?? row.data.symbol.toLowerCase()
+              return (
+                <Link
+                  to={`/asset/${slug}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#0f1619] border border-[#ffffff10] text-xs text-[#E5E5E5] hover:border-[#0C8B44]/40"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> View {sym}
+                </Link>
+              )
+            })()}
             <Link
               to="/wallet"
               className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#0C8B44] text-xs text-white hover:bg-[#0a7539]"
