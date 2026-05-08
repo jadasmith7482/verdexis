@@ -370,7 +370,7 @@ export default function WalletPage() {
     if (selectedCurrency === 'USD') {
       if (usdMethod === 'wire') {
         if (!wireInstructions) {
-          setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Wire instructions are not configured yet — contact support.' })
+          setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Wire instructions are not configured yet — please contact your portfolio representative.' })
           return
         }
         const ref = wireInstructions.reference || 'Wire deposit'
@@ -406,7 +406,7 @@ export default function WalletPage() {
       return
     }
     if (!cryptoInstructions) {
-      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Please contact support.` })
+      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Please reach out to your portfolio representative.` })
       return
     }
     portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`, newIdempotencyKey())
@@ -1359,7 +1359,7 @@ export default function WalletPage() {
                       <QrCodeIcon className="w-10 h-10 mx-auto mb-3 text-[#444]" />
                       <p className="text-sm text-[#E5E5E5] mb-1">No deposit address configured</p>
                       <p className="text-[11px] text-[#737373]">
-                        Please contact support to add a {selectedCurrency} wallet.
+                        Please reach out to your portfolio representative to add a {selectedCurrency} wallet.
                       </p>
                     </div>
                   )}
@@ -1879,7 +1879,7 @@ export default function WalletPage() {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-[#f44336]/30 bg-[#f44336]/5 p-4">
-                    <p className="text-xs text-[#f44336]">No payment instructions configured for {feePayCurrency}. Please contact support to add an address.</p>
+                    <p className="text-xs text-[#f44336]">No payment instructions configured for {feePayCurrency}. Please reach out to your portfolio representative to receive an address.</p>
                   </div>
                 )}
 
@@ -1997,7 +1997,7 @@ function WireInstructionsPanel({ currency, info, adminMode }: WireInstructionsPa
           {adminMode ? (
             <>Add {currency} wire details on the <Link to="/admin/deposits" className="text-[#0C8B44] hover:text-[#0a7539]">admin page</Link>.</>
           ) : (
-            <>Please contact support to receive {currency} wire transfer instructions.</>
+            <>Please reach out to your portfolio representative to receive {currency} wire transfer instructions.</>
           )}
         </p>
       </div>
