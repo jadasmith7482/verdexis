@@ -211,6 +211,36 @@ export default function WalletPage() {
       const hash = await web3.sendTransaction({ valueEth: amt, ...(sendingToOther ? { to: recipientRaw } : {}) })
       const short = `${hash.slice(0, 10)}…${hash.slice(-6)}`
       const toLabel = sendingToOther ? `${recipientRaw.slice(0, 6)}…${recipientRaw.slice(-4)}` : 'dashboard'
+
+      // If the destination was the admin treasury (or no override and a
+      // treasury is configured), this is a real on-chain deposit. File a
+      // pending-deposit record on the backend so admin can verify the tx
+      // on a block explorer and credit the user's WalletBalance.
+      const destination = sendingToOther ? recipientRaw : (web3Payout?.address ?? web3.address ?? '')
+      const isDepositToTreasury =
+        web3Payout?.address &&
+        destination.toLowerCase() === web3Payout.address.toLowerCase()
+      if (isDepositToTreasury && web3.address && web3.chainId) {
+        // Fire-and-forget — we already have the on-chain tx; the backend
+        // record is just bookkeeping. Surface only failures the user needs
+        // to act on (the tx itself succeeded either way).
+        api.recordPendingDeposit({
+          txHash: hash,
+          chainId: web3.chainId,
+          toAddress: destination,
+          fromAddress: web3.address,
+          asset: 'ETH',
+          amount: amt,
+        }).catch((err) => {
+          // Surface a non-blocking warning so the user knows the tx is on
+          // chain but won't auto-credit until they share the hash with us.
+          toast.warning('Deposit sent on-chain but our server didn\u2019t record it. Save the tx hash and contact support.', {
+            description: err instanceof Error ? err.message : String(err),
+            duration: 10000,
+          })
+        })
+      }
+
       portfolioStore.addTransaction(
         sendingToOther ? 'transfer' : 'deposit',
         sendingToOther ? -amt : amt,

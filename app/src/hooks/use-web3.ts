@@ -3,11 +3,25 @@ import type { EthereumProvider } from '../types/ethereum'
 import {
   discoverWallets,
   WALLET_RDNS_STORAGE,
+  brandLetterIcon,
   type DiscoveredProvider,
   type WalletProviderInfo,
 } from '../lib/walletProviders'
+import { getWalletConnectProvider, isWalletConnectConfigured, resetWalletConnect } from '../lib/walletConnect'
+import { api, getToken } from '../lib/api'
 
 const STORAGE_KEY = 'verdexis_web3_address'
+
+// Synthetic identity for the WalletConnect "meta" wallet — distinguishes
+// it from EIP-6963 entries in the picker without colliding with any real
+// wallet rdns.
+export const WALLETCONNECT_RDNS = 'org.walletconnect'
+const WALLETCONNECT_INFO: WalletProviderInfo = {
+  uuid: 'walletconnect',
+  name: 'WalletConnect',
+  rdns: WALLETCONNECT_RDNS,
+  icon: brandLetterIcon('W', '#3B99FC'),
+}
 
 const CHAIN_NAMES: Record<string, string> = {
   '0x1': 'Ethereum',
@@ -61,6 +75,28 @@ async function fetchBalance(provider: EthereumProvider, address: string): Promis
   } catch {
     return null
   }
+}
+
+// Best-effort: tell the backend which self-custody address this user just
+// linked. Auth-gated; silently no-ops when the user is signed out so the
+// hook works on landing-page wallet demos as well as inside the app.
+async function persistLinkToBackend(address: string, chainId: string | null, providerName: string): Promise<void> {
+  if (!getToken()) return
+  try {
+    await api.linkWallet({
+      address,
+      chainId: chainId ?? undefined,
+      provider: providerName,
+    })
+  } catch {
+    // Don't surface API failures in the wallet UI — the on-chain
+    // connection is what matters; the link record is convenience.
+  }
+}
+
+async function clearLinkOnBackend(): Promise<void> {
+  if (!getToken()) return
+  try { await api.unlinkWallet() } catch { /* ignore */ }
 }
 
 export function useWeb3() {
@@ -151,6 +187,12 @@ export function useWeb3() {
   }, [])
 
   const connectTo = useCallback(async (uuid: string) => {
+    // Special-case the WalletConnect synthetic uuid so callers can
+    // funnel both EIP-6963 picks and the WC option through one entry point.
+    if (uuid === WALLETCONNECT_INFO.uuid) {
+      await connectWalletConnectInternal()
+      return
+    }
     const refreshed = await discoverWallets()
     setDiscovered(refreshed)
     const target = refreshed.find((d) => d.info.uuid === uuid)
@@ -182,6 +224,9 @@ export function useWeb3() {
           localStorage.setItem(STORAGE_KEY, addr)
           localStorage.setItem(WALLET_RDNS_STORAGE, target.info.rdns)
         } catch { /* ignore */ }
+        // Fire-and-forget: persist to backend so the link survives across
+        // devices and shows up in admin views.
+        void persistLinkToBackend(addr, chainId, target.info.name)
         setPickerOpen(false)
       } else {
         setState((s) => ({ ...s, isConnecting: false, error: 'No account selected' }))
@@ -190,6 +235,60 @@ export function useWeb3() {
       const msg = err instanceof Error ? err.message : 'Connection rejected'
       setState((s) => ({ ...s, isConnecting: false, error: msg }))
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachListeners])
+
+  // Internal helper kept out of the public API — connectTo('walletconnect')
+  // is the public entry point so the picker UI doesn't need a second method.
+  const connectWalletConnectInternal = useCallback(async () => {
+    if (!isWalletConnectConfigured()) {
+      setState((s) => ({
+        ...s,
+        error: 'WalletConnect is not configured. Set VITE_WC_PROJECT_ID in app/.env.',
+      }))
+      return
+    }
+    setState((s) => ({ ...s, isConnecting: true, error: null }))
+    try {
+      const wc = await getWalletConnectProvider()
+      if (!wc) {
+        setState((s) => ({ ...s, isConnecting: false, error: 'WalletConnect failed to initialize' }))
+        return
+      }
+      // eth_requestAccounts triggers WC's own QR / deep-link modal on
+      // first call. After approval, the provider is ready for use.
+      const accounts = await wc.request<string[]>({ method: 'eth_requestAccounts' })
+      const chainId = await wc.request<string>({ method: 'eth_chainId' }).catch(() => null)
+      if (accounts && accounts.length > 0) {
+        const addr = accounts[0]
+        providerRef.current = wc
+        attachListeners(wc)
+        const balanceEth = await fetchBalance(wc, addr)
+        setState({
+          address: addr,
+          chainId,
+          chainName: chainNameFor(chainId),
+          balanceEth,
+          isConnected: true,
+          isConnecting: false,
+          isAvailable: true,
+          error: null,
+          walletInfo: WALLETCONNECT_INFO,
+        })
+        try {
+          localStorage.setItem(STORAGE_KEY, addr)
+          localStorage.setItem(WALLET_RDNS_STORAGE, WALLETCONNECT_INFO.rdns)
+        } catch { /* ignore */ }
+        void persistLinkToBackend(addr, chainId, 'WalletConnect')
+        setPickerOpen(false)
+      } else {
+        setState((s) => ({ ...s, isConnecting: false, error: 'No account approved' }))
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Connection rejected'
+      setState((s) => ({ ...s, isConnecting: false, error: msg }))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachListeners])
 
   const connect = useCallback(async () => {
@@ -217,12 +316,21 @@ export function useWeb3() {
   }, [])
 
   const disconnect = useCallback(() => {
+    // If the active provider is WalletConnect, tear down its session so the
+    // QR modal shows up again next time. Best-effort — some implementations
+    // throw if there's no active session.
+    const p = providerRef.current as (EthereumProvider & { disconnect?: () => Promise<void> }) | null
+    if (p && typeof p.disconnect === 'function') {
+      try { void p.disconnect() } catch { /* ignore */ }
+    }
+    resetWalletConnect()
     setState((s) => ({ ...s, address: null, isConnected: false, balanceEth: null, error: null, walletInfo: null }))
     providerRef.current = null
     try {
       localStorage.removeItem(STORAGE_KEY)
       localStorage.removeItem(WALLET_RDNS_STORAGE)
     } catch { /* ignore */ }
+    void clearLinkOnBackend()
   }, [])
 
   const refreshBalance = useCallback(async () => {

@@ -1,7 +1,8 @@
-import { X, ExternalLink, Check, Smartphone, Download, RefreshCw } from 'lucide-react'
+import { X, ExternalLink, Check, Smartphone, Download, RefreshCw, QrCode } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile, brandLetterIcon } from '../lib/walletProviders'
 import type { DiscoveredProvider } from '../lib/walletProviders'
+import { isWalletConnectConfigured } from '../lib/walletConnect'
 
 interface WalletPickerModalProps {
   isOpen: boolean
@@ -79,6 +80,39 @@ export default function WalletPickerModal({
         </div>
 
         <div className="px-6 py-4 overflow-y-auto flex-1">
+          {/* WalletConnect — always-on, works without any browser extension.
+              Shows a QR code on desktop (scan with phone wallet) or hands
+              off to the user's installed mobile wallet via deep-link. */}
+          {isWalletConnectConfigured() && (
+            <>
+              <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
+                {onMobile ? 'Recommended on mobile' : 'Connect with your phone'}
+              </p>
+              <button
+                type="button"
+                onClick={() => onPick('walletconnect')}
+                disabled={isConnecting}
+                className="w-full flex items-center gap-3 p-3 mb-4 rounded-xl bg-[#3B99FC]/10 border border-[#3B99FC]/40 hover:bg-[#3B99FC]/15 hover:border-[#3B99FC]/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+              >
+                <div className="w-9 h-9 rounded-lg shrink-0 bg-[#3B99FC]/20 flex items-center justify-center">
+                  <QrCode className="w-5 h-5 text-[#3B99FC]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#E5E5E5] truncate">WalletConnect</p>
+                  <p className="text-[10px] text-[#737373] truncate">
+                    {onMobile
+                      ? 'Pick from any installed wallet'
+                      : 'Scan a QR code with any of 300+ mobile wallets'}
+                  </p>
+                </div>
+                <span className="flex items-center gap-1 text-[10px] text-[#3B99FC] uppercase tracking-wider whitespace-nowrap">
+                  {onMobile ? <Smartphone className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
+                  {onMobile ? 'Open' : 'Scan'}
+                </span>
+              </button>
+            </>
+          )}
+
           {discovered.length > 0 && (
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">Installed</p>

@@ -186,6 +186,32 @@ export const api = {
   lookupRecipient: (email: string) =>
     request<{ user: { email: string; name: string | null } }>(`/api/wallet/lookup-recipient?email=${encodeURIComponent(email)}`),
 
+  // Self-custody wallet linking
+  getWalletLink: () =>
+    request<{ wallet: { walletAddress: string | null; walletChainId: string | null; walletProvider: string | null; walletLinkedAt: string | null } | null }>(
+      '/api/wallet/link',
+    ),
+  linkWallet: (payload: { address: string; chainId?: string; provider?: string }) =>
+    request<{ wallet: { walletAddress: string; walletChainId: string | null; walletProvider: string | null; walletLinkedAt: string } }>(
+      '/api/wallet/link',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  unlinkWallet: () =>
+    request<{ ok: boolean }>('/api/wallet/link', { method: 'DELETE' }),
+
+  // On-chain pending deposits
+  recordPendingDeposit: (
+    payload: { txHash: string; chainId: string; toAddress: string; fromAddress: string; asset: string; amount: number },
+  ) =>
+    request<{ pendingDeposit: { id: string; txHash: string; status: string; createdAt: string }; deduped?: boolean }>(
+      '/api/wallet/pending-deposits',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  listPendingDeposits: () =>
+    request<{ pendingDeposits: { id: string; txHash: string; chainId: string; toAddress: string; fromAddress: string; asset: string; amount: number; status: string; note: string | null; createdAt: string }[] }>(
+      '/api/wallet/pending-deposits',
+    ),
+
   // Trades
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),
   postTrade: (
