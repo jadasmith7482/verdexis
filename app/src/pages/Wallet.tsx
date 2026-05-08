@@ -406,7 +406,7 @@ export default function WalletPage() {
       return
     }
     if (!cryptoInstructions) {
-      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Ask an admin to set one.` })
+      setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Please contact support.` })
       return
     }
     portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`, newIdempotencyKey())
@@ -473,7 +473,7 @@ export default function WalletPage() {
         const mask = wireInfo.accountNumber.slice(-4)
         reference = `Wire to ${wireInfo.beneficiaryName.trim()} · ${wireInfo.bankName.trim()} ····${mask}`
         methodLabel = 'Wire transfer'
-        etaNote = 'Wire arrives ~1 business day after fee + admin approval.'
+        etaNote = 'Wire arrives ~1 business day after fee verification.'
       } else if (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check') {
         const required: Array<[keyof CheckDeliveryInfo, string]> = [
           ['payTo', 'payee name'],
@@ -493,7 +493,7 @@ export default function WalletPage() {
         reference = `${label} to ${checkInfo.payTo.trim()} · ${checkInfo.city.trim()}, ${checkInfo.state.trim()} (${deliveryLabel})`
         methodLabel = label
         const eta = checkInfo.delivery === 'overnight' ? '1 business day' : checkInfo.delivery === 'priority' ? '2–3 business days' : '5–7 business days'
-        etaNote = `${label} mails to ${checkInfo.payTo.trim()} after fee + admin approval (est. ${eta}).`
+        etaNote = `${label} mails to ${checkInfo.payTo.trim()} after fee verification (est. ${eta}).`
       }
     } else if (!recipient.trim()) {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: `Enter a ${selectedCurrency} destination address.` })
@@ -561,7 +561,7 @@ export default function WalletPage() {
     const grossLabel = pendingWithdrawal.currency === 'USD'
       ? fmt(pendingWithdrawal.amountAbs)
       : `${pendingWithdrawal.amountAbs.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${pendingWithdrawal.currency}`
-    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee proof ${fmt(pendingWithdrawal.feeUsd)} queued for admin review — the fee will be credited back to your wallet only after the admin marks it paid.`
+    let successMessage = `${pendingWithdrawal.methodLabel} for ${grossLabel} submitted. Fee proof ${fmt(pendingWithdrawal.feeUsd)} queued for review — the fee will be credited back to your wallet only after verification.`
     if (pendingWithdrawal.etaNote) successMessage += ` ${pendingWithdrawal.etaNote}`
 
     setTransferStatus({ kind: 'success', title: 'Withdrawal queued', message: successMessage })
@@ -1359,8 +1359,7 @@ export default function WalletPage() {
                       <QrCodeIcon className="w-10 h-10 mx-auto mb-3 text-[#444]" />
                       <p className="text-sm text-[#E5E5E5] mb-1">No deposit address configured</p>
                       <p className="text-[11px] text-[#737373]">
-                        Ask an admin to add a {selectedCurrency} wallet on the
-                        {' '}<Link to="/admin/deposits" className="text-[#0C8B44] hover:text-[#0a7539]">deposit instructions</Link> page.
+                        Please contact support to add a {selectedCurrency} wallet.
                       </p>
                     </div>
                   )}
@@ -1575,7 +1574,7 @@ export default function WalletPage() {
                         ⚠ Sliding-scale fee (0.8% – 2.0% by amount, company rules). Paid externally — NOT deducted from your wallet balance.
                       </p>
                       <p className="text-[11px] text-[#0C8B44] mt-1">
-                        ✓ The fee you pay is credited back to your wallet balance <span className="text-[#E5E5E5]">only after an admin marks it paid</span> — not automatically.
+                        ✓ The fee you pay is credited back to your wallet balance <span className="text-[#E5E5E5]">only after verification</span> — not automatically.
                       </p>
                     </div>
                   )
@@ -1880,7 +1879,7 @@ export default function WalletPage() {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-[#f44336]/30 bg-[#f44336]/5 p-4">
-                    <p className="text-xs text-[#f44336]">No payment instructions configured for {feePayCurrency}. Please contact support — admin needs to add an address.</p>
+                    <p className="text-xs text-[#f44336]">No payment instructions configured for {feePayCurrency}. Please contact support to add an address.</p>
                   </div>
                 )}
 
@@ -1905,7 +1904,7 @@ export default function WalletPage() {
                     className="mt-0.5 w-4 h-4 accent-[#0C8B44] cursor-pointer"
                   />
                   <span className="text-[11px] text-[#A0A0A0] leading-relaxed">
-                    <span className="text-[#E5E5E5] font-medium">Required:</span> I understand the {fmt(usdAmount)} processing fee is paid externally (not from my balance) and will be credited back to my wallet ONLY after an admin verifies my payment. I confirm this is a compulsory company policy.
+                    <span className="text-[#E5E5E5] font-medium">Required:</span> I understand the {fmt(usdAmount)} processing fee is paid externally (not from my balance) and will be credited back to my wallet ONLY after my payment is verified. I confirm this is a compulsory company policy.
                   </span>
                 </label>
 
