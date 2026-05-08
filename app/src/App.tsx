@@ -69,6 +69,7 @@ function RoutedPages() {
   const location = useLocation()
   return (
     <div key={location.pathname} className="page-fade-in">
+      <ErrorBoundary resetKey={location.pathname} scope="this page">
       <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
@@ -98,6 +99,7 @@ function RoutedPages() {
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+      </ErrorBoundary>
       </div>
   )
 }

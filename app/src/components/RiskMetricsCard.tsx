@@ -19,10 +19,10 @@ export default function RiskMetricsCard() {
         const holdings = portfolioStore.getHoldings()
         // Build a portfolio-weighted price series from sparkline data.
         const series: number[] = []
-        const total = holdings.reduce((s, h) => s + h.quantity * (list.find(c => c.symbol.toUpperCase() === h.symbol.toUpperCase())?.current_price ?? 0), 0) || 1
+        const total = holdings.reduce((s, h) => s + h.quantity * (list.find(c => (c.symbol || '').toUpperCase() === (h.symbol || '').toUpperCase())?.current_price ?? 0), 0) || 1
         const weighted: number[][] = []
         for (const h of holdings) {
-          const c = list.find(x => x.symbol.toUpperCase() === h.symbol.toUpperCase())
+          const c = list.find(x => (x.symbol || '').toUpperCase() === (h.symbol || '').toUpperCase())
           if (!c?.sparkline_in_7d?.price?.length) continue
           const w = (h.quantity * c.current_price) / total
           weighted.push(c.sparkline_in_7d.price.map(p => p * w))

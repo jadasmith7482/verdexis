@@ -146,52 +146,69 @@ class PortfolioStoreImpl {
         api.listTrades(),
       ])
 
-      const apiHoldings = (hRes.holdings as ApiHolding[]).map<PortfolioHolding>((h) => {
-        const value = h.amount * h.avgPrice
-        return {
-          id: h.symbol.toLowerCase(),
-          symbol: h.symbol,
-          name: h.name,
-          quantity: h.amount,
-          avgBuyPrice: h.avgPrice,
-          currentPrice: h.avgPrice,
-          value,
-          pnl: 0,
-          pnlPercent: 0,
-          allocation: 0,
-        }
-      })
+      const apiHoldings = (hRes.holdings as ApiHolding[])
+        .filter((h) => h && (typeof h.symbol === 'string' || typeof h.id === 'string'))
+        .map<PortfolioHolding>((h) => {
+          const symbol = (typeof h.symbol === 'string' && h.symbol) || (typeof h.id === 'string' ? h.id : 'UNKNOWN')
+          const name = (typeof h.name === 'string' && h.name) || symbol
+          const amount = typeof h.amount === 'number' && isFinite(h.amount) ? h.amount : 0
+          const avgPrice = typeof h.avgPrice === 'number' && isFinite(h.avgPrice) ? h.avgPrice : 0
+          const value = amount * avgPrice
+          return {
+            id: symbol.toLowerCase(),
+            symbol,
+            name,
+            quantity: amount,
+            avgBuyPrice: avgPrice,
+            currentPrice: avgPrice,
+            value,
+            pnl: 0,
+            pnlPercent: 0,
+            allocation: 0,
+          }
+        })
       const totalValue = apiHoldings.reduce((s, h) => s + h.value, 0)
       apiHoldings.forEach((h) => { h.allocation = totalValue > 0 ? Math.round((h.value / totalValue) * 100) : 0 })
 
-      const apiBalances = (wRes.balances as ApiBalance[]).map<WalletBalance>((b) => ({
-        currency: b.currency,
-        symbol: b.symbol || symbolFor(b.currency),
-        balance: b.balance,
-        available: b.available,
-      }))
+      const apiBalances = (wRes.balances as ApiBalance[])
+        .filter((b) => b && typeof b.currency === 'string' && b.currency)
+        .map<WalletBalance>((b) => ({
+          currency: b.currency,
+          symbol: (typeof b.symbol === 'string' && b.symbol) || symbolFor(b.currency),
+          balance: typeof b.balance === 'number' && isFinite(b.balance) ? b.balance : 0,
+          available: typeof b.available === 'number' && isFinite(b.available) ? b.available : 0,
+        }))
 
-      const apiTransactions = (wRes.transactions as ApiTransaction[]).map<WalletTransaction>((tx) => ({
-        id: tx.id,
-        type: tx.kind,
-        amount: (tx.kind === 'deposit' || tx.kind === 'dividend' || tx.kind === 'interest') ? tx.amount : -Math.abs(tx.amount),
-        currency: tx.currency,
-        description: tx.reference || `${tx.kind[0].toUpperCase()}${tx.kind.slice(1)} ${tx.currency}`,
-        timestamp: new Date(tx.createdAt),
-        status: tx.status === 'completed' ? 'completed' : 'pending',
-      }))
+      const apiTransactions = (wRes.transactions as ApiTransaction[])
+        .filter((tx) => tx && typeof tx.kind === 'string')
+        .map<WalletTransaction>((tx) => {
+          const kind = tx.kind
+          const currency = (typeof tx.currency === 'string' && tx.currency) || 'USD'
+          const amount = typeof tx.amount === 'number' && isFinite(tx.amount) ? tx.amount : 0
+          return {
+            id: tx.id,
+            type: kind,
+            amount: (kind === 'deposit' || kind === 'dividend' || kind === 'interest') ? amount : -Math.abs(amount),
+            currency,
+            description: tx.reference || `${(kind[0] || '?').toUpperCase()}${kind.slice(1)} ${currency}`,
+            timestamp: new Date(tx.createdAt),
+            status: tx.status === 'completed' ? 'completed' : 'pending',
+          }
+        })
 
-      const apiTrades = (tRes.trades as ApiTrade[]).map<Trade>((t) => ({
-        id: t.id,
-        symbol: t.symbol,
-        name: t.symbol,
-        side: t.side,
-        type: 'market',
-        price: t.price,
-        quantity: t.amount,
-        total: t.total,
-        timestamp: new Date(t.createdAt),
-      }))
+      const apiTrades = (tRes.trades as ApiTrade[])
+        .filter((t) => t && typeof t.symbol === 'string')
+        .map<Trade>((t) => ({
+          id: t.id,
+          symbol: t.symbol || 'UNKNOWN',
+          name: t.symbol || 'UNKNOWN',
+          side: t.side,
+          type: 'market',
+          price: typeof t.price === 'number' && isFinite(t.price) ? t.price : 0,
+          quantity: typeof t.amount === 'number' && isFinite(t.amount) ? t.amount : 0,
+          total: typeof t.total === 'number' && isFinite(t.total) ? t.total : 0,
+          timestamp: new Date(t.createdAt),
+        }))
 
       this.holdings = apiHoldings
       this.wallet = apiBalances

@@ -64,14 +64,20 @@ function rowColor(row: ActivityRow): string {
 function rowTitle(row: ActivityRow): string {
   if (row.kind === 'trade') {
     const side = row.data.side === 'buy' ? 'Bought' : 'Sold'
-    return `${side} ${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol.toUpperCase()}`
+    const qty = typeof row.data.quantity === 'number' ? row.data.quantity : 0
+    const sym = (row.data.symbol || '').toUpperCase() || 'ASSET'
+    return `${side} ${qty.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${sym}`
   }
-  return titleCase(row.data.description)
+  return titleCase(row.data.description || '')
 }
 
 function rowSubtitle(row: ActivityRow): string {
-  if (row.kind === 'trade') return `${row.data.type === 'market' ? 'Market' : 'Limit'} order @ $${row.data.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-  return row.data.type[0].toUpperCase() + row.data.type.slice(1)
+  if (row.kind === 'trade') {
+    const price = typeof row.data.price === 'number' ? row.data.price : 0
+    return `${row.data.type === 'market' ? 'Market' : 'Limit'} order @ $${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+  }
+  const t = row.data.type || ''
+  return t ? t[0].toUpperCase() + t.slice(1) : ''
 }
 
 export default function Activity() {
@@ -111,8 +117,8 @@ export default function Activity() {
       }
       if (!q) return true
       const hay = r.kind === 'tx'
-        ? `${r.data.description} ${r.data.type} ${r.data.currency}`
-        : `${r.data.symbol} ${r.data.side} ${r.data.type}`
+        ? `${r.data.description || ''} ${r.data.type || ''} ${r.data.currency || ''}`
+        : `${r.data.symbol || ''} ${r.data.side || ''} ${r.data.type || ''}`
       return hay.toLowerCase().includes(q)
     })
   }, [transactions, trades, filter, query])
@@ -279,38 +285,49 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
   const amount = isTx ? row.data.amount : (row.data.side === 'buy' ? -row.data.total : row.data.total)
   const currency = isTx ? row.data.currency : 'USD'
   const status = isTx ? row.data.status : 'completed'
+  const direction = amount >= 0 ? 'Credit (inflow)' : 'Debit (outflow)'
 
-  // Close on Escape for keyboard users.
+  // Close on Escape + lock background scroll while the drawer is open so the
+  // user can't accidentally scroll the page underneath the dialog (which on
+  // some devices made the modal feel like it was rendered "below the page").
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full sm:max-w-lg bg-[#0a0f11] border border-[#ffffff10] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full sm:max-w-lg bg-[#0a0f11] border border-[#ffffff10] rounded-2xl shadow-2xl flex flex-col my-auto max-h-[calc(100vh-1.5rem)] sm:max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#ffffff08]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#ffffff08] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: `${color}15`, color }}>
               <Icon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-medium text-[#E5E5E5] truncate">{rowTitle(row)}</h2>
-              <p className="text-[11px] text-[#737373]">{rowSubtitle(row)}</p>
+              <p className="text-[11px] text-[#737373] truncate">{rowSubtitle(row)}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-[#A0A0A0] hover:bg-[#ffffff05]" aria-label="Close">
+          <button onClick={onClose} className="p-2 rounded-lg text-[#A0A0A0] hover:bg-[#ffffff05] shrink-0" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-5 py-5">
+        <div className="px-5 py-5 overflow-y-auto flex-1">
           <div className="text-center mb-6">
             <div className={`text-3xl font-semibold tabular-nums ${amount >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
               {amount >= 0 ? '+' : ''}{fmtAmount(amount, currency)} {currency}
@@ -323,27 +340,34 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
           </div>
 
           <div className="space-y-3 text-sm">
-            <Detail label="Type" value={row.kind === 'trade' ? `Trade · ${row.data.side.toUpperCase()}` : titleCase(row.data.type)} />
+            <Detail label="Type" value={row.kind === 'trade' ? `Trade · ${(row.data.side || '').toUpperCase()}` : titleCase(row.data.type || '')} />
+            <Detail label="Direction" value={direction} />
             {row.kind === 'trade' && (
               <>
-                <Detail label="Symbol" value={row.data.symbol.toUpperCase()} />
-                <Detail label="Quantity" value={`${row.data.quantity.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${row.data.symbol.toUpperCase()}`} />
-                <Detail label="Fill price" value={`$${row.data.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
-                <Detail label="Order total" value={`$${row.data.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
-                <Detail label="Order type" value={titleCase(row.data.type)} />
+                {row.data.name && <Detail label="Asset" value={row.data.name} />}
+                <Detail label="Symbol" value={(row.data.symbol || '').toUpperCase() || '—'} />
+                <Detail label="Side" value={titleCase(row.data.side || '')} />
+                <Detail label="Quantity" value={`${(typeof row.data.quantity === 'number' ? row.data.quantity : 0).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${(row.data.symbol || '').toUpperCase()}`} />
+                <Detail label="Fill price" value={`$${(typeof row.data.price === 'number' ? row.data.price : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                <Detail label="Order total" value={`$${(typeof row.data.total === 'number' ? row.data.total : 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                <Detail label="Order type" value={titleCase(row.data.type || '')} />
               </>
             )}
             {isTx && (
               <>
-                <Detail label="Currency" value={row.data.currency.toUpperCase()} />
-                <Detail label="Description" value={titleCase(row.data.description)} multiline />
+                <Detail label="Currency" value={(row.data.currency || '').toUpperCase() || '—'} />
+                <Detail label="Gross amount" value={`${fmtAmount(Math.abs(row.data.amount), row.data.currency)} ${row.data.currency}`} />
+                <Detail label="Status" value={titleCase(row.data.status)} />
+                <Detail label="Description" value={titleCase(row.data.description || '—')} multiline />
               </>
             )}
             <Detail label="Date" value={row.ts.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'medium' })} />
+            <Detail label="Relative" value={relativeTime(row.ts)} />
             <Detail
               label="Reference ID"
               value={row.id}
               mono
+              multiline
               action={(
                 <button onClick={() => onCopy(row.id)} className="inline-flex items-center gap-1 text-[11px] text-[#0C8B44] hover:text-[#00E676]">
                   <Copy className="w-3 h-3" /> Copy
@@ -357,9 +381,9 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
               // Resolve the trade's symbol to a CoinGecko id by looking it up
               // in current holdings (which carry both id and symbol). Falls
               // back to the lowercased symbol so the link is at least valid.
-              const sym = row.data.symbol.toUpperCase()
-              const match = portfolioStore.getHoldings().find((h) => h.symbol.toUpperCase() === sym)
-              const slug = match?.id ?? row.data.symbol.toLowerCase()
+              const sym = (row.data.symbol || '').toUpperCase() || 'ASSET'
+              const match = portfolioStore.getHoldings().find((h) => (h.symbol || '').toUpperCase() === sym)
+              const slug = match?.id ?? (row.data.symbol || '').toLowerCase() ?? 'unknown'
               return (
                 <Link
                   to={`/asset/${slug}`}
@@ -386,10 +410,24 @@ function Detail({ label, value, mono, multiline, action }: { label: string; valu
   return (
     <div className="flex items-start justify-between gap-3">
       <span className="text-[11px] uppercase tracking-[0.05em] text-[#737373] shrink-0 pt-0.5">{label}</span>
-      <div className={`text-right text-[#E5E5E5] ${mono ? 'font-mono text-xs break-all' : 'text-sm'} ${multiline ? '' : 'truncate max-w-[60%]'}`}>
+      <div className={`text-right text-[#E5E5E5] min-w-0 ${mono ? 'font-mono text-xs break-all' : 'text-sm'} ${multiline ? 'break-words' : 'truncate max-w-[65%]'}`}>
         <span>{value}</span>
         {action && <div className="mt-1 flex justify-end">{action}</div>}
       </div>
     </div>
   )
+}
+
+// Human-friendly relative timestamp ("2 minutes ago", "yesterday").
+function relativeTime(d: Date): string {
+  const diffMs = Date.now() - d.getTime()
+  const sec = Math.round(diffMs / 1000)
+  const abs = Math.abs(sec)
+  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  if (abs < 60) return fmt.format(-sec, 'second')
+  if (abs < 3600) return fmt.format(-Math.round(sec / 60), 'minute')
+  if (abs < 86_400) return fmt.format(-Math.round(sec / 3600), 'hour')
+  if (abs < 86_400 * 30) return fmt.format(-Math.round(sec / 86_400), 'day')
+  if (abs < 86_400 * 365) return fmt.format(-Math.round(sec / (86_400 * 30)), 'month')
+  return fmt.format(-Math.round(sec / (86_400 * 365)), 'year')
 }

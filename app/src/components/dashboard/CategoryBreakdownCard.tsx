@@ -32,7 +32,7 @@ export default function CategoryBreakdownCard({ holdings, totalValue }: { holdin
 
   const buckets = new Map<string, number>()
   for (const h of holdings) {
-    const cat = CATEGORY_MAP[h.symbol.toUpperCase()] || 'Other'
+    const cat = CATEGORY_MAP[(h.symbol || '').toUpperCase()] || 'Other'
     buckets.set(cat, (buckets.get(cat) || 0) + h.value)
   }
   const rows = Array.from(buckets.entries())

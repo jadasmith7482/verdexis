@@ -53,11 +53,11 @@ export default function MorningBriefCard({
 
     // Per-holding day moves, joined with market quotes for the % change.
     const quoteById = new Map(market.map((m) => [m.id, m] as const))
-    const quoteBySym = new Map(market.map((m) => [m.symbol.toLowerCase(), m] as const))
+    const quoteBySym = new Map(market.map((m) => [(m.symbol || '').toLowerCase(), m] as const))
     const moves = holdings
-      .filter((h) => h.symbol.toUpperCase() !== 'USD' && h.value > 0)
+      .filter((h) => (h.symbol || '').toUpperCase() !== 'USD' && h.value > 0)
       .map((h) => {
-        const m = quoteById.get(h.id) ?? quoteBySym.get(h.symbol.toLowerCase())
+        const m = quoteById.get(h.id) ?? quoteBySym.get((h.symbol || '').toLowerCase())
         return {
           holding: h,
           changePct: m?.price_change_percentage_24h ?? 0,

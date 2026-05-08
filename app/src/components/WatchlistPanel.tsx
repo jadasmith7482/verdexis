@@ -16,7 +16,7 @@ export default function WatchlistPanel({ availableSymbols, onSelect }: { availab
 
   const add = async (s: { symbol: string; name: string }) => {
     if (!getToken()) { toast.error('Sign in to use the watchlist'); return }
-    try { await api.addWatch({ symbol: s.symbol.toUpperCase(), name: s.name, type: 'crypto' }); await load() }
+    try { await api.addWatch({ symbol: (s.symbol || '').toUpperCase(), name: s.name || s.symbol, type: 'crypto' }); await load() }
     catch { toast.error('Could not add') }
   }
   const remove = async (symbol: string) => {
@@ -24,7 +24,7 @@ export default function WatchlistPanel({ availableSymbols, onSelect }: { availab
     try { await api.removeWatch(symbol); await load() } catch { /* ignore */ }
   }
 
-  const watchedSet = new Set(items.map((i) => i.symbol.toUpperCase()))
+  const watchedSet = new Set(items.map((i) => (i.symbol || '').toUpperCase()))
 
   return (
     <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">

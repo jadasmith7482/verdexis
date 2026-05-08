@@ -97,18 +97,18 @@ function LiveMarketCard({
               src={getCryptoLogo(crypto.id)!}
               alt={crypto.name}
               className="w-5 h-5 rounded-full object-cover shrink-0"
-              onError={cryptoIconErrorFallback(crypto.symbol.toUpperCase()[0] || '?', crypto.id)}
+              onError={cryptoIconErrorFallback((crypto.symbol || crypto.id || '?').toUpperCase()[0] || '?', crypto.id)}
             />
           ) : (
-            <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{crypto.symbol.toUpperCase()[0]}</div>
+            <div className="w-5 h-5 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{(crypto.symbol || crypto.id || '?').toUpperCase()[0]}</div>
           )}
-          <span className="text-xs font-medium text-[#E5E5E5] truncate">{crypto.symbol.toUpperCase()}</span>
+          <span className="text-xs font-medium text-[#E5E5E5] truncate">{(crypto.symbol || crypto.id || '').toUpperCase()}</span>
         </div>
         {isUp ? <TrendingUp className="w-3 h-3 text-[#4CAF50] shrink-0" /> : <TrendingDown className="w-3 h-3 text-[#f44336] shrink-0" />}
       </div>
       <p className="text-base font-light text-[#E5E5E5] truncate tabular-nums">{fmtMoney(livePrice)}</p>
       <p className={`text-[11px] mt-0.5 truncate ${isUp ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-        {isUp ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
+        {isUp ? '+' : ''}{(crypto.price_change_percentage_24h ?? 0).toFixed(2)}%
       </p>
       {sparklinePrices.length > 0 && (
         <div className="mt-2 h-7">
@@ -767,17 +767,17 @@ export default function Dashboard() {
                           {getCryptoLogo(h.symbol || h.id) ? (
                             <img
                               src={getCryptoLogo(h.symbol || h.id)!}
-                              alt={h.name}
+                              alt={h.name || h.symbol || h.id}
                               className="w-9 h-9 rounded-full object-cover"
-                              onError={cryptoIconErrorFallback(h.symbol[0]?.toUpperCase() || '?', h.symbol || h.id)}
+                              onError={cryptoIconErrorFallback((h.symbol || h.id || '?')[0]?.toUpperCase() || '?', h.symbol || h.id)}
                             />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44]">
-                              {h.symbol[0]}
+                              {(h.symbol || h.id || '?')[0]?.toUpperCase()}
                             </div>
                           )}
                           <div>
-                            <p className="text-sm font-medium text-[#E5E5E5]">{h.name}</p>
+                            <p className="text-sm font-medium text-[#E5E5E5]">{h.name || h.symbol || h.id}</p>
                             <p className="text-xs text-[#737373]">
                               {h.quantity.toLocaleString()} {h.symbol}
                               {h.avgBuyPrice > 0 && (
@@ -960,7 +960,7 @@ export default function Dashboard() {
                 {!hiddenWidgets.has('watchlist') && (
                   <div id="watchlist" className="scroll-mt-24">
                     <WatchlistPanel
-                      availableSymbols={cryptoData.slice(0, 10).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }))}
+                      availableSymbols={cryptoData.slice(0, 10).map((c) => ({ symbol: (c.symbol || c.id || '').toUpperCase(), name: c.name || c.symbol || c.id }))}
                     />
                   </div>
                 )}
