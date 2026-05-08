@@ -1,6 +1,6 @@
 import { X, ExternalLink, Check, Smartphone, Download, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
-import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile } from '../lib/walletProviders'
+import { useEffect, useState } from 'react'
+import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile, brandLetterIcon } from '../lib/walletProviders'
 import type { DiscoveredProvider } from '../lib/walletProviders'
 
 interface WalletPickerModalProps {
@@ -23,6 +23,15 @@ export default function WalletPickerModal({
   selectedRdns,
 }: WalletPickerModalProps) {
   const [refreshing, setRefreshing] = useState(false)
+
+  // Lock background scroll while open so the picker stays in view on mobile.
+  useEffect(() => {
+    if (!isOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   // Hide install options for any wallet that's already detected.
@@ -32,11 +41,11 @@ export default function WalletPickerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="relative w-full sm:max-w-md glass-card overflow-hidden rounded-t-2xl sm:rounded-2xl"
+        className="relative w-full sm:max-w-md glass-card rounded-2xl my-auto max-h-[calc(100vh-1.5rem)] sm:max-h-[90vh] flex flex-col"
         style={{ background: 'rgba(15,22,25,0.96)', backdropFilter: 'blur(24px)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -69,7 +78,7 @@ export default function WalletPickerModal({
           )}
         </div>
 
-        <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+        <div className="px-6 py-4 overflow-y-auto flex-1">
           {discovered.length > 0 && (
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">Installed</p>
@@ -87,7 +96,15 @@ export default function WalletPickerModal({
                         src={d.info.icon}
                         alt={`${d.info.name} icon`}
                         className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white/5 p-1"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement
+                          // Stop the loop, then swap to a guaranteed-working
+                          // brand-color initial so the row never shows a
+                          // broken-image box.
+                          if (img.dataset.fallback === '1') return
+                          img.dataset.fallback = '1'
+                          img.src = brandLetterIcon(d.info.name.charAt(0), '#0C8B44')
+                        }}
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[#E5E5E5] truncate">{d.info.name}</p>
@@ -145,7 +162,12 @@ export default function WalletPickerModal({
                         src={w.icon}
                         alt={`${w.name} icon`}
                         className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white/5 p-1"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement
+                          if (img.dataset.fallback === '1') return
+                          img.dataset.fallback = '1'
+                          img.src = brandLetterIcon(w.name.charAt(0), '#0C8B44')
+                        }}
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[#E5E5E5] truncate">{w.name}</p>

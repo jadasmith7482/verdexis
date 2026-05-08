@@ -32,6 +32,22 @@ const KNOWN_FALLBACK_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%230C8B44" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1"/><path d="M21 12h-6a2 2 0 1 0 0 4h6"/></svg>',
   )
 
+// Build a reliable inline SVG icon: brand-colored rounded square with the
+// wallet's first letter. Always renders even when the brand CDN 404s, so the
+// picker never shows broken-image boxes. We export it for the install list too.
+export function brandLetterIcon(letter: string, color: string): string {
+  const safe = (letter || '?').slice(0, 1).toUpperCase()
+  // Black text on light bg, white text on dark bg — quick brightness heuristic.
+  const hex = color.replace('#', '')
+  const r = parseInt(hex.substring(0, 2), 16) || 0
+  const g = parseInt(hex.substring(2, 4), 16) || 0
+  const b = parseInt(hex.substring(4, 6), 16) || 0
+  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  const text = luma > 0.6 ? '#0a0e10' : '#ffffff'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${color}"/><text x="32" y="42" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="34" font-weight="700" text-anchor="middle" fill="${text}">${safe}</text></svg>`
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg)
+}
+
 // Identify a single window.ethereum by its boolean flags so the legacy fallback
 // surfaces a sensible name when no EIP-6963 announcement has happened.
 function detectLegacyName(p: EthereumProvider): { name: string; rdns: string } {
@@ -142,7 +158,7 @@ export const WALLET_INSTALL_OPTIONS: WalletInstallOption[] = [
   {
     name: 'MetaMask',
     rdns: 'io.metamask',
-    icon: 'https://cdn.jsdelivr.net/gh/MetaMask/brand-resources@9b96c91/SVG/SVG_MetaMask_Icon_Color.svg',
+    icon: brandLetterIcon('M', '#F6851B'),
     installUrl: 'https://metamask.io/download/',
     // https://docs.metamask.io/wallet/how-to/use-mobile/#use-deep-linking
     deepLink: (url) => `https://metamask.app.link/dapp/${url.replace(/^https?:\/\//, '')}`,
@@ -151,35 +167,166 @@ export const WALLET_INSTALL_OPTIONS: WalletInstallOption[] = [
   {
     name: 'Coinbase Wallet',
     rdns: 'com.coinbase.wallet',
-    icon: 'https://www.coinbase.com/assets/sub-brands/wallet/wallet-square-512.png',
+    icon: brandLetterIcon('C', '#1652F0'),
     installUrl: 'https://www.coinbase.com/wallet/downloads',
     // https://docs.cloud.coinbase.com/wallet-sdk/docs/dapp-browser
     deepLink: (url) => `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(url)}`,
     tagline: 'Self-custody by Coinbase',
   },
   {
-    name: 'Rabby',
-    rdns: 'io.rabby',
-    icon: 'https://rabby.io/assets/images/logo-128.png',
-    installUrl: 'https://rabby.io/',
-    tagline: 'Multi-chain power user wallet',
-  },
-  {
     name: 'Trust Wallet',
     rdns: 'com.trustwallet.app',
-    icon: 'https://trustwallet.com/assets/images/media/assets/trust_platform.svg',
+    icon: brandLetterIcon('T', '#3375BB'),
     installUrl: 'https://trustwallet.com/download',
     // https://developer.trustwallet.com/developer/develop-for-trust/deeplinking#open-url
     deepLink: (url) => `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(url)}`,
     tagline: 'Mobile + browser, 100+ chains',
   },
   {
+    name: 'Rabby',
+    rdns: 'io.rabby',
+    icon: brandLetterIcon('R', '#7084FF'),
+    installUrl: 'https://rabby.io/',
+    tagline: 'Multi-chain power user wallet',
+  },
+  {
     name: 'Rainbow',
     rdns: 'me.rainbow',
-    icon: 'https://rainbow.me/static/images/wallet/rainbow-icon.png',
+    icon: brandLetterIcon('R', '#FF4000'),
     installUrl: 'https://rainbow.me/download',
     deepLink: (url) => `https://rnbwapp.com/dapp?url=${encodeURIComponent(url)}`,
     tagline: 'Beautiful Ethereum wallet',
+  },
+  {
+    name: 'Phantom',
+    rdns: 'app.phantom',
+    icon: brandLetterIcon('P', '#AB9FF2'),
+    installUrl: 'https://phantom.app/download',
+    // Phantom universal links open the in-app browser to a dapp URL.
+    deepLink: (url) => `https://phantom.app/ul/browse/${encodeURIComponent(url)}?ref=${encodeURIComponent(url)}`,
+    tagline: 'Solana + EVM + Bitcoin',
+  },
+  {
+    name: 'OKX Wallet',
+    rdns: 'com.okex.wallet',
+    icon: brandLetterIcon('O', '#000000'),
+    installUrl: 'https://www.okx.com/web3',
+    // https://www.okx.com/web3/build/docs/sdks/dapp-deep-linking
+    deepLink: (url) => `https://www.okx.com/download?deeplink=${encodeURIComponent(`okx://wallet/dapp/url?dappUrl=${encodeURIComponent(url)}`)}`,
+    tagline: 'Multi-chain exchange wallet',
+  },
+  {
+    name: 'Brave Wallet',
+    rdns: 'com.brave.wallet',
+    icon: brandLetterIcon('B', '#FB542B'),
+    installUrl: 'https://brave.com/wallet/',
+    tagline: 'Built into the Brave browser',
+  },
+  {
+    name: 'Zerion',
+    rdns: 'io.zerion.wallet',
+    icon: brandLetterIcon('Z', '#2461ED'),
+    installUrl: 'https://zerion.io/download',
+    // https://zerion.io/blog/zerion-wallet-deep-link/
+    deepLink: (url) => `https://link.zerion.io/901o6IN0jqb?uri=${encodeURIComponent(url)}`,
+    tagline: 'Smart wallet + DeFi tracker',
+  },
+  {
+    name: 'Argent',
+    rdns: 'xyz.argent',
+    icon: brandLetterIcon('A', '#FF875B'),
+    installUrl: 'https://www.argent.xyz/download-argent/',
+    deepLink: (url) => `https://argent.link/app?url=${encodeURIComponent(url)}`,
+    tagline: 'Smart-account wallet',
+  },
+  {
+    name: 'Uniswap Wallet',
+    rdns: 'org.uniswap',
+    icon: brandLetterIcon('U', '#FC72FF'),
+    installUrl: 'https://wallet.uniswap.org/',
+    deepLink: (url) => `https://uniswap.org/app?url=${encodeURIComponent(url)}`,
+    tagline: 'Self-custody by Uniswap Labs',
+  },
+  {
+    name: 'Bitget Wallet',
+    rdns: 'com.bitget.web3',
+    icon: brandLetterIcon('B', '#54FFC9'),
+    installUrl: 'https://web3.bitget.com/en/wallet-download',
+    deepLink: (url) => `https://bkcode.vip?action=dapp&url=${encodeURIComponent(url)}`,
+    tagline: 'Multi-chain Web3 wallet',
+  },
+  {
+    name: 'BitKeep',
+    rdns: 'com.bitkeep.wallet',
+    icon: brandLetterIcon('B', '#7524F9'),
+    installUrl: 'https://bitkeep.com/en/download',
+    deepLink: (url) => `https://bkcode.vip?action=dapp&url=${encodeURIComponent(url)}`,
+    tagline: 'Multi-chain wallet (now Bitget)',
+  },
+  {
+    name: 'Exodus',
+    rdns: 'com.exodus',
+    icon: brandLetterIcon('E', '#1B1F2C'),
+    installUrl: 'https://www.exodus.com/download/',
+    tagline: '100+ assets, mobile + desktop',
+  },
+  {
+    name: 'Ledger Live',
+    rdns: 'com.ledger',
+    icon: brandLetterIcon('L', '#000000'),
+    installUrl: 'https://www.ledger.com/ledger-live',
+    tagline: 'Hardware wallet companion',
+  },
+  {
+    name: 'Safe (Gnosis)',
+    rdns: 'global.safe',
+    icon: brandLetterIcon('S', '#12FF80'),
+    installUrl: 'https://safe.global/wallet',
+    tagline: 'Multisig smart account',
+  },
+  {
+    name: 'Frame',
+    rdns: 'sh.frame',
+    icon: brandLetterIcon('F', '#00DAFF'),
+    installUrl: 'https://frame.sh/',
+    tagline: 'System-wide desktop wallet',
+  },
+  {
+    name: 'XDEFI',
+    rdns: 'io.xdefi',
+    icon: brandLetterIcon('X', '#2D5BFF'),
+    installUrl: 'https://www.xdefi.io/',
+    tagline: 'Cross-chain wallet',
+  },
+  {
+    name: 'TokenPocket',
+    rdns: 'pro.tokenpocket',
+    icon: brandLetterIcon('T', '#2980FE'),
+    installUrl: 'https://www.tokenpocket.pro/en/download/app',
+    deepLink: (url) => `https://www.tokenpocket.pro/en/download/app?url=${encodeURIComponent(url)}`,
+    tagline: 'Multi-chain mobile wallet',
+  },
+  {
+    name: 'imToken',
+    rdns: 'im.token',
+    icon: brandLetterIcon('I', '#11C4D1'),
+    installUrl: 'https://token.im/download',
+    deepLink: (url) => `imtokenv2://navigate/DappView?url=${encodeURIComponent(url)}`,
+    tagline: 'Asia\u2019s leading mobile wallet',
+  },
+  {
+    name: 'MEW (MyEtherWallet)',
+    rdns: 'com.myetherwallet',
+    icon: brandLetterIcon('M', '#1896A4'),
+    installUrl: 'https://www.mewwallet.com/',
+    tagline: 'Original Ethereum wallet',
+  },
+  {
+    name: 'WalletConnect (any QR wallet)',
+    rdns: 'org.walletconnect',
+    icon: brandLetterIcon('W', '#3B99FC'),
+    installUrl: 'https://walletconnect.com/explorer?type=wallet',
+    tagline: '300+ wallets via QR scan',
   },
 ]
 
