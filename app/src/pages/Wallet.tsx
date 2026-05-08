@@ -369,6 +369,22 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: 'Enter a valid amount.' })
       return
     }
+    if (selectedCurrency === 'USD') {
+      const gross = parseFloat(amount)
+      const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
+        ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
+        : 0
+      const totalFee = Math.max(500, gross * 0.008) + deliverySurcharge
+      if (gross <= totalFee) {
+        const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        setTransferStatus({
+          kind: 'error',
+          title: 'Withdrawal declined',
+          message: `Amount must exceed the processing fee of ${fmt(totalFee)}.`,
+        })
+        return
+      }
+    }
     let reference = selectedCurrency === 'USD' ? 'Bank Transfer (ACH)' : `Crypto Withdrawal (${selectedCurrency})`
     if (selectedCurrency === 'USD') {
       if (usdWithdrawMethod === 'ach') {
@@ -423,11 +439,22 @@ export default function WalletPage() {
     const amt = -parseFloat(amount)
     portfolioStore.addTransaction('withdraw', amt, selectedCurrency, reference, newIdempotencyKey())
     let successMessage = `Withdrew ${Math.abs(amt).toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}.`
+    if (selectedCurrency === 'USD') {
+      const gross = Math.abs(amt)
+      const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
+        ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
+        : 0
+      const processingFee = Math.max(500, gross * 0.008)
+      const totalFee = processingFee + deliverySurcharge
+      const net = Math.max(0, gross - totalFee)
+      const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      successMessage = `Submitted ${fmt(gross)} withdrawal. Processing fee ${fmt(processingFee)}${deliverySurcharge > 0 ? ` + ${fmt(deliverySurcharge)} delivery` : ''}. You'll receive ${fmt(net)}.`
+    }
     if (selectedCurrency === 'USD' && usdWithdrawMethod === 'wire') {
-      successMessage += ' Wire submitted for review — funds typically arrive in 1 business day after approval.'
+      successMessage += ' Wire arrives ~1 business day after approval.'
     } else if (selectedCurrency === 'USD' && (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')) {
       const eta = checkInfo.delivery === 'overnight' ? '1 business day' : checkInfo.delivery === 'priority' ? '2–3 business days' : '5–7 business days'
-      successMessage += ` ${usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'} will be mailed to ${checkInfo.payTo.trim()} after review (est. ${eta}).`
+      successMessage += ` ${usdWithdrawMethod === 'cashiers_check' ? "Cashier's check" : 'Check'} mails to ${checkInfo.payTo.trim()} after review (est. ${eta}).`
     }
     setTransferStatus({
       kind: 'success',
@@ -1403,15 +1430,43 @@ export default function WalletPage() {
                     )}
                   </div>
                 )}
-                <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
-                  <span className="text-sm text-[#A0A0A0]">{selectedCurrency === 'USD' ? 'Processing Fee' : 'Network Fee'}</span>
-                  <span className="text-sm text-[#E5E5E5]">{selectedCurrency === 'USD'
-                    ? (usdWithdrawMethod === 'ach' ? '$0.00'
-                      : usdWithdrawMethod === 'wire' ? '$25.00'
-                      : usdWithdrawMethod === 'cashiers_check' ? `$${(10 + (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)).toFixed(2)}`
-                      : `$${(5 + (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)).toFixed(2)}`)
-                    : `0.001 ${selectedCurrency}`}</span>
-                </div>
+                {(() => {
+                  const amt = parseFloat(amount) || 0
+                  if (selectedCurrency !== 'USD') {
+                    return (
+                      <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
+                        <span className="text-sm text-[#A0A0A0]">Network Fee</span>
+                        <span className="text-sm text-[#E5E5E5]">{`0.001 ${selectedCurrency}`}</span>
+                      </div>
+                    )
+                  }
+                  const deliverySurcharge = (usdWithdrawMethod === 'cashiers_check' || usdWithdrawMethod === 'check')
+                    ? (checkInfo.delivery === 'overnight' ? 25 : checkInfo.delivery === 'priority' ? 10 : 0)
+                    : 0
+                  // Processing fee: max($500, 0.8% of amount). 0.8% = $500 at $62,500.
+                  const processingFee = amt > 0 ? Math.max(500, amt * 0.008) : 0
+                  const totalFee = processingFee + deliverySurcharge
+                  const net = Math.max(0, amt - totalFee)
+                  const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  return (
+                    <div className="border-t border-[#ffffff08] pt-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-[#A0A0A0]">Processing Fee <span className="text-[10px] text-[#737373]">(max of $500 or 0.8%)</span></span>
+                        <span className="text-sm text-[#E5E5E5]">{amt > 0 ? fmt(processingFee) : '—'}</span>
+                      </div>
+                      {deliverySurcharge > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-[#A0A0A0]">Delivery surcharge ({checkInfo.delivery})</span>
+                          <span className="text-sm text-[#E5E5E5]">{fmt(deliverySurcharge)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-2 border-t border-[#ffffff05]">
+                        <span className="text-sm text-[#A0A0A0]">You receive</span>
+                        <span className="text-sm font-medium text-[#E5E5E5]">{amt > 0 ? fmt(net) : '—'}</span>
+                      </div>
+                    </div>
+                  )
+                })()}
                 <button onClick={handleWithdraw} className="w-full py-3.5 bg-[#f44336] text-white text-sm font-medium rounded-xl hover:bg-[#d32f2f] transition-colors">
                   {selectedCurrency === 'USD'
                     ? (usdWithdrawMethod === 'ach' ? 'Send ACH withdrawal'
