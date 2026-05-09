@@ -14,7 +14,7 @@ import {
   Zap, BarChart3, PieChart, Activity, Bot,
   ChevronRight, Wallet, LineChart, BrainCircuit, Lock,
   Globe, Server, CheckCircle, Star, Play,
-  Radio, FileText, Fingerprint, Eye,
+  FileText, Fingerprint, Eye,
 } from 'lucide-react'
 
 const testimonials: { name: string; role: string; company: string; image: string; text: string; rating: number }[] = []
@@ -68,11 +68,9 @@ export default function Home() {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({})
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup')
-  const [loading, setLoading] = useState(true)
   useEffect(() => {
     marketData.getCryptoList().then(setCryptoData)
     aiService.getPortfolioInsights().then(setInsights)
-    setLoading(false)
     // Refresh the snapshot list (sparklines, market caps, 24h %) every 30s
     // so even sections that key off CryptoQuote (not just liveTicker) stay
     // fresh while the visitor is on the landing page.
@@ -158,10 +156,6 @@ export default function Home() {
         style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '4px 4px' }}>
         <TetrahedronCanvas />
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto" style={{ marginTop: '-5vh' }}>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0C8B44]/10 border border-[#0C8B44]/30 mb-8">
-            <Radio className="w-3 h-3 text-[#0C8B44] animate-pulse" />
-            <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44]">{loading ? 'Loading market data...' : 'Live with real market data'}</span>
-          </div>
           <h1 className="text-6xl md:text-7xl lg:text-[80px] font-light tracking-[-0.04em] text-[#E5E5E5] mb-4">
             <ScrambleText text="Multiply Your Wealth." />
           </h1>
