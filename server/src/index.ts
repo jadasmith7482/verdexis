@@ -30,6 +30,11 @@ import { startAlertPoller } from './alertPoller.js'
 import { startKeepAlive } from './keepAlive.js'
 
 const app = express()
+// Disable ETag generation on JSON responses. The client polls /api/wallet,
+// /api/holdings, etc. expecting fresh data; ETag-driven 304s caused stale
+// balances after admin mutations because the browser kept reusing its
+// cached body even though the underlying data had changed.
+app.set('etag', false)
 const PORT = env.PORT
 const IS_PROD = env.NODE_ENV === 'production'
 const CORS_ORIGIN = env.CORS_ORIGIN.split(',').map((s) => s.trim())
