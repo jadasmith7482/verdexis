@@ -332,7 +332,10 @@ export default function WalletPage() {
   // \"Total Balance\" hero matches the Dashboard's \"Cash\" subtitle exactly.
   // Recompute on each render \u2014 the wallet event listener already triggers them.
   void wallet
-  const totalBalance = portfolioStore.getWalletValueUsd()
+  const holdings = portfolioStore.getHoldings()
+  const cashUsd = portfolioStore.getWalletValueUsd()
+  const holdingsUsd = holdings.reduce((s, h) => s + h.value, 0)
+  const totalBalance = cashUsd + holdingsUsd
 
   function getUsdRate(currency: string): number {
     // Live quote first (cached by portfolioStore.markToMarket from CoinGecko
@@ -919,8 +922,10 @@ export default function WalletPage() {
                     {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-sm text-[#4CAF50] mt-2 flex items-center gap-1">
-                  <ArrowDownRight className="w-4 h-4" /> +5.2% this month
+                <p className="text-sm text-[#737373] mt-2 flex items-center gap-2 flex-wrap">
+                  <span>Cash <span className="text-[#A0A0A0]">${cashUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></span>
+                  <span className="text-[#3a3a3a]">·</span>
+                  <span>Crypto <span className="text-[#A0A0A0]">${holdingsUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></span>
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -974,18 +979,32 @@ export default function WalletPage() {
             )
           })()}
 
-          {/* Sub-balances */}
+          {/* Sub-balances: cash wallets + crypto holdings (everything that adds up to Total Balance) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {wallet.map((w) => (
-              <div key={w.currency} className="glass-card p-4 hover:border-[#0C8B44]/30 transition-all cursor-pointer">
+              <div key={`wallet-${w.currency}`} className="glass-card p-4 hover:border-[#0C8B44]/30 transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <CurrencyIcon currency={w.currency} size={32} />
                     <span className="text-sm font-medium text-[#E5E5E5] truncate">{w.currency}</span>
                   </div>
                   {w.currency !== 'USD' && <span className="text-xs text-[#737373] shrink-0">${(w.balance * getUsdRate(w.currency)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}
-                </div>                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</> : '****'}</p>
+                </div>
+                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</> : '****'}</p>
                 <p className="text-xs text-[#737373] mt-1 truncate">Available: {w.symbol}{w.available.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</p>
+              </div>
+            ))}
+            {holdings.map((h) => (
+              <div key={`holding-${h.id}`} className="glass-card p-4 hover:border-[#0C8B44]/30 transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CurrencyIcon currency={h.symbol} size={32} />
+                    <span className="text-sm font-medium text-[#E5E5E5] truncate">{h.symbol}</span>
+                  </div>
+                  <span className="text-xs text-[#737373] shrink-0">${h.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </div>
+                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 }) : '****'}</p>
+                <p className="text-xs text-[#737373] mt-1 truncate">{h.name}</p>
               </div>
             ))}
           </div>
