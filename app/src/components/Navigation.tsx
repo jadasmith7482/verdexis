@@ -163,11 +163,10 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Mobile/tablet: notification bell (when signed-in) + hamburger only.
-             Login / Sign Up live inside the opened menu so the collapsed bar
-             stays minimal: just logo + three lines. */}
-          <div className="flex lg:hidden items-center gap-2 shrink-0">
-            {isAuthenticated && <NotificationBell />}
+          {/* Mobile/tablet: just the hamburger. Notifications + auth + profile
+             all live inside the opened menu so the collapsed bar stays minimal
+             (logo + three lines) regardless of auth state. */}
+          <div className="flex lg:hidden items-center shrink-0">
             <button
               className="text-[#E5E5E5] p-2 -mr-2"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -203,6 +202,7 @@ export default function Navigation() {
                     <span className="text-sm text-[#A0A0A0]">{userName}</span>
                   </div>
                   <div className="flex items-center gap-3">
+                    <NotificationBell />
                     <Link to="/settings" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">
                       <SettingsIcon className="w-4 h-4" /> Settings
                     </Link>
