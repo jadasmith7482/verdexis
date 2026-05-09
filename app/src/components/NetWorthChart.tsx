@@ -9,12 +9,19 @@ interface Props {
   range: ChartRange
   isUp: boolean
   height?: number
+  // Explicit start of the time window in ms — overrides the default span
+  // for `range`. Useful for ALL where the span depends on user inception.
+  startMs?: number
 }
 
 // Returns the millisecond spacing between consecutive points for a range,
 // so the x-axis shows real dates instead of bucket indexes.
-function bucketMs(range: ChartRange, points: number): { start: number; step: number } {
+function bucketMs(range: ChartRange, points: number, startOverride?: number): { start: number; step: number } {
   const now = Date.now()
+  if (typeof startOverride === 'number' && startOverride < now) {
+    const span = now - startOverride
+    return { start: startOverride, step: span / Math.max(1, points - 1) }
+  }
   switch (range) {
     case '1D':  return { start: now - 24 * 3_600_000, step: 3_600_000 }
     case '1W':  return { start: now - 7 * 24 * 3_600_000, step: (7 * 24 * 3_600_000) / Math.max(1, points - 1) }
@@ -24,10 +31,10 @@ function bucketMs(range: ChartRange, points: number): { start: number; step: num
   }
 }
 
-export default function NetWorthChart({ series, benchmark, range, isUp, height = 192 }: Props) {
+export default function NetWorthChart({ series, benchmark, range, isUp, height = 192, startMs }: Props) {
   const accent = isUp ? '#0C8B44' : '#f44336'
   const options = useMemo<Highcharts.Options>(() => {
-    const { start, step } = bucketMs(range, series.length)
+    const { start, step } = bucketMs(range, series.length, startMs)
     const data: [number, number][] = series.map((v, i) => [start + i * step, v])
     const benchData: [number, number][] | undefined = benchmark
       ? benchmark.map((v, i) => [start + i * step, v])
@@ -128,7 +135,7 @@ export default function NetWorthChart({ series, benchmark, range, isUp, height =
           : []),
       ],
     }
-  }, [series, benchmark, range, accent, height])
+  }, [series, benchmark, range, accent, height, startMs])
 
   return (
     <HighchartsReact

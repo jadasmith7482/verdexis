@@ -343,7 +343,89 @@ export default function Dashboard() {
   }
   const rangeBuckets: Record<ChartRange, number> = { '1D': 24, '1W': 168, '1M': 168, '1Y': 365, 'ALL': 365 }
   const HISTORY_POINTS = rangeBuckets[chartRange]
+  // Reconstruct net worth over time from the user's actual transaction
+  // history (deposits / withdrawals). Without this the chart treats the
+  // user as having held their CURRENT balance for the entire window, so
+  // "ALL" would falsely show $X back when the account didn't even exist.
+  const allTxs: WalletTransaction[] = portfolioStore.getTransactions()
+  const STABLE_C = new Set(['USD', 'USDC', 'USDT'])
+  // Treat anything that visibly says "fee" / "withdraw" / "charge" /
+  // "deduction" as an outflow even if the type wasn't explicitly set
+  // to 'withdraw' (admin entries, reimbursements, etc.). This way the
+  // chart line actually dips when fees are paid instead of looking
+  // like a smooth always-up cumulative-deposit curve.
+  const OUTFLOW_RE = /\b(fee|fees|withdraw|charge|deduction|debit|gas|network)\b/i
+  const txUsdValue = (t: WalletTransaction): number => {
+    const cur = (t.currency || '').toUpperCase()
+    let usd: number
+    if (STABLE_C.has(cur)) {
+      usd = t.amount
+    } else {
+      const q = quoteById[cur.toLowerCase()] || quoteById[cur]
+      const px = portfolioStore.getQuote(cur) ?? q?.current_price ?? 0
+      usd = t.amount * px
+    }
+    const isOutflow = t.type === 'withdraw' || OUTFLOW_RE.test(t.description || '')
+    const sign = isOutflow ? -1 : 1
+    return sign * usd
+  }
+  const inceptionMs = allTxs.length > 0
+    ? Math.min(...allTxs.map((t) => new Date(t.timestamp).getTime()))
+    : Date.now() - 7 * 24 * 3_600_000
+  const nowMs = Date.now()
+  const chartStartMs: number = (() => {
+    switch (chartRange) {
+      case '1D':  return nowMs - 24 * 3_600_000
+      case '1W':  return nowMs - 7 * 24 * 3_600_000
+      case '1M':  return nowMs - 30 * 24 * 3_600_000
+      case '1Y':  return nowMs - 365 * 24 * 3_600_000
+      case 'ALL': return Math.max(inceptionMs, nowMs - 5 * 365 * 24 * 3_600_000)
+    }
+  })()
   const portfolioHistory: number[] = (() => {
+    // For longer ranges (1M / 1Y / ALL), drive the curve from the actual
+    // cumulative deposit history so the chart starts at $0 at inception
+    // and ramps up as deposits accrue, then anchor the right edge to the
+    // live total so the tail always matches the headline number.
+    if (chartRange === '1M' || chartRange === '1Y' || chartRange === 'ALL') {
+      const N = HISTORY_POINTS
+      const series2 = new Array(N).fill(0)
+      const sorted = [...allTxs].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      const span = Math.max(1, nowMs - chartStartMs)
+      for (let i = 0; i < N; i++) {
+        const tBucket = chartStartMs + (span * (i / Math.max(1, N - 1)))
+        let cum = 0
+        for (const tx of sorted) {
+          if (new Date(tx.timestamp).getTime() <= tBucket) cum += txUsdValue(tx)
+          else break
+        }
+        // Allow negative dips (fees / withdrawals) to render honestly.
+        series2[i] = cum
+      }
+      const last = series2[N - 1]
+      // Anchor the right edge to the live total via an ADDITIVE tail
+      // blend (delta ramped 0 -> 1 across the window) instead of a
+      // multiplicative rescale. Multiplicative rescaling would hide
+      // every fee dip by stretching the whole series proportionally;
+      // additive blend preserves the shape of historical fees while
+      // still landing exactly on the headline number.
+      if (totalValue > 0 || last !== 0) {
+        const delta = totalValue - last
+        for (let i = 0; i < N; i++) {
+          const t = i / Math.max(1, N - 1)
+          series2[i] += delta * t
+        }
+      }
+      // Final clamp so we never display a negative net worth.
+      for (let i = 0; i < N; i++) series2[i] = Math.max(0, series2[i])
+      // If the curve ended up perfectly flat at 0 but we have a balance
+      // (no transaction history — e.g. legacy users), ramp linearly so
+      // the chart isn't a dead horizontal line at the bottom.
+      if (series2.every((v) => v === 0) && totalValue > 0) {
+        for (let i = 0; i < N; i++) series2[i] = totalValue * (i / Math.max(1, N - 1))
+      }
+      return series2
+    }
     const series = new Array(HISTORY_POINTS).fill(0)
     let haveSparkline = false
     for (const h of holdings) {
@@ -351,29 +433,13 @@ export default function Dashboard() {
       const sp = q?.sparkline_in_7d?.price
       if (sp && sp.length >= 2) {
         haveSparkline = true
-        // For 1D use last ~24 points; 1W use the full sparkline (~168 hourly).
-        // 1M/1Y/ALL: no historical data beyond 7d, so anchor the start of the
-        // window at the holding's avg-buy quantity-value and interpolate to
-        // the most recent sparkline window.
+        // 1D uses last ~24 points; 1W uses the full sparkline (~168 hourly).
+        // (1M / 1Y / ALL are handled above via deposit history and never
+        // reach this branch.)
         const window = chartRange === '1D' ? sp.slice(-24) : sp
         for (let i = 0; i < HISTORY_POINTS; i++) {
-          if (chartRange === '1M' || chartRange === '1Y' || chartRange === 'ALL') {
-            const recentStart = Math.floor(HISTORY_POINTS * 0.7)
-            if (i < recentStart) {
-              const t = recentStart > 0 ? i / recentStart : 1
-              const startVal = h.quantity * h.avgBuyPrice
-              const endVal = h.quantity * window[0]
-              series[i] += startVal + (endVal - startVal) * t
-            } else {
-              const span = HISTORY_POINTS - recentStart
-              const t = span > 0 ? (i - recentStart) / span : 0
-              const idx = Math.min(window.length - 1, Math.round(t * (window.length - 1)))
-              series[i] += h.quantity * window[idx]
-            }
-          } else {
-            const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))
-            series[i] += h.quantity * window[idx]
-          }
+          const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))
+          series[i] += h.quantity * window[idx]
         }
       } else {
         // Flat contribution (cash, stablecoin, or sparkline not yet loaded).
@@ -572,6 +638,7 @@ export default function Dashboard() {
                       })()}
                       range={chartRange}
                       isUp={periodChangePercent >= 0}
+                      startMs={chartStartMs}
                       height={240}
                     />
                   ) : (
