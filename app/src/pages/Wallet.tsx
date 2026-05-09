@@ -348,12 +348,17 @@ export default function WalletPage() {
     }
   }
 
+  // Lightweight tick counter so we re-render on every portfolio event
+  // (mark-to-market price moves, holdings updates, etc.) even when the
+  // wallet array itself didn't change.
+  const [, setTick] = useState(0)
   useEffect(() => {
     // Snapshot-based refresh: only push new state into React when the
     // wallet/transactions slice has actually changed, so the 1-second
     // tick doesn't trigger a re-render every second when nothing moved.
     let lastWalletJson = JSON.stringify(portfolioStore.getWallet())
     let lastTxJson = JSON.stringify(portfolioStore.getTransactions())
+    let lastHoldingsJson = JSON.stringify(portfolioStore.getHoldings())
     const refresh = () => {
       const w = portfolioStore.getWallet()
       const wJson = JSON.stringify(w)
@@ -367,8 +372,24 @@ export default function WalletPage() {
         lastTxJson = tJson
         setTransactions([...t])
       }
+      // Holdings aren't kept in React state (we read them via
+      // portfolioStore.getHoldings() at render time), so when only their
+      // prices/values change we still need to force a re-render — otherwise
+      // the "open positions" cards appear frozen.
+      const hJson = JSON.stringify(portfolioStore.getHoldings())
+      if (hJson !== lastHoldingsJson) {
+        lastHoldingsJson = hJson
+        setTick((n) => (n + 1) % 1_000_000)
+      }
     }
-    window.addEventListener('verdexis:portfolio', refresh)
+    // Event-driven updates from portfolioStore (markToMarket, addTransaction,
+    // confirmDeposit, hydrate). Always bump a tick so any consumer that reads
+    // straight from the store (holdings, quotes) sees the change immediately.
+    const onEvent = () => {
+      refresh()
+      setTick((n) => (n + 1) % 1_000_000)
+    }
+    window.addEventListener('verdexis:portfolio', onEvent)
     // Lightweight 1-second tick so any background mark-to-market or
     // confirmation upgrade surfaces immediately (no-op when unchanged).
     const interval = window.setInterval(refresh, 1000)
@@ -378,7 +399,7 @@ export default function WalletPage() {
       void portfolioStore.hydrate(true)
     }, 15000)
     return () => {
-      window.removeEventListener('verdexis:portfolio', refresh)
+      window.removeEventListener('verdexis:portfolio', onEvent)
       window.clearInterval(interval)
       window.clearInterval(hydrateInterval)
     }
