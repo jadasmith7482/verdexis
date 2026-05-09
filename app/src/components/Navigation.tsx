@@ -105,7 +105,7 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${scrolled ? 'nav-glass' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${scrolled ? 'nav-glass' : 'bg-[#0a0a0a]/40 backdrop-blur-sm'}`}>
         <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -166,12 +166,20 @@ export default function Navigation() {
           {/* Mobile/tablet: login (when signed-out) + notification bell + hamburger */}
           <div className="flex lg:hidden items-center gap-2 shrink-0">
             {!isAuthenticated && (
-              <button
-                onClick={openLogin}
-                className="px-3 py-1.5 text-xs font-medium tracking-[0.04em] uppercase text-[#E5E5E5] border border-[#ffffff20] rounded-lg hover:border-[#0C8B44] hover:text-[#0C8B44] transition-colors"
-              >
-                Log In
-              </button>
+              <>
+                <button
+                  onClick={openLogin}
+                  className="px-3 py-1.5 text-xs font-semibold tracking-[0.06em] uppercase text-[#E5E5E5] hover:text-[#0C8B44] transition-colors"
+                >
+                  Log In
+                </button>
+                <button
+                  onClick={openSignup}
+                  className="px-3.5 py-1.5 text-xs font-semibold tracking-[0.06em] uppercase bg-[#0C8B44] text-white rounded-lg shadow-[0_0_18px_rgba(12,139,68,0.35)] hover:bg-[#0a7539] transition-colors"
+                >
+                  Sign Up
+                </button>
+              </>
             )}
             {isAuthenticated && <NotificationBell />}
             <button
