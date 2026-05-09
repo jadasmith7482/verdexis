@@ -27,11 +27,11 @@ interface Props {
 
 function timeOfDayGreeting(): string {
   const h = new Date().getHours()
-  if (h < 5) return 'Late night'
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  if (h < 21) return 'Good evening'
-  return 'Good night'
+  if (h < 5) return 'Late Night'
+  if (h < 12) return 'Good Morning'
+  if (h < 17) return 'Good Afternoon'
+  if (h < 21) return 'Good Evening'
+  return 'Good Night'
 }
 
 interface Insight {

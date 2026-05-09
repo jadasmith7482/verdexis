@@ -52,6 +52,6 @@ export function getStreak(): StreakData {
 
 export function greetingFor(name: string): string {
   const h = new Date().getHours()
-  const part = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 22 ? 'Good evening' : 'Good night'
+  const part = h < 5 ? 'Good Night' : h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : h < 22 ? 'Good Evening' : 'Good Night'
   return `${part}, ${name}`
 }

@@ -98,7 +98,7 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${mobileOpen ? 'nav-glass' : 'bg-transparent'}`}>
+      <nav className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 nav-glass">
         <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">

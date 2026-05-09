@@ -142,12 +142,30 @@ class AIService {
       const positions = holdings.reduce((s, h) => s + h.value, 0)
       const total = cash + positions
       const pnl = holdings.reduce((s, h) => s + h.pnl, 0)
+      const txs = portfolioStore.getTransactions()
+      const deposits = txs
+        .filter((t) => t.type === 'deposit')
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10)
+      const totalDeposited = txs
+        .filter((t) => t.type === 'deposit')
+        .reduce((s, t) => s + Math.abs(t.amount), 0)
       const lines = [
         `Total value: $${total.toFixed(2)} (positions $${positions.toFixed(2)}, cash $${cash.toFixed(2)})`,
         `Unrealized P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`,
+        `Total deposited (lifetime): $${totalDeposited.toFixed(2)}`,
         'Holdings:',
-        ...holdings.map((h) => `  - ${h.symbol} ${h.quantity} @ avg $${h.avgBuyPrice.toFixed(2)} | now $${h.currentPrice.toFixed(2)} | value $${h.value.toFixed(2)} | ${h.allocation}%`),
+        ...holdings.map((h) => `  - ${h.symbol} ${h.quantity} @ avg $${(h.avgBuyPrice ?? 0).toFixed(2)} | now $${(h.currentPrice ?? 0).toFixed(2)} | value $${(h.value ?? 0).toFixed(2)} | ${h.allocation}%`),
       ]
+      if (deposits.length > 0) {
+        lines.push('Recent deposits (newest first):')
+        for (const d of deposits) {
+          const when = d.timestamp.toISOString().slice(0, 10)
+          const amt = Math.abs(d.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const reason = d.description || 'no reason recorded'
+          lines.push(`  - ${when} · +${amt} ${d.currency} · ${reason} · ${d.status}`)
+        }
+      }
       return lines.join('\n')
     } catch {
       return ''
@@ -210,6 +228,31 @@ class AIService {
       // Trading strategy queries
       if (lowerQuery.includes('strategy') || lowerQuery.includes('trade')) {
         return `Without a specific strategy in mind, dollar-cost averaging into your core convictions tends to outperform timing the market for most investors. Tell me which assets you're focused on and I can suggest entry rules, position sizing, and risk caps.`
+      }
+
+      // Deposit / funding history — pulls from the wallet transactions which
+      // are server-synced from whatever the admin posted (amount, currency,
+      // reference/reason, status).
+      if (lowerQuery.includes('deposit') || lowerQuery.includes('funded') || lowerQuery.includes('funding') || lowerQuery.includes('top up') || lowerQuery.includes('topped up') || lowerQuery.includes('top-up')) {
+        const txs = portfolioStore.getTransactions()
+        const deposits = txs
+          .filter((t) => t.type === 'deposit')
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        if (deposits.length === 0) {
+          return `I don't see any deposits on the account yet. Once admin posts a deposit (or you fund the wallet via the Wallet page), it'll show up here with the date and reason.`
+        }
+        const total = deposits.reduce((s, d) => s + Math.abs(d.amount), 0)
+        const lines = [
+          `You've deposited a total of $${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} across ${deposits.length} deposit${deposits.length === 1 ? '' : 's'}.`,
+          'Most recent deposits:',
+        ]
+        for (const d of deposits.slice(0, 6)) {
+          const when = d.timestamp.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+          const amt = Math.abs(d.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const reason = d.description?.trim() ? d.description : 'no reason recorded'
+          lines.push(`  • ${when} — +${amt} ${d.currency} — ${reason} (${d.status})`)
+        }
+        return lines.join('\n')
       }
 
       // Market analysis

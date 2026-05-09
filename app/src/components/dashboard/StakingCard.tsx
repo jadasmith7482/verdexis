@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Sparkles, Clock } from 'lucide-react'
 import { stakingStore, pendingRewardFor, STAKING_EVENT, type StakingPosition } from '../../lib/stakingStore'
 import { portfolioStore } from '../../lib/portfolioStore'
+import { cryptoIconFor, cryptoIconErrorFallback } from '../../lib/cryptoIcon'
 
 // Static fallback prices for headline assets when no live quote has been
 // observed yet (e.g. on a fresh page load before marketData has run).
@@ -60,9 +61,20 @@ export default function StakingCard() {
         <div className="space-y-2">
           {positions.map((p) => {
             const r = pendingRewardFor(p)
+            const logo = cryptoIconFor((p.asset || '').toLowerCase())
+            const initial = (p.asset || '?')[0]?.toUpperCase() ?? '?'
             return (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#1a1a1a]/50">
-                <div className="w-9 h-9 rounded-lg bg-[#0C8B44]/10 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{p.asset}</div>
+                {logo ? (
+                  <img
+                    src={logo}
+                    alt={p.asset}
+                    className="w-9 h-9 rounded-lg shrink-0"
+                    onError={cryptoIconErrorFallback(initial, (p.asset || '').toLowerCase())}
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-lg bg-[#0C8B44]/10 flex items-center justify-center text-[10px] font-bold text-[#0C8B44] shrink-0">{p.asset}</div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-[#E5E5E5] truncate">{p.principal.toLocaleString()} {p.asset} · {p.protocol}</p>
                   <p className="text-[10px] text-[#737373]">APY {(p.apy * 100).toFixed(2)}%</p>
