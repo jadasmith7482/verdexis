@@ -152,12 +152,16 @@ export default function WalletPickerModal({
             </>
           )}
 
-          {/* WalletConnect — desktop QR / fallback for any wallet not in
-              the curated mobile list above. */}
-          {isWalletConnectConfigured() && (
+          {/* WalletConnect — desktop QR only. We hide the generic WC
+              button on mobile because it leads into WC's own
+              "Continue in MetaMask" screen whose Open button can be
+              disabled by iOS Safari (proposal expired / no user
+              gesture). The 3 direct deep-link buttons above are the
+              reliable mobile path. */}
+          {isWalletConnectConfigured() && !onMobile && (
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
-                {onMobile ? 'Other wallet?' : 'Connect with your phone'}
+                Connect with your phone
               </p>
               <button
                 type="button"
@@ -169,18 +173,13 @@ export default function WalletPickerModal({
                   <QrCode className="w-5 h-5 text-[#3B99FC]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#E5E5E5] truncate">
-                    {onMobile ? 'WalletConnect (300+ wallets)' : 'WalletConnect'}
-                  </p>
+                  <p className="text-sm font-medium text-[#E5E5E5] truncate">WalletConnect</p>
                   <p className="text-[10px] text-[#737373] truncate">
-                    {onMobile
-                      ? 'Browse the full WalletConnect list'
-                      : 'Scan a QR code with any of 300+ mobile wallets'}
+                    Scan a QR code with any of 300+ mobile wallets
                   </p>
                 </div>
                 <span className="flex items-center gap-1 text-[10px] text-[#3B99FC] uppercase tracking-wider whitespace-nowrap">
-                  {onMobile ? <Smartphone className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
-                  {onMobile ? 'Open' : 'Scan'}
+                  <QrCode className="w-3 h-3" /> Scan
                 </span>
               </button>
             </>

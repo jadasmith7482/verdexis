@@ -12,6 +12,7 @@
 // Get one free at https://cloud.reown.com (no credit card).
 
 import type { EthereumProvider as Eip1193Provider } from '../types/ethereum'
+import { isMobile } from './walletProviders'
 
 let cached: Promise<Eip1193Provider | null> | null = null
 
@@ -47,7 +48,12 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
         // Additional chains we support — wallets supporting EIP-5792 / chain
         // switching can hop to any of these without a fresh session.
         optionalChains: [137, 42161, 10, 8453, 56, 43114, 11155111],
-        showQrModal: true,
+        // On mobile we drive the connection ourselves: the picker fires
+        // a wallet's deep-link scheme directly from the user's tap, then
+        // we listen for `display_uri` from the provider. Showing the WC
+        // modal on mobile would just resurrect the broken
+        // "Continue in MetaMask" screen with the disabled Open button.
+        showQrModal: !isMobile(),
         // Pin the major wallets to the top of the WC modal. All IDs verified
         // against https://explorer-api.walletconnect.com/v3/wallets — using
         // an unknown ID here silently breaks the recommended list.
