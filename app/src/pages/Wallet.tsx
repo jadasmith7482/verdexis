@@ -752,22 +752,22 @@ export default function WalletPage() {
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'deposit': return <ArrowDownRight className="w-5 h-5 text-[#4CAF50]" />
+      case 'deposit':
+      case 'dividend':
+      case 'interest': return <ArrowDownRight className="w-5 h-5 text-[#4CAF50]" />
       case 'withdraw': return <ArrowUpRight className="w-5 h-5 text-[#f44336]" />
       case 'transfer': return <ArrowLeftRight className="w-5 h-5 text-[#2196F3]" />
-      case 'dividend': return <Coins className="w-5 h-5 text-[#0C8B44]" />
-      case 'interest': return <Percent className="w-5 h-5 text-[#0C8B44]" />
       default: return <ArrowLeftRight className="w-5 h-5 text-[#A0A0A0]" />
     }
   }
 
   const txIconBg = (type: string) => {
     switch (type) {
-      case 'deposit': return 'bg-[#4CAF50]/10'
+      case 'deposit':
+      case 'dividend':
+      case 'interest': return 'bg-[#4CAF50]/10'
       case 'withdraw': return 'bg-[#f44336]/10'
       case 'transfer': return 'bg-[#2196F3]/10'
-      case 'dividend':
-      case 'interest': return 'bg-[#0C8B44]/10'
       default: return 'bg-[#1a1a1a]/50'
     }
   }
@@ -1217,18 +1217,18 @@ export default function WalletPage() {
               </div>
               <div className="divide-y divide-[#ffffff05]">
                 {transactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-[#ffffff02] transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${txIconBg(tx.type)}`}>
+                  <div key={tx.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-[#ffffff02] transition-colors">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${txIconBg(tx.type)}`}>
                         {getTransactionIcon(tx.type)}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-[#E5E5E5]">{tx.description}</p>
-                        <p className="text-xs text-[#737373]">{formatTimeAgo(tx.timestamp)}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-[#E5E5E5] truncate">{tx.description}</p>
+                        <p className="text-[10px] sm:text-xs text-[#737373]">{formatTimeAgo(tx.timestamp)}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className={`text-sm font-medium whitespace-nowrap tabular-nums ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
+                    <div className="text-right shrink-0">
+                      <p className={`text-xs sm:text-sm font-medium whitespace-nowrap tabular-nums ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
                         {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, {
                           minimumFractionDigits: tx.currency === 'USD' ? 2 : 0,
                           maximumFractionDigits: tx.currency === 'USD' ? 2 : 8,
@@ -1236,7 +1236,7 @@ export default function WalletPage() {
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}
-                        <span className={`text-xs capitalize ${getStatusColor(tx.status)}`}>{getStatusText(tx.status)}</span>
+                        <span className={`text-[10px] sm:text-xs capitalize ${getStatusColor(tx.status)}`}>{getStatusText(tx.status)}</span>
                       </div>
                     </div>
                   </div>
