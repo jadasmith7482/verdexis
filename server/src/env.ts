@@ -30,6 +30,13 @@ const schema = z.object({
   TWELVE_DATA_API_KEY: z.string().optional(),
   // Optional NewsAPI.org key — server-side aggregator used by the News page.
   NEWS_API_KEY: z.string().optional(),
+  // Self-ping keep-alive (defeats Render/Railway free-tier sleep).
+  // KEEP_ALIVE_URL overrides the auto-detected public URL. Set
+  // KEEP_ALIVE_ENABLED=false to disable. Interval defaults to 10 min
+  // (Render spins down after 15 min of no traffic).
+  KEEP_ALIVE_ENABLED: z.coerce.boolean().default(true),
+  KEEP_ALIVE_URL: z.string().url().optional(),
+  KEEP_ALIVE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(10 * 60_000),
 })
 
 const parsed = schema.safeParse(process.env)

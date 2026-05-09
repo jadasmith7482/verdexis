@@ -27,6 +27,7 @@ import aiRoutes from './routes/ai.js'
 import marketRoutes from './routes/market.js'
 import adminRoutes from './routes/admin.js'
 import { startAlertPoller } from './alertPoller.js'
+import { startKeepAlive } from './keepAlive.js'
 
 const app = express()
 const PORT = env.PORT
@@ -174,6 +175,7 @@ app.listen(PORT, '0.0.0.0', () => {
   if (env.ALERT_POLL_ENABLED) {
     startAlertPoller({ intervalMs: env.ALERT_POLL_INTERVAL_MS })
   }
+  startKeepAlive()
   // Best-effort: ensure ADMIN_EMAILS users are promoted on every boot.
   // Runs after listen so it never blocks healthchecks.
   promoteAllAdminEmails().catch((e) => console.error('[verdexis-api] admin bootstrap failed:', e))
