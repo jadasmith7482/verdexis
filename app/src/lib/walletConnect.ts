@@ -48,26 +48,21 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
         // switching can hop to any of these without a fresh session.
         optionalChains: [137, 42161, 10, 8453, 56, 43114, 11155111],
         showQrModal: true,
-        // Pin the wallets that show up in the WC modal so MetaMask, Trust,
-        // Coinbase, Rainbow, etc. are always at the top — without this the
-        // modal pulls from Reown's curated default and MetaMask sometimes
-        // gets buried or filtered out depending on platform detection.
-        // IDs come from https://explorer.walletconnect.com — these are the
-        // canonical EIP-1193 mobile wallets.
+        // Pin the major wallets to the top of the WC modal. All IDs verified
+        // against https://explorer-api.walletconnect.com/v3/wallets — using
+        // an unknown ID here silently breaks the recommended list.
         qrModalOptions: {
+          themeMode: 'dark' as const,
+          enableExplorer: true,
           explorerRecommendedWalletIds: [
             'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Coinbase Wallet
-            '4457c130df49fb35a2899c1742d3ed9c0c0b1a4c5b3e8f8b7e2a9c5d7e8f9a0b', // Trust Wallet
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
             '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
-            '85db431492aa2e8672e93f4ea7acf10c88b97b867b0d373107af63dc4880f041', // Frame
-            '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget
             '971e689d0a5be527bac79629b4ee9b925e82208e5168b733496a09c0faed0709', // OKX Wallet
+            '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget Wallet
+            '8a0ee50d1f22f6651afcae7eb4253e52a3310b90af5daef78a8c4929a9bb99d4', // Binance Wallet
           ],
-          // Make sure they're not hidden when the device fingerprint suggests
-          // the user 'might not have it installed'.
-          enableExplorer: true,
-          themeMode: 'dark' as const,
         },
         metadata: {
           name: 'Verdexis',
