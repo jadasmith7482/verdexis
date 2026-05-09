@@ -134,3 +134,64 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
 export function resetWalletConnect(): void {
   cached = null
 }
+
+/** Wallets we offer as direct deep-link buttons on mobile. The WalletConnect
+ *  modal's own "Continue in MetaMask" screen is fragile on iOS Safari (the
+ *  Open button can disable mid-flow when the proposal expires, leaving the
+ *  user stranded). Bypassing the modal and firing the wallet's deep-link
+ *  scheme directly from a real user gesture works reliably because iOS
+ *  treats it as an explicit app-launch intent. */
+export interface WcMobileWallet {
+  id: string
+  name: string
+  /** App-scheme URL (e.g. 'metamask://', 'trust://'). */
+  native: string
+  /** Universal-link host (https). Falls back to this if the native
+   *  scheme is blocked. */
+  universal: string
+  /** Logo from the WalletConnect explorer CDN. */
+  logo: string
+}
+
+export const WC_MOBILE_WALLETS: WcMobileWallet[] = [
+  {
+    id: 'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+    name: 'MetaMask',
+    native: 'metamask://',
+    universal: 'https://metamask.app.link',
+    logo:
+      'https://explorer-api.walletconnect.com/v3/logo/md/eebe4a7f-7166-402f-92e0-1f64ca2aa800?projectId=' +
+      WC_PROJECT_ID,
+  },
+  {
+    id: '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+    name: 'Trust Wallet',
+    native: 'trust://',
+    universal: 'https://link.trustwallet.com',
+    logo:
+      'https://explorer-api.walletconnect.com/v3/logo/md/7677b54f-3486-46e2-4e37-bf8747814f00?projectId=' +
+      WC_PROJECT_ID,
+  },
+  {
+    id: '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369',
+    name: 'Rainbow',
+    native: 'rainbow://',
+    universal: 'https://rnbwapp.com',
+    logo:
+      'https://explorer-api.walletconnect.com/v3/logo/md/7a33d7f1-3d12-4b5c-f3ee-5cd83cb1b500?projectId=' +
+      WC_PROJECT_ID,
+  },
+]
+
+/** Build the WalletConnect deep-link URL for a given wallet's native
+ *  scheme. The WC v2 URI format is `wc:<topic>@2?...`, and wallets expect
+ *  it appended after `wc?uri=` on their scheme:
+ *    metamask://wc?uri=wc%3Atopic%402%3F...
+ *  Returns the universal-link variant as a fallback. */
+export function buildWalletDeepLink(wallet: WcMobileWallet, wcUri: string): { native: string; universal: string } {
+  const encoded = encodeURIComponent(wcUri)
+  return {
+    native: `${wallet.native}wc?uri=${encoded}`,
+    universal: `${wallet.universal}/wc?uri=${encoded}`,
+  }
+}
