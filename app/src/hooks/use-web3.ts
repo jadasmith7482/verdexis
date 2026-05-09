@@ -62,7 +62,17 @@ const initialState: Web3State = {
 
 function chainNameFor(id: string | null): string {
   if (!id) return ''
-  return CHAIN_NAMES[id.toLowerCase()] ?? `Chain ${parseInt(id, 16) || id}`
+  const s = typeof id === 'string' ? id : String(id)
+  return CHAIN_NAMES[s.toLowerCase()] ?? `Chain ${parseInt(s, 16) || s}`
+}
+
+/** Normalize a chainId returned by `eth_chainId` (WC v2 sometimes hands back
+ *  a number, injected providers a 0x-hex string) to a 0x-hex string. */
+function normalizeChainId(raw: unknown): string | null {
+  if (raw == null) return null
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'number') return '0x' + raw.toString(16)
+  return String(raw)
 }
 
 async function fetchBalance(provider: EthereumProvider, address: string): Promise<number | null> {
@@ -121,7 +131,15 @@ export function useWeb3() {
       }
     }
     const onChainChanged = (...args: unknown[]) => {
-      const id = args[0] as string
+      const raw = args[0]
+      // WalletConnect v2 emits a number; injected providers emit a hex string.
+      // Normalize to a 0x-prefixed hex string so downstream `.toLowerCase()`
+      // calls and chain lookups never explode.
+      const id = typeof raw === 'string'
+        ? raw
+        : typeof raw === 'number'
+          ? '0x' + raw.toString(16)
+          : raw == null ? null : String(raw)
       setState((s) => ({ ...s, chainId: id, chainName: chainNameFor(id) }))
     }
     provider.on('accountsChanged', onAccountsChanged)
@@ -158,7 +176,7 @@ export function useWeb3() {
           const addr = accounts[0]
           providerRef.current = target.provider
           detach = attachListeners(target.provider)
-          const chainId = await target.provider.request<string>({ method: 'eth_chainId' }).catch(() => null)
+          const chainId = normalizeChainId(await target.provider.request({ method: 'eth_chainId' }).catch(() => null))
           const balanceEth = await fetchBalance(target.provider, addr)
           if (cancelled) return
           setState({
@@ -203,7 +221,7 @@ export function useWeb3() {
     setState((s) => ({ ...s, isConnecting: true, error: null }))
     try {
       const accounts = await target.provider.request<string[]>({ method: 'eth_requestAccounts' })
-      const chainId = await target.provider.request<string>({ method: 'eth_chainId' }).catch(() => null)
+      const chainId = normalizeChainId(await target.provider.request({ method: 'eth_chainId' }).catch(() => null))
       if (accounts && accounts.length > 0) {
         const addr = accounts[0]
         providerRef.current = target.provider
@@ -263,7 +281,7 @@ export function useWeb3() {
       // request layer is gated until the session exists.
       type WcEnable = { enable: () => Promise<string[]> }
       const accounts = await (wc as unknown as WcEnable).enable()
-      const chainId = await wc.request<string>({ method: 'eth_chainId' }).catch(() => null)
+      const chainId = normalizeChainId(await wc.request({ method: 'eth_chainId' }).catch(() => null))
       if (accounts && accounts.length > 0) {
         const addr = accounts[0]
         providerRef.current = wc
