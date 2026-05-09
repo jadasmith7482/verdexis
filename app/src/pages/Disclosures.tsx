@@ -54,7 +54,7 @@ const SECTIONS: Array<{ id: string; title: string; body: string[] }> = [
     body: [
       'Crypto deposits are made by sending funds to a deposit address displayed on the Wallet → Deposit screen for the selected currency. Each address is tied to a specific blockchain network; sending an asset on any other network is highly likely to result in permanent loss of those funds.',
       'Where the network requires a memo, destination tag, or similar identifier (e.g. XRP), it must be included exactly as displayed. Omitted or incorrect memos can cause irreversible loss.',
-      'Deposits are credited only after the relevant blockchain reaches the number of confirmations Verdexis considers final for that network. Large or first-time deposits may be subject to a brief compliance review before crediting.',
+      'When you submit the on-chain transaction hash, Verdexis verifies the transaction directly against a public block explorer; once the network reaches the required number of confirmations, the deposit is credited to your wallet automatically. Deposits without a verified transaction hash, or for assets where automatic verification is not yet available, are queued for manual admin review. Large or first-time deposits may also be held briefly for compliance review.',
       'Verdexis does not impose a deposit fee, but the underlying network (gas, miner fee) is paid by the sender. Verdexis cannot reverse, refund, or recover crypto sent in error, to a wrong address, on the wrong network, or without a required memo.',
     ],
   },

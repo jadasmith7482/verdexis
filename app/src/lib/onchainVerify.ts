@@ -14,8 +14,8 @@
  */
 
 export type VerifyStatus =
-  | { kind: 'confirmed'; confirmations: number; toAddress?: string }
-  | { kind: 'pending'; confirmations: number; required: number }
+  | { kind: 'confirmed'; confirmations: number; toAddress?: string; amount?: number }
+  | { kind: 'pending'; confirmations: number; required: number; amount?: number }
   | { kind: 'not_found' }
   | { kind: 'mismatch'; reason: string }
   | { kind: 'unsupported' }
@@ -61,16 +61,18 @@ async function verifyBtc(txid: string, expectedAddress: string): Promise<VerifyS
     }
     const matchOut = tx.vout.find(v => (v.scriptpubkey_address || '').toLowerCase() === expectedAddress.toLowerCase())
     if (!matchOut) return { kind: 'mismatch', reason: 'Transaction does not pay your deposit address.' }
+    // BTC vout.value is in satoshis.
+    const amount = (matchOut.value || 0) / 1e8
 
     if (!tx.status.confirmed) {
-      return { kind: 'pending', confirmations: 0, required: REQUIRED.BTC }
+      return { kind: 'pending', confirmations: 0, required: REQUIRED.BTC, amount }
     }
     // Compute confirmations from current tip.
     const tipRes = await fetch(`${BTC_API}/blocks/tip/height`)
     const tip = parseInt(await tipRes.text(), 10)
     const conf = Number.isFinite(tip) && tx.status.block_height ? (tip - tx.status.block_height + 1) : 1
-    if (conf >= REQUIRED.BTC) return { kind: 'confirmed', confirmations: conf, toAddress: matchOut.scriptpubkey_address }
-    return { kind: 'pending', confirmations: conf, required: REQUIRED.BTC }
+    if (conf >= REQUIRED.BTC) return { kind: 'confirmed', confirmations: conf, toAddress: matchOut.scriptpubkey_address, amount }
+    return { kind: 'pending', confirmations: conf, required: REQUIRED.BTC, amount }
   } catch (e) {
     return { kind: 'error', message: e instanceof Error ? e.message : 'BTC verification failed' }
   }
@@ -97,12 +99,15 @@ async function verifyEthLike(currency: 'ETH' | 'USDT' | 'USDC', txhash: string, 
     const conf = Math.max(0, tip - blk + 1)
 
     let toAddress = ''
+    let amount = 0
     if (currency === 'ETH') {
       if (!tx.to) return { kind: 'mismatch', reason: 'No recipient on this ETH transaction.' }
       toAddress = tx.to.toLowerCase()
       if (toAddress !== expectedAddress.toLowerCase()) {
         return { kind: 'mismatch', reason: 'Transaction does not pay your deposit address.' }
       }
+      // tx.value is hex wei (1 ETH = 1e18 wei).
+      amount = tx.value ? Number(BigInt(tx.value)) / 1e18 : 0
     } else {
       const contract = (currency === 'USDT' ? USDT_CONTRACT : USDC_CONTRACT).toLowerCase()
       // ERC-20 Transfer(address,address,uint256) topic
@@ -115,10 +120,13 @@ async function verifyEthLike(currency: 'ETH' | 'USDT' | 'USDC', txhash: string, 
       if (toAddress !== expectedAddress.toLowerCase()) {
         return { kind: 'mismatch', reason: 'Transfer recipient does not match your deposit address.' }
       }
+      // ERC-20 data is hex uint256 token units. USDT/USDC use 6 decimals.
+      const raw = log.data && log.data !== '0x' ? Number(BigInt(log.data)) : 0
+      amount = raw / 1e6
     }
 
-    if (conf >= REQUIRED[currency]) return { kind: 'confirmed', confirmations: conf, toAddress }
-    return { kind: 'pending', confirmations: conf, required: REQUIRED[currency] }
+    if (conf >= REQUIRED[currency]) return { kind: 'confirmed', confirmations: conf, toAddress, amount }
+    return { kind: 'pending', confirmations: conf, required: REQUIRED[currency], amount }
   } catch (e) {
     return { kind: 'error', message: e instanceof Error ? e.message : 'EVM verification failed' }
   }
@@ -139,11 +147,13 @@ async function verifySol(signature: string, expectedAddress: string): Promise<Ve
     if (idx === -1) return { kind: 'mismatch', reason: 'Transaction does not credit your deposit address.' }
     const credited = (tx.meta?.postBalances?.[idx] ?? 0) - (tx.meta?.preBalances?.[idx] ?? 0)
     if (credited <= 0) return { kind: 'mismatch', reason: 'No SOL credited to your deposit address in this transaction.' }
+    // SOL native amount is in lamports (1 SOL = 1e9 lamports).
+    const amount = credited / 1e9
 
     const slotHex = await jsonRpc(SOL_RPC, 'getSlot', []) as number
     const conf = Math.max(1, slotHex - tx.slot)
-    if (conf >= REQUIRED.SOL) return { kind: 'confirmed', confirmations: conf, toAddress: expectedAddress }
-    return { kind: 'pending', confirmations: conf, required: REQUIRED.SOL }
+    if (conf >= REQUIRED.SOL) return { kind: 'confirmed', confirmations: conf, toAddress: expectedAddress, amount }
+    return { kind: 'pending', confirmations: conf, required: REQUIRED.SOL, amount }
   } catch (e) {
     return { kind: 'error', message: e instanceof Error ? e.message : 'SOL verification failed' }
   }

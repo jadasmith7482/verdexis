@@ -16,7 +16,7 @@ import { userWallets, USER_WALLETS_EVENT, hydrateUserWalletsFromServer } from '.
 import { feeProofs } from '../lib/feeProofs'
 import { getProfile } from '../lib/userProfile'
 import { useWeb3 } from '../hooks/use-web3'
-import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
+import { cryptoIconFor, assetIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 import { api, getToken, newIdempotencyKey } from '../lib/api'
 import { headlineAmountClass } from '../lib/utils'
 import { Toaster, toast } from 'sonner'
@@ -349,13 +349,43 @@ export default function WalletPage() {
   }
 
   useEffect(() => {
+    // Snapshot-based refresh: only push new state into React when the
+    // wallet/transactions slice has actually changed, so the 1-second
+    // tick doesn't trigger a re-render every second when nothing moved.
+    let lastWalletJson = JSON.stringify(portfolioStore.getWallet())
+    let lastTxJson = JSON.stringify(portfolioStore.getTransactions())
     const refresh = () => {
-      setWallet([...portfolioStore.getWallet()])
-      setTransactions([...portfolioStore.getTransactions()])
+      const w = portfolioStore.getWallet()
+      const wJson = JSON.stringify(w)
+      if (wJson !== lastWalletJson) {
+        lastWalletJson = wJson
+        setWallet([...w])
+      }
+      const t = portfolioStore.getTransactions()
+      const tJson = JSON.stringify(t)
+      if (tJson !== lastTxJson) {
+        lastTxJson = tJson
+        setTransactions([...t])
+      }
     }
     window.addEventListener('verdexis:portfolio', refresh)
-    return () => window.removeEventListener('verdexis:portfolio', refresh)
+    // Lightweight 1-second tick so any background mark-to-market or
+    // confirmation upgrade surfaces immediately (no-op when unchanged).
+    const interval = window.setInterval(refresh, 1000)
+    // Periodically pull fresh server state (admin approvals, on-chain
+    // confirmations recorded server-side, etc.) while the wallet is open.
+    const hydrateInterval = window.setInterval(() => {
+      void portfolioStore.hydrate(true)
+    }, 15000)
+    return () => {
+      window.removeEventListener('verdexis:portfolio', refresh)
+      window.clearInterval(interval)
+      window.clearInterval(hydrateInterval)
+    }
   }, [])
+
+  // Reset stale on-chain verification hint when the user switches asset.
+  useEffect(() => { setVerifyResult(null) }, [selectedCurrency])
 
   // Keep linked-bank list reactive (cross-tab + same-tab updates).
   useEffect(() => {
@@ -460,25 +490,32 @@ export default function WalletPage() {
   function CurrencyIcon({ currency, size = 32 }: { currency: string; size?: number }) {
     const isUsd = currency === 'USD'
     if (isUsd) {
+      // Real USD coin-style logo (jsDelivr mirror of cryptocurrency-icons).
+      // Falls back to the green "$" badge if the CDN ever 404s.
       return (
-        <div
-          className="rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-xs font-bold text-[#0C8B44] shrink-0"
+        <img
+          src="https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/usd.svg"
+          alt="USD"
+          className="rounded-full bg-white/5 shrink-0 object-contain p-0.5"
           style={{ width: size, height: size }}
-        >$</div>
+          onError={(e) => {
+            const img = e.currentTarget
+            img.onerror = null
+            const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='%230C8B44'/><text x='16' y='21' text-anchor='middle' font-family='Inter,system-ui,sans-serif' font-size='14' font-weight='700' fill='white'>$</text></svg>`
+            img.src = `data:image/svg+xml;utf8,${svg}`
+          }}
+        />
       )
     }
+    // Real crypto logo with chained CDN fallback (coinwink → spothq →
+    // coloured-initial SVG) so a missing PNG never leaves the slot blank.
     return (
       <img
-        src={assetIconFor(currency) || cryptoIconFor(currency) || undefined}
+        src={cryptoIconFor(currency) || assetIconFor(currency) || undefined}
         alt={currency}
-        className="rounded-full bg-[#0C8B44]/10 shrink-0 object-contain"
+        className="rounded-full bg-white/5 shrink-0 object-contain p-0.5"
         style={{ width: size, height: size }}
-        onError={(e) => {
-          const t = e.currentTarget
-          t.style.display = 'none'
-          const fb = t.nextElementSibling as HTMLElement | null
-          if (fb) fb.style.display = 'flex'
-        }}
+        onError={cryptoIconErrorFallback(currency.charAt(0).toUpperCase(), currency)}
       />
     )
   }
@@ -554,12 +591,33 @@ export default function WalletPage() {
         setTransferStatus({ kind: 'error', title: 'Transaction not found yet', message: 'We could not locate this transaction on-chain. Wait a moment for it to propagate, then try again.' })
         return
       }
+      // RPC error or unsupported asset: don't block — fall through to
+      // submit as pending so an admin can approve manually.
+      // Compare amounts when we have an on-chain value. Allow a small
+      // tolerance for fee dust / floating-point.
+      if ((verified.kind === 'confirmed' || verified.kind === 'pending') && typeof verified.amount === 'number') {
+        const tolerance = Math.max(0.0000001, amt * 0.005)
+        if (Math.abs(verified.amount - amt) > tolerance) {
+          setTransferStatus({
+            kind: 'error',
+            title: 'Amount mismatch',
+            message: `On-chain transaction sent ${verified.amount} ${selectedCurrency}, but you entered ${amt}. Update the amount field to match the actual transfer.`,
+          })
+          return
+        }
+      }
     }
+
+    // Prefer the on-chain verified amount when available — closes the gap
+    // where a user could type any number after sending a different amount.
+    const creditedAmount = (verified && (verified.kind === 'confirmed' || verified.kind === 'pending') && typeof verified.amount === 'number')
+      ? verified.amount
+      : amt
 
     const baseDescription = `Crypto deposit (${selectedCurrency} · ${cryptoInstructions.network})${txHash ? ` — tx ${txHash.slice(0, 12)}…` : ''}`
     const tx = portfolioStore.addTransaction(
       'deposit',
-      amt,
+      creditedAmount,
       selectedCurrency,
       baseDescription,
       newIdempotencyKey(),
@@ -570,7 +628,7 @@ export default function WalletPage() {
       setTransferStatus({
         kind: 'success',
         title: 'Deposit confirmed on-chain',
-        message: `Verified ${verified.confirmations}+ confirmations on the ${cryptoInstructions.network} network. Your wallet has been credited with ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}.`,
+        message: `Verified ${verified.confirmations}+ confirmations on the ${cryptoInstructions.network} network. Your wallet has been credited with ${creditedAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}.`,
       })
     } else if (verified && verified.kind === 'pending') {
       setTransferStatus({
@@ -578,11 +636,17 @@ export default function WalletPage() {
         title: 'Transaction found — awaiting confirmations',
         message: `${verified.confirmations}/${verified.required} confirmations on ${cryptoInstructions.network}. Your wallet will be credited automatically once the network confirms the transaction.`,
       })
+    } else if (verified && verified.kind === 'error') {
+      setTransferStatus({
+        kind: 'success',
+        title: 'Deposit submitted (manual review)',
+        message: `On-chain verifier was unreachable (${verified.message}). Your deposit has been queued for admin review and will be credited shortly.`,
+      })
     } else {
       setTransferStatus({
         kind: 'success',
         title: 'Deposit submitted',
-        message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}. We'll credit your wallet once the network confirms the transaction.`,
+        message: `Submitted ${creditedAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}. We'll credit your wallet once the network confirms the transaction.`,
       })
     }
 
