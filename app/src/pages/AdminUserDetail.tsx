@@ -463,6 +463,8 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
       const createdAt = whenDate ? new Date(whenDate + 'T12:00:00Z').toISOString() : undefined
       await adminApi.createTransaction(userId, { kind, currency: currency.toUpperCase(), amount: parseFloat(amount), status, reference: reference || undefined, createdAt })
       toast.success(createdAt ? `Transaction logged (dated ${whenDate})` : 'Transaction logged'); onChange()
+      // Nudge any open user-side tab in this browser to refresh portfolio.
+      try { window.dispatchEvent(new Event('verdexis:portfolio-refresh')) } catch { /* SSR guard */ }
       setWhenDate('')
     } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
   }
