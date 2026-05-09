@@ -24,6 +24,8 @@ import TimeRangePicker, { type ChartRange } from '../components/dashboard/TimeRa
 import NetWorthChart from '../components/NetWorthChart'
 import EmptyStateCta from '../components/dashboard/EmptyStateCta'
 import WatchlistPanel from '../components/WatchlistPanel'
+import DensityToggle from '../components/dashboard/DensityToggle'
+import CountUp from '../components/CountUp'
 import { marketData, type CryptoQuote } from '../lib/marketData'
 import { liveTicker } from '../lib/liveTicker'
 import { aiService, type AIInsight } from '../lib/aiService'
@@ -423,8 +425,9 @@ export default function Dashboard() {
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
             <GreetingHeader name={userName} lastUpdated={lastUpdated} />
             {isAuthenticated && (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-2 px-2 lg:overflow-visible lg:mx-0 lg:px-0">
                 <CurrencySelector />
+                <DensityToggle />
                 <ExportMenu />
                 <CustomizeWidgets />
               </div>
@@ -436,7 +439,7 @@ export default function Dashboard() {
           <AdminConsoleEmbed />
 
           {/* Total Net Worth — hero card placed directly under the greeting so it's the first thing users see after "Good afternoon". Includes the Highcharts area chart, range picker, vs-BTC benchmark toggle, and recent activity. Logged-out users see the lock CTA in the same slot. */}
-          <div className="liquid-card p-8 mb-6" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>
+          <div className="liquid-card hero-sweep dash-pad-card p-8 mb-8 relative overflow-hidden" style={{ '--fill-color': 'rgba(12,139,68,0.12)' } as React.CSSProperties}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-[#0C8B44]/20 flex items-center justify-center">
@@ -451,7 +454,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
                     {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                    {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">7d</span>
+                    {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">{chartRange.toLowerCase()}</span>
                   </p>
                   <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
                     {fmtMoney(periodChange, { sign: true })}
@@ -462,9 +465,11 @@ export default function Dashboard() {
 
             {isAuthenticated ? (
               <>
-                <p className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums`}>
-                  {fmtMoney(totalValue)}
-                </p>
+                <CountUp
+                  value={totalValue}
+                  format={fmtMoney}
+                  className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums block`}
+                />
                 <p className="text-xs text-[#737373] mb-4">
                   Cash {fmtMoney(walletValueUsd)} <span className="text-[#404040]">·</span> Positions {fmtMoney(positionsValue)}
                 </p>
@@ -597,29 +602,42 @@ export default function Dashboard() {
           )}
 
           {/* Top Stats Row — deduped: 'Total Net Worth' lives in the hero
-              card above, so this row covers the next three KPIs only. */}
-          {isAuthenticated && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-              {[
-                { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp },
-                { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem },
-                { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers },
-              ].map((stat) => (
-                <div key={stat.label} className="p-5 rounded-xl bg-[#0f1619]/50 border border-[#ffffff05] min-w-0">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#0C8B44]/10 flex items-center justify-center shrink-0">
-                      <stat.icon className="w-4 h-4 text-[#0C8B44]" />
+              card above, so this row covers the next three KPIs only.
+              On mobile this becomes a horizontal snap-scroll strip so the
+              three cards don't crowd; on >= sm it's a 3-column grid. */}
+          {isAuthenticated && (() => {
+            const stats = [
+              { label: 'Unrealized P&L', value: fmtMoney(totalPnl, { sign: true }), change: 'All-time', positive: totalPnl >= 0, icon: TrendingUp, accent: totalPnl >= 0 ? '#4CAF50' : '#f44336' },
+              { label: 'Best Performer', value: bestPerformer ? `${bestPerformer.pnlPercent >= 0 ? '+' : ''}${bestPerformer.pnlPercent.toFixed(1)}%` : 'N/A', change: bestPerformer ? bestPerformer.symbol : '', positive: (bestPerformer?.pnlPercent || 0) >= 0, icon: Gem, accent: '#FF9800' },
+              { label: 'Total Holdings', value: `${holdings.length}`, change: `${holdings.filter(h => h.id !== 'usd').length} assets`, positive: true, icon: Layers, accent: '#2196F3' },
+            ]
+            return (
+              <div className="-mx-2 sm:mx-0 px-2 sm:px-0 overflow-x-auto sm:overflow-visible no-scrollbar mb-8 dash-mb">
+                <div className="flex sm:grid sm:grid-cols-3 gap-4 dash-gap snap-x snap-mandatory sm:snap-none dash-stagger">
+                  {stats.map((stat) => (
+                    <div key={stat.label} className="kpi-tile p-5 dash-pad-card rounded-xl bg-[#0f1619]/50 border border-[#ffffff05] min-w-[16rem] sm:min-w-0 snap-start">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${stat.accent}1f`, border: `1px solid ${stat.accent}33` }}>
+                          <stat.icon className="w-4 h-4" style={{ color: stat.accent }} />
+                        </div>
+                        <span className="text-xs text-[#737373] truncate">{stat.label}</span>
+                      </div>
+                      <p className="text-lg md:text-xl font-light text-[#E5E5E5] tracking-[-0.02em] truncate tabular-nums">{stat.value}</p>
+                      <p className={`text-xs mt-1 truncate ${stat.positive ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{stat.change}</p>
                     </div>
-                    <span className="text-xs text-[#737373] truncate">{stat.label}</span>
-                  </div>
-                  <p className="text-lg md:text-xl font-light text-[#E5E5E5] tracking-[-0.02em] truncate">{stat.value}</p>
-                  <p className={`text-xs mt-1 truncate ${stat.positive ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{stat.change}</p>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )
+          })()}
 
           {/* Morning Brief + Portfolio Health — the new "command center" row */}
+          {isAuthenticated && (
+            <div className="flex items-center gap-3 mb-3 mt-2">
+              <h2 className="text-[11px] uppercase tracking-[0.18em] text-[#737373]">Insights</h2>
+              <div className="flex-1 h-px bg-gradient-to-r from-[#ffffff10] to-transparent" />
+            </div>
+          )}
           {isAuthenticated && (() => {
             const health = computePortfolioHealth({
               holdings,
@@ -656,6 +674,12 @@ export default function Dashboard() {
           })()}
 
           {/* Performance Metrics — inspired by Wealthfolio analytics */}
+          {isAuthenticated && (
+            <div className="flex items-center gap-3 mb-3 mt-2">
+              <h2 className="text-[11px] uppercase tracking-[0.18em] text-[#737373]">Performance</h2>
+              <div className="flex-1 h-px bg-gradient-to-r from-[#ffffff10] to-transparent" />
+            </div>
+          )}
           {isAuthenticated && (() => {
             const allTrades = portfolioStore.getTrades()
             const buys = allTrades.filter(t => t.side === 'buy')
