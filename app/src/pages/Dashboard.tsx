@@ -814,17 +814,29 @@ export default function Dashboard() {
             </div>
           )}
           {isAuthenticated && (() => {
+            // Restrict performance metrics to trades inside the active
+            // chart range, so "Performance" actually mirrors the line on
+            // the Net Worth chart instead of always showing all-time.
             const allTrades = portfolioStore.getTrades()
-            const buys = allTrades.filter(t => t.side === 'buy')
-            const sells = allTrades.filter(t => t.side === 'sell')
+            const inWindow = (d: Date | string) => {
+              const t = new Date(d).getTime()
+              return t >= chartStartMs && t <= nowMs
+            }
+            const trades = allTrades.filter(t => inWindow(t.timestamp))
+            const buys = trades.filter(t => t.side === 'buy')
+            const sells = trades.filter(t => t.side === 'sell')
             const totalInvested = buys.reduce((s, t) => s + t.total, 0)
-            // Naive realized P&L using avg buy price for the same symbol at sell time
+            // Avg cost is built from ALL prior buys (so sells inside the
+            // window are matched against the user's true average cost,
+            // not just the buys that happen to fall in the window).
             const avgCostBySymbol = new Map<string, { qty: number; cost: number }>()
-            buys.forEach(b => {
-              const cur = avgCostBySymbol.get(b.symbol) || { qty: 0, cost: 0 }
-              cur.qty += b.quantity; cur.cost += b.total
-              avgCostBySymbol.set(b.symbol, cur)
-            })
+            allTrades
+              .filter(t => t.side === 'buy' && new Date(t.timestamp).getTime() <= nowMs)
+              .forEach(b => {
+                const cur = avgCostBySymbol.get(b.symbol) || { qty: 0, cost: 0 }
+                cur.qty += b.quantity; cur.cost += b.total
+                avgCostBySymbol.set(b.symbol, cur)
+              })
             let realizedPnl = 0
             let wins = 0
             sells.forEach(s => {
@@ -836,16 +848,20 @@ export default function Dashboard() {
               if (pnl > 0) wins++
             })
             const winRate = sells.length > 0 ? (wins / sells.length) * 100 : 0
-            const totalReturnPct = totalInvested > 0 ? ((positionsValue - totalInvested) / totalInvested) * 100 : 0
+            // Total Return for the active range = % change of the net-worth
+            // curve we already built (periodChangePercent), so the metric
+            // matches the chart 1:1.
+            const totalReturnPct = periodChangePercent
+            const periodLabel = rangeLabel(chartRange)
             return (
               <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff05] p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-medium text-[#E5E5E5]">Performance Metrics</h3>
-                  <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">All-time</span>
+                  <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Past {periodLabel}</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-[10px] uppercase text-[#737373] mb-1">Total Return</p>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Period Return</p>
                     <p className={`text-xl font-light ${totalReturnPct >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>{totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(2)}%</p>
                   </div>
                   <div>
@@ -857,8 +873,8 @@ export default function Dashboard() {
                     <p className="text-xl font-light text-[#E5E5E5]">{winRate.toFixed(0)}% <span className="text-xs text-[#737373]">({wins}/{sells.length})</span></p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase text-[#737373] mb-1">Total Trades</p>
-                    <p className="text-xl font-light text-[#E5E5E5]">{allTrades.length} <span className="text-xs text-[#737373]">{buys.length} buys / {sells.length} sells</span></p>
+                    <p className="text-[10px] uppercase text-[#737373] mb-1">Trades · Invested</p>
+                    <p className="text-xl font-light text-[#E5E5E5]">{trades.length} <span className="text-xs text-[#737373]">${totalInvested.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></p>
                   </div>
                 </div>
               </div>

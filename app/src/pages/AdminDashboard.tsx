@@ -133,12 +133,13 @@ export function AdminConsoleContent({ onPendingDepositsLoaded }: { onPendingDepo
         </div>
 
         {/* Quick links */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-8">
           <QuickLink to="/admin/users" icon={<Users className="w-5 h-5" />} label="Users" />
           <QuickLink to="/admin/transfer" icon={<ArrowLeftRight className="w-5 h-5" />} label="A→B transfer" />
           <QuickLink to="/admin/deposits" icon={<Banknote className="w-5 h-5" />} label="Deposit settings" />
           <QuickLink to="/admin/broadcast" icon={<MegaphoneIcon className="w-5 h-5" />} label="Broadcast" />
           <QuickLink to="/admin/audit" icon={<Activity className="w-5 h-5" />} label="Audit log" />
+          <QuickLink to="/admin/status" icon={<Activity className="w-5 h-5" />} label="System status" />
         </div>
 
         {/* Stats */}

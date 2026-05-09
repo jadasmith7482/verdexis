@@ -119,8 +119,18 @@ app.use(
   }),
 )
 
+const SERVER_BOOT_TIME = Date.now()
+
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'verdexis-api', version: '0.1.0', env: env.NODE_ENV })
+  res.json({
+    ok: true,
+    service: 'verdexis-api',
+    version: '0.1.0',
+    env: env.NODE_ENV,
+    uptimeSec: Math.round((Date.now() - SERVER_BOOT_TIME) / 1000),
+    nodeVersion: process.version,
+    bootedAt: new Date(SERVER_BOOT_TIME).toISOString(),
+  })
 })
 
 app.use('/api/auth', authRoutes)

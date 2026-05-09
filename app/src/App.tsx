@@ -84,7 +84,7 @@ function RoutedPages() {
           <Route path="/goals" element={<RequireAuth><Goals /></RequireAuth>} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/about" element={<About />} />
-          <Route path="/status" element={<StatusPage />} />
+          <Route path="/admin/status" element={<RequireAdmin><StatusPage /></RequireAdmin>} />
           <Route path="/disclosures" element={<Disclosures />} />
           <Route path="/help" element={<Help />} />
           <Route path="/asset/:id" element={<AssetDetail />} />

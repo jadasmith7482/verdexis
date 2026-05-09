@@ -93,6 +93,9 @@ export default function WalletPage() {
   // Transfer-tab mode: convert USD to crypto in your own wallet, OR send funds
   // to another Verdexis user identified by email.
   const [transferMode, setTransferMode] = useState<'convert' | 'send'>('send')
+  // Convert direction: 'usd-to-crypto' buys crypto with your USD balance,
+  // 'crypto-to-usd' sells crypto in your wallet back into USD.
+  const [convertDirection, setConvertDirection] = useState<'usd-to-crypto' | 'crypto-to-usd'>('usd-to-crypto')
   const [transferRecipient, setTransferRecipient] = useState('')
   const [transferRecipientName, setTransferRecipientName] = useState<string | null>(null)
   const [transferRecipientStatus, setTransferRecipientStatus] = useState<'idle' | 'checking' | 'ok' | 'notfound'>('idle')
@@ -875,9 +878,30 @@ export default function WalletPage() {
       }
       return
     }
-    // Convert USD -> crypto inside the same wallet (legacy behaviour).
+    // Convert USD <-> crypto inside the same wallet (legacy behaviour).
     if (!amount || parseFloat(amount) <= 0) {
       setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Enter a valid amount.' })
+      return
+    }
+    if (convertDirection === 'crypto-to-usd') {
+      // Sell selected crypto from wallet back into USD.
+      const sellQty = parseFloat(amount)
+      const cryptoBal = wallet.find(w => w.currency === selectedCurrency)
+      const cryptoAvail = cryptoBal?.available ?? cryptoBal?.balance ?? 0
+      if (sellQty > cryptoAvail) {
+        setTransferStatus({ kind: 'error', title: 'Conversion declined', message: `Insufficient ${selectedCurrency} balance. Available: ${cryptoAvail.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${selectedCurrency}.` })
+        return
+      }
+      const usdReceived = sellQty * getUsdRate(selectedCurrency)
+      portfolioStore.addTransaction('transfer', -sellQty, selectedCurrency, `Convert to USD`, newIdempotencyKey())
+      portfolioStore.addTransaction('deposit', usdReceived, 'USD', `Converted from ${selectedCurrency}`, newIdempotencyKey())
+      setTransferStatus({
+        kind: 'success',
+        title: 'Conversion complete',
+        message: `Converted ${sellQty.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${selectedCurrency} to $${usdReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+      })
+      setAmount('')
+      setTransactions([...portfolioStore.getTransactions()])
       return
     }
     const amt = -parseFloat(amount)
@@ -2090,59 +2114,102 @@ export default function WalletPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-[#A0A0A0] mb-2 block">From</label>
-                    <div className="p-4 rounded-xl bg-[#0C8B44]/10 border border-[#0C8B44]/30">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">$</div>
-                          <div>
-                            <p className="text-sm font-medium text-[#E5E5E5]">USD Wallet</p>
-                            <p className="text-xs text-[#737373]">
-                              Available: ${(wallet.find(w => w.currency === 'USD')?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
+                    {convertDirection === 'usd-to-crypto' ? (
+                      <div className="p-4 rounded-xl bg-[#0C8B44]/10 border border-[#0C8B44]/30">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44]">$</div>
+                            <div>
+                              <p className="text-sm font-medium text-[#E5E5E5]">USD Wallet</p>
+                              <p className="text-xs text-[#737373]">
+                                Available: ${(wallet.find(w => w.currency === 'USD')?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="p-4 rounded-xl bg-[#0C8B44]/10 border border-[#0C8B44]/30">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#0C8B44]/20 flex items-center justify-center"><CurrencyIcon currency={selectedCurrency} size={28} /></div>
+                            <div>
+                              <p className="text-sm font-medium text-[#E5E5E5]">{selectedCurrency} Wallet</p>
+                              <p className="text-xs text-[#737373]">
+                                Available: {(wallet.find(w => w.currency === selectedCurrency)?.available ?? wallet.find(w => w.currency === selectedCurrency)?.balance ?? 0).toLocaleString(undefined, { maximumFractionDigits: 8 })} {selectedCurrency}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-center">
-                    <div className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => { setConvertDirection((d) => d === 'usd-to-crypto' ? 'crypto-to-usd' : 'usd-to-crypto'); setAmount('') }}
+                      title="Swap direction"
+                      className="w-10 h-10 rounded-full bg-[#1a1a1a] border border-[#ffffff10] hover:border-[#0C8B44]/40 flex items-center justify-center transition-colors"
+                    >
                       <ArrowLeftRight className="w-5 h-5 text-[#0C8B44]" />
-                    </div>
+                    </button>
                   </div>
                   <div>
-                    <label className="text-sm text-[#A0A0A0] mb-2 block">To (currency)</label>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">{convertDirection === 'usd-to-crypto' ? 'To (currency)' : 'Currency to sell'}</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
                       {CONVERT_TARGETS.map((sym) => {
                         const rate = getUsdRate(sym)
+                        const bal = wallet.find(w => w.currency === sym)
+                        const avail = bal?.available ?? bal?.balance ?? 0
                         return (
                           <button key={sym} onClick={() => setSelectedCurrency(sym)}
                             className={`p-3 rounded-xl border transition-all ${selectedCurrency === sym ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/40'}`}>
                             <div className="mx-auto mb-2 w-fit"><CurrencyIcon currency={sym} size={28} /></div>
                             <p className="text-xs text-[#E5E5E5]">{sym}</p>
                             <p className="text-[10px] text-[#737373] truncate">${rate < 1 ? rate.toFixed(4) : rate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                            {convertDirection === 'crypto-to-usd' && (
+                              <p className="text-[9px] text-[#0C8B44] truncate mt-0.5">{avail.toLocaleString(undefined, { maximumFractionDigits: 6 })}</p>
+                            )}
                           </button>
                         )
                       })}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-[#A0A0A0]">Amount {convertDirection === 'crypto-to-usd' ? `(${selectedCurrency})` : '(USD)'}</label>
+                      {convertDirection === 'crypto-to-usd' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const bal = wallet.find(w => w.currency === selectedCurrency)
+                            const avail = bal?.available ?? bal?.balance ?? 0
+                            setAmount(avail > 0 ? String(avail) : '')
+                          }}
+                          className="text-[11px] text-[#0C8B44] hover:underline"
+                        >Max</button>
+                      )}
+                    </div>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373] text-xs">{convertDirection === 'usd-to-crypto' ? '$' : selectedCurrency}</span>
                       <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-                        className="w-full pl-8 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
+                        className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
                     <span className="text-sm text-[#A0A0A0]">Exchange Rate</span>
-                    <span className="text-sm text-[#E5E5E5]">1 USD = {(1 / getUsdRate(selectedCurrency)).toFixed(8)} {selectedCurrency}</span>
+                    <span className="text-sm text-[#E5E5E5]">1 {selectedCurrency} = ${getUsdRate(selectedCurrency).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                   </div>
                   <div className="flex items-center justify-between py-3 border-t border-[#ffffff08]">
                     <span className="text-sm text-[#A0A0A0]">You will receive</span>
-                    <span className="text-sm font-medium text-[#E5E5E5]">{amount ? (parseFloat(amount) / getUsdRate(selectedCurrency)).toFixed(8) : '0.00'} {selectedCurrency}</span>
+                    <span className="text-sm font-medium text-[#E5E5E5]">
+                      {convertDirection === 'usd-to-crypto'
+                        ? `${amount ? (parseFloat(amount) / getUsdRate(selectedCurrency)).toFixed(8) : '0.00'} ${selectedCurrency}`
+                        : `$${amount ? (parseFloat(amount) * getUsdRate(selectedCurrency)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`}
+                    </span>
                   </div>
                   <button onClick={handleTransfer} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors">
-                    Convert Now
+                    {convertDirection === 'usd-to-crypto' ? `Convert to ${selectedCurrency}` : `Sell ${selectedCurrency} for USD`}
                   </button>
                 </div>
               )}

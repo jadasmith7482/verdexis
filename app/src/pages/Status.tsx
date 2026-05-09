@@ -20,9 +20,13 @@ interface Check {
 const INITIAL_CHECKS: Omit<Check, 'status'>[] = [
   { id: 'app', name: 'Web Application', description: 'Vite-served frontend bundle', url: '/', category: 'core' },
   { id: 'api', name: 'API · Health', description: 'Express + Prisma backend', url: '/api/health', category: 'core' },
+  { id: 'auth', name: 'Auth · Session', description: 'JWT session endpoint', url: '/api/auth/me', category: 'core' },
+  { id: 'admin', name: 'Admin · Stats', description: 'Operator console data feed', url: '/api/admin/stats', category: 'core' },
+  { id: 'market', name: 'Market · Quotes', description: 'Internal market quote proxy', url: '/api/market/quote?symbol=BTC', category: 'market' },
   { id: 'coingecko', name: 'CoinGecko', description: 'Crypto market data feed', url: 'https://api.coingecko.com/api/v3/ping', category: 'market' },
   { id: 'binance', name: 'Binance', description: 'Live crypto price stream', url: 'https://api.binance.com/api/v3/ping', category: 'market' },
   { id: 'finnhub', name: 'Finnhub', description: 'Stocks & equities feed', url: 'https://finnhub.io/api/v1/quote?symbol=AAPL', category: 'market' },
+  { id: 'ai', name: 'AI · Assistant', description: 'In-house assistant endpoint', url: '/api/ai/health', category: 'ai' },
 ]
 
 async function probe(url: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
@@ -42,7 +46,11 @@ async function probe(url: string): Promise<{ ok: boolean; latencyMs: number; err
     const latencyMs = Math.round(performance.now() - start)
     // no-cors gives opaque response; treat any successful network round-trip as up
     if (isCrossOrigin) return { ok: true, latencyMs }
-    return { ok: res.ok, latencyMs, error: res.ok ? undefined : `HTTP ${res.status}` }
+    // Same-origin: server reachable for any status < 500. 401/403 just mean the
+    // probe wasn't authorized — the backend itself is alive, which is what we
+    // want to report on the system status page.
+    const reachable = res.status < 500
+    return { ok: reachable, latencyMs, error: reachable ? undefined : `HTTP ${res.status}` }
   } catch (e) {
     const latencyMs = Math.round(performance.now() - start)
     return { ok: false, latencyMs, error: e instanceof Error ? e.message : 'Network error' }
@@ -67,6 +75,7 @@ export default function StatusPage() {
     INITIAL_CHECKS.map((c) => ({ ...c, status: 'checking' as Status })),
   )
   const [running, setRunning] = useState(false)
+  const [backend, setBackend] = useState<{ version?: string; env?: string; uptimeSec?: number; nodeVersion?: string; bootedAt?: string } | null>(null)
 
   const runAll = useCallback(async () => {
     setRunning(true)
@@ -85,6 +94,11 @@ export default function StatusPage() {
     )
     setChecks(results)
     setRunning(false)
+    // Fetch backend metadata in parallel — best effort, no fatal handling.
+    try {
+      const r = await fetch('/api/health', { cache: 'no-store' })
+      if (r.ok) setBackend(await r.json())
+    } catch { /* ignore */ }
   }, [])
 
   useEffect(() => {
@@ -117,11 +131,11 @@ export default function StatusPage() {
           {/* Header */}
           <div className="mb-10">
             <div className="flex items-center gap-3 text-xs uppercase tracking-[0.05em] text-[#0C8B44] mb-3">
-              <Activity className="w-3 h-3" /> System Status
+              <Activity className="w-3 h-3" /> Admin · System Status
             </div>
             <h1 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">{headline}</h1>
             <p className="text-sm text-[#A0A0A0]">
-              Live probes run from your browser every 60 seconds against Verdexis services and our upstream market data providers.
+              Live operator probes against Verdexis core services, internal APIs, and upstream market data feeds. Re-runs every 60 seconds from your browser.
             </p>
           </div>
 
@@ -151,6 +165,18 @@ export default function StatusPage() {
             </button>
           </div>
 
+          {/* Backend metadata (admin-only context) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <InfoCard label="Service" value={backend ? 'verdexis-api' : '—'} />
+            <InfoCard label="Version" value={backend?.version ?? '—'} />
+            <InfoCard label="Environment" value={backend?.env ?? '—'} />
+            <InfoCard label="Uptime" value={backend?.uptimeSec !== undefined ? formatUptime(backend.uptimeSec) : '—'} />
+            <InfoCard label="Node" value={backend?.nodeVersion ?? '—'} />
+            <InfoCard label="Booted" value={backend?.bootedAt ? new Date(backend.bootedAt).toLocaleString() : '—'} />
+            <InfoCard label="Probes" value={`${checks.length} endpoints`} />
+            <InfoCard label="Re-run interval" value="60s" />
+          </div>
+
           {/* Grouped checks */}
           {(['core', 'market', 'ai'] as const).map((cat) => {
             const items = checks.filter((c) => c.category === cat)
@@ -170,7 +196,7 @@ export default function StatusPage() {
           })}
 
           <p className="text-[11px] text-[#737373] text-center mt-12">
-            Status checks run client-side. For incidents and historical uptime, contact <a href="mailto:status@verdexis.com" className="text-[#0C8B44] hover:underline">status@verdexis.com</a>.
+            Status checks run client-side from the operator&rsquo;s browser. Backend metadata pulled from <code className="text-[#0C8B44]">/api/health</code>.
           </p>
         </div>
       </div>
@@ -214,4 +240,20 @@ function formatRelative(ts: number) {
   if (diff < 5_000) return 'just now'
   if (diff < 60_000) return `${Math.round(diff / 1000)}s ago`
   return `${Math.round(diff / 60_000)}m ago`
+}
+
+function formatUptime(sec: number): string {
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`
+  return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`
+}
+
+function InfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff10] p-4">
+      <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">{label}</p>
+      <p className="text-sm text-[#E5E5E5] truncate" title={value}>{value}</p>
+    </div>
+  )
 }

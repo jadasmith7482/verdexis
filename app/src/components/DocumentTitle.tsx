@@ -20,7 +20,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/goals': 'Goals',
   '/legal': 'Legal',
   '/about': 'About',
-  '/status': 'System Status',
   '/disclosures': 'Risk Disclosures',
   '/help': 'Help Center',
   '/reset': 'Reset Password',
@@ -30,6 +29,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin/transfer': 'Admin · Transfer Funds',
   '/admin/broadcast': 'Admin · Broadcast',
   '/admin/deposits': 'Admin · Deposits',
+  '/admin/status': 'Admin · System Status',
 }
 
 const BRAND = 'Verdexis'
