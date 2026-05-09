@@ -11,6 +11,7 @@ import { portfolioStore, type WalletTransaction } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin, hydrateFromServer } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
+import { verifyDepositTx, isVerifiableCurrency, type VerifyStatus } from '../lib/onchainVerify'
 import { userWallets, USER_WALLETS_EVENT, hydrateUserWalletsFromServer } from '../lib/userWallets'
 import { feeProofs } from '../lib/feeProofs'
 import { getProfile } from '../lib/userProfile'
@@ -84,6 +85,10 @@ export default function WalletPage() {
   // Optional on-chain transaction hash the user can paste after sending
   // a crypto deposit — lets the operations team match the credit faster.
   const [cryptoTxHash, setCryptoTxHash] = useState('')
+  // On-chain verification state for the current deposit form. Drives the
+  // submit button's spinner + the inline status message under the tx field.
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<VerifyStatus | null>(null)
   const [recipient, setRecipient] = useState('')
   // Transfer-tab mode: convert USD to crypto in your own wallet, OR send funds
   // to another Verdexis user identified by email.
@@ -478,7 +483,7 @@ export default function WalletPage() {
     )
   }
 
-  const handleDeposit = () => {
+  const handleDeposit = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       setTransferStatus({ kind: 'error', title: 'Deposit declined', message: 'Enter a valid amount.' })
       return
@@ -526,18 +531,61 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Please reach out to your portfolio representative.` })
       return
     }
-    portfolioStore.addTransaction(
+
+    // Try to verify the supplied transaction hash on-chain. If it confirms
+    // we credit the wallet immediately; otherwise we record a pending
+    // deposit (admin can approve later, or the user can re-check).
+    const txHash = cryptoTxHash.trim()
+    let verified: VerifyStatus | null = null
+    if (txHash && isVerifiableCurrency(selectedCurrency)) {
+      setVerifying(true)
+      setVerifyResult(null)
+      try {
+        verified = await verifyDepositTx(selectedCurrency, txHash, cryptoInstructions.address)
+      } finally {
+        setVerifying(false)
+      }
+      setVerifyResult(verified)
+      if (verified.kind === 'mismatch') {
+        setTransferStatus({ kind: 'error', title: 'Verification failed', message: verified.reason })
+        return
+      }
+      if (verified.kind === 'not_found') {
+        setTransferStatus({ kind: 'error', title: 'Transaction not found yet', message: 'We could not locate this transaction on-chain. Wait a moment for it to propagate, then try again.' })
+        return
+      }
+    }
+
+    const baseDescription = `Crypto deposit (${selectedCurrency} · ${cryptoInstructions.network})${txHash ? ` — tx ${txHash.slice(0, 12)}…` : ''}`
+    const tx = portfolioStore.addTransaction(
       'deposit',
       amt,
       selectedCurrency,
-      `Crypto deposit (${selectedCurrency} · ${cryptoInstructions.network})${cryptoTxHash.trim() ? ` — tx ${cryptoTxHash.trim().slice(0, 12)}…` : ''}`,
+      baseDescription,
       newIdempotencyKey(),
     )
-    setTransferStatus({
-      kind: 'success',
-      title: 'Deposit submitted',
-      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. We’ll credit your wallet once the network confirms the transaction.`,
-    })
+
+    if (verified && verified.kind === 'confirmed') {
+      portfolioStore.confirmDeposit(tx.id)
+      setTransferStatus({
+        kind: 'success',
+        title: 'Deposit confirmed on-chain',
+        message: `Verified ${verified.confirmations}+ confirmations on the ${cryptoInstructions.network} network. Your wallet has been credited with ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}.`,
+      })
+    } else if (verified && verified.kind === 'pending') {
+      setTransferStatus({
+        kind: 'success',
+        title: 'Transaction found — awaiting confirmations',
+        message: `${verified.confirmations}/${verified.required} confirmations on ${cryptoInstructions.network}. Your wallet will be credited automatically once the network confirms the transaction.`,
+      })
+    } else {
+      setTransferStatus({
+        kind: 'success',
+        title: 'Deposit submitted',
+        message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 })} ${selectedCurrency}. We'll credit your wallet once the network confirms the transaction.`,
+      })
+    }
+
     setAmount('')
     setCryptoTxHash('')
     setTransactions(portfolioStore.getTransactions())
@@ -1632,21 +1680,31 @@ export default function WalletPage() {
                   {cryptoInstructions && (
                     <div>
                       <label htmlFor="crypto-tx-hash" className="text-sm text-[#A0A0A0] mb-2 block">
-                        Transaction hash <span className="text-[11px] text-[#737373]">(optional — speeds up matching)</span>
+                        Transaction hash <span className="text-[11px] text-[#737373]">{isVerifiableCurrency(selectedCurrency) ? '(paste to verify on-chain & credit instantly)' : '(optional — speeds up matching)'}</span>
                       </label>
                       <input
                         id="crypto-tx-hash"
                         type="text"
                         value={cryptoTxHash}
-                        onChange={(e) => setCryptoTxHash(e.target.value)}
+                        onChange={(e) => { setCryptoTxHash(e.target.value); setVerifyResult(null) }}
                         placeholder="0x… or block-explorer tx id"
                         className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-[12px] text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] font-mono"
                       />
+                      {verifyResult && (
+                        <p className={`text-[11px] mt-2 ${verifyResult.kind === 'confirmed' ? 'text-[#0C8B44]' : verifyResult.kind === 'pending' ? 'text-[#F57C00]' : 'text-[#EF4444]'}`}>
+                          {verifyResult.kind === 'confirmed' && `On-chain confirmed (${verifyResult.confirmations} confirmations).`}
+                          {verifyResult.kind === 'pending' && `On-chain found — ${verifyResult.confirmations}/${verifyResult.required} confirmations.`}
+                          {verifyResult.kind === 'not_found' && 'Not found on-chain yet — wait a moment and retry.'}
+                          {verifyResult.kind === 'mismatch' && verifyResult.reason}
+                          {verifyResult.kind === 'error' && `Verification error: ${verifyResult.message}`}
+                          {verifyResult.kind === 'unsupported' && 'On-chain verification is not available for this asset — admin will review manually.'}
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  <button onClick={handleDeposit} disabled={!cryptoInstructions || !amount} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    I sent {amount || '0'} {selectedCurrency}
+                  <button onClick={handleDeposit} disabled={!cryptoInstructions || !amount || verifying} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    {verifying ? 'Verifying on-chain…' : `I sent ${amount || '0'} ${selectedCurrency}`}
                   </button>
                 </div>
               )}

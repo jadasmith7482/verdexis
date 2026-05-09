@@ -410,6 +410,30 @@ class PortfolioStoreImpl {
     return tx
   }
 
+  /**
+   * Promote a pending deposit to completed and credit the wallet. Called by
+   * the on-chain verifier once a crypto deposit's transaction hash has been
+   * confirmed on the relevant network. Idempotent — re-confirming a tx that
+   * is already completed is a no-op.
+   */
+  confirmDeposit(txId: string): WalletTransaction | null {
+    const tx = this.transactions.find(t => t.id === txId)
+    if (!tx) return null
+    if (tx.type !== 'deposit') return tx
+    if (tx.status === 'completed') return tx
+
+    tx.status = 'completed'
+    const walletEntry = this.wallet.find(w => w.currency === tx.currency)
+    if (walletEntry) {
+      walletEntry.balance += tx.amount
+      walletEntry.available += tx.amount
+      this.save(STORAGE_KEYS.wallet, this.wallet)
+    }
+    this.save(STORAGE_KEYS.transactions, this.transactions)
+    emit()
+    return tx
+  }
+
   reset() {
     localStorage.removeItem(STORAGE_KEYS.holdings)
     localStorage.removeItem(STORAGE_KEYS.trades)
