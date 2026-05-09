@@ -25,7 +25,6 @@ const privateLinks = [
 ]
 
 export default function Navigation() {
-  const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
@@ -70,12 +69,6 @@ export default function Navigation() {
   const showPrivateNav = isAuthenticated || isPrivatePage
   const baseLinks = showPrivateNav ? privateLinks : publicLinks
   const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/admin' }] : baseLinks
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   const openLogin = () => {
     setAuthMode('login')
