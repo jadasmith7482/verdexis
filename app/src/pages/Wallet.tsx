@@ -1596,6 +1596,7 @@ export default function WalletPage() {
                           <div>
                             <label className="text-xs text-[#A0A0A0] mb-1.5 block">Delivery speed</label>
                             <select
+                              aria-label="Check delivery speed"
                               value={checkInfo.delivery}
                               onChange={(e) => setCheckInfo({ ...checkInfo, delivery: e.target.value as CheckDeliveryInfo['delivery'] })}
                               className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"

@@ -363,7 +363,7 @@ class AIService {
     try {
       answer = await this.handleIntent(intent, trimmed, persona)
     } catch (e) {
-      console.error('AI handler error:', e)
+      console.error('AI handler error:', { intent, prompt: trimmed.slice(0, 200), error: e instanceof Error ? e.message : String(e) })
       answer = "Something went wrong while crunching that — try rephrasing or ask about a specific asset (e.g. 'how is my BTC doing')."
     }
 

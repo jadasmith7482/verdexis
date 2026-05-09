@@ -73,13 +73,13 @@ export default function MorningBriefCard({
     if (moves.length > 0 && winner && winner.changePct > 0.1) {
       insights.push({
         kind: 'positive',
-        text: `${winner.holding.symbol.toUpperCase()} is your biggest gainer today, up ${winner.changePct.toFixed(2)}% (${fmtMoney(winner.dollarMove, { sign: true })}).`,
+        text: `${(winner.holding.symbol || 'asset').toUpperCase()} is your biggest gainer today, up ${winner.changePct.toFixed(2)}% (${fmtMoney(winner.dollarMove, { sign: true })}).`,
       })
     }
     if (moves.length > 1 && loser && loser.changePct < -0.1 && loser !== winner) {
       insights.push({
         kind: 'negative',
-        text: `${loser.holding.symbol.toUpperCase()} is dragging, down ${Math.abs(loser.changePct).toFixed(2)}% (${fmtMoney(loser.dollarMove, { sign: true })}).`,
+        text: `${(loser.holding.symbol || 'asset').toUpperCase()} is dragging, down ${Math.abs(loser.changePct).toFixed(2)}% (${fmtMoney(loser.dollarMove, { sign: true })}).`,
       })
     }
 
@@ -92,7 +92,7 @@ export default function MorningBriefCard({
       if (marketWinner && marketWinner.price_change_percentage_24h > 5) {
         insights.push({
           kind: 'neutral',
-          text: `Market leader today: ${marketWinner.symbol.toUpperCase()} +${marketWinner.price_change_percentage_24h.toFixed(2)}%.`,
+          text: `Market leader today: ${(marketWinner.symbol || marketWinner.id || '').toUpperCase()} +${marketWinner.price_change_percentage_24h.toFixed(2)}%.`,
         })
       }
     }

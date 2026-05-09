@@ -1216,6 +1216,7 @@ function DepositDeductPanel({ userId, balances, onChange }: { userId: string; ba
               <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">Invest as (optional)</span>
               <div className="flex gap-2">
                 <select
+                  aria-label="Invest deposit as asset"
                   value={investEnabled ? investSymbol : ''}
                   onChange={(e) => {
                     if (!e.target.value) { setInvestEnabled(false); return }
