@@ -7,7 +7,7 @@ import {
   type DiscoveredProvider,
   type WalletProviderInfo,
 } from '../lib/walletProviders'
-import { getWalletConnectProvider, isWalletConnectConfigured, resetWalletConnect, buildWalletDeepLink, type WcMobileWallet } from '../lib/walletConnect'
+import { getWalletConnectProvider, isWalletConnectConfigured, resetWalletConnect } from '../lib/walletConnect'
 import { api, getToken } from '../lib/api'
 
 const STORAGE_KEY = 'verdexis_web3_address'
@@ -294,117 +294,26 @@ export function useWeb3() {
       console.error('[WalletConnect] connect failed', err)
       const raw = err instanceof Error ? err.message : String(err ?? '')
       let msg = raw || 'Connection rejected'
+      const expired = /Proposal expired|expired|timeout/i.test(raw)
       if (/projectId|project id|unauthorized|not authorized|origin/i.test(raw)) {
         msg = 'WalletConnect rejected this domain. The project allowlist on cloud.reown.com needs to include this site\u2019s URL.'
+      } else if (expired) {
+        msg = 'The connection request timed out. Tap WalletConnect again to get a fresh request and choose your wallet.'
       } else if (/User rejected|user closed|user denied/i.test(raw)) {
         msg = 'You closed the wallet without approving. Tap WalletConnect again to retry.'
       } else if (!raw) {
         msg = 'WalletConnect didn\u2019t respond. Check your network connection and try again.'
       }
+      // On expiry, throw away the cached provider so the next click
+      // builds a brand-new session with a fresh URI \u2014 otherwise WC
+      // re-uses the dead proposal and the Open button stays grey.
+      if (expired) resetWalletConnect()
       setState((s) => ({ ...s, isConnecting: false, error: msg }))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachListeners])
 
-  /** Mobile-only fast path: bypass the WalletConnect modal entirely.
-   *
-   *  Why: the WC v2 modal's "Continue in MetaMask" screen on iOS Safari
-   *  shows an Open button that *disables* once the proposal expires
-   *  (~5 min) and even before that, iOS sometimes silently drops the
-   *  initial scheme launch because it isn't seen as a direct user gesture
-   *  (the click chain goes through Lit shadow DOM + setTimeout).
-   *
-   *  By calling `provider.connect()` directly from the picker click handler
-   *  and assigning `window.location.href = 'metamask://wc?uri=...'` the
-   *  moment the URI arrives, iOS treats it as an explicit app-launch
-   *  intent and reliably opens the wallet. Returns when the wallet
-   *  approves and the session emits an `accounts` payload.
-   */
-  const connectWcMobileWallet = useCallback(async (wallet: WcMobileWallet) => {
-    if (!isWalletConnectConfigured()) {
-      setState((s) => ({ ...s, error: 'WalletConnect is not configured. Set VITE_WC_PROJECT_ID in app/.env.' }))
-      return
-    }
-    setState((s) => ({ ...s, isConnecting: true, error: null }))
-    try {
-      const wc = await getWalletConnectProvider()
-      if (!wc) {
-        setState((s) => ({ ...s, isConnecting: false, error: 'WalletConnect failed to initialize' }))
-        return
-      }
-      // Subscribe BEFORE calling connect so we don't miss the URI emit.
-      // The provider exposes a Node-style EventEmitter via .on().
-      type WcWithEvents = {
-        on: (ev: string, cb: (uri: string) => void) => void
-        off?: (ev: string, cb: (uri: string) => void) => void
-        connect?: () => Promise<void>
-        enable: () => Promise<string[]>
-      }
-      const ev = wc as unknown as WcWithEvents
-      let opened = false
-      const onUri = (uri: string) => {
-        if (opened || !uri) return
-        opened = true
-        const links = buildWalletDeepLink(wallet, uri)
-        // Try the native scheme first — if the wallet is installed, iOS
-        // launches it. If it isn't, the navigation is a no-op and the
-        // user stays in Safari, where they can tap "Get the app" later.
-        try {
-          window.location.href = links.native
-        } catch {
-          // Universal-link fallback handles the case where the native
-          // scheme is denied (rare, e.g. Chrome iOS).
-          window.location.href = links.universal
-        }
-      }
-      ev.on('display_uri', onUri)
-      // enable() opens a session and resolves with accounts. While we
-      // wait, the display_uri handler fires once and triggers the
-      // deep-link.
-      const accounts = await ev.enable()
-      try { ev.off?.('display_uri', onUri) } catch { /* ignore */ }
-      const chainId = await wc.request<string>({ method: 'eth_chainId' }).catch(() => null)
-      if (accounts && accounts.length > 0) {
-        const addr = accounts[0]
-        providerRef.current = wc
-        attachListeners(wc)
-        const balanceEth = await fetchBalance(wc, addr)
-        setState({
-          address: addr,
-          chainId,
-          chainName: chainNameFor(chainId),
-          balanceEth,
-          isConnected: true,
-          isConnecting: false,
-          isAvailable: true,
-          error: null,
-          walletInfo: { ...WALLETCONNECT_INFO, name: wallet.name },
-        })
-        try {
-          localStorage.setItem(STORAGE_KEY, addr)
-          localStorage.setItem(WALLET_RDNS_STORAGE, WALLETCONNECT_INFO.rdns)
-        } catch { /* ignore */ }
-        void persistLinkToBackend(addr, chainId, wallet.name)
-        setPickerOpen(false)
-      } else {
-        setState((s) => ({ ...s, isConnecting: false, error: 'No account approved in ' + wallet.name }))
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[WalletConnect mobile deeplink] connect failed', err)
-      const raw = err instanceof Error ? err.message : String(err ?? '')
-      let msg = raw || 'Connection rejected'
-      if (/Proposal expired|expired/i.test(raw)) {
-        msg = 'The connection request expired. Tap ' + wallet.name + ' again to retry.'
-      } else if (/User rejected|user closed|user denied/i.test(raw)) {
-        msg = 'You closed ' + wallet.name + ' without approving. Tap it again to retry.'
-      }
-      setState((s) => ({ ...s, isConnecting: false, error: msg }))
-      // Reset so the next attempt gets a fresh URI.
-      resetWalletConnect()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attachListeners])
+
 
   const connect = useCallback(async () => {
     // Always re-discover when the user clicks Connect — wallet extensions can
@@ -484,7 +393,6 @@ export function useWeb3() {
     setPickerOpen,
     connect,
     connectTo,
-    connectWcMobileWallet,
     refreshDiscovered,
     disconnect,
     sendTransaction,

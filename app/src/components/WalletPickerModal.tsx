@@ -2,17 +2,13 @@ import { X, ExternalLink, Check, Smartphone, Download, RefreshCw, QrCode } from 
 import { useEffect, useState } from 'react'
 import { WALLET_INSTALL_OPTIONS, resolveWalletActionUrl, isMobile, brandLetterIcon } from '../lib/walletProviders'
 import type { DiscoveredProvider } from '../lib/walletProviders'
-import { isWalletConnectConfigured, WC_MOBILE_WALLETS, type WcMobileWallet } from '../lib/walletConnect'
+import { isWalletConnectConfigured } from '../lib/walletConnect'
 
 interface WalletPickerModalProps {
   isOpen: boolean
   onClose: () => void
   discovered: DiscoveredProvider[]
   onPick: (uuid: string) => void
-  /** Mobile-only: invoked when the user taps one of the direct deep-link
-   *  wallet buttons (MetaMask/Trust/Rainbow). The hook handles fetching the
-   *  WC URI and firing the wallet's native scheme from this user gesture. */
-  onPickMobileWallet?: (wallet: WcMobileWallet) => void
   onRefresh?: () => Promise<unknown>
   isConnecting: boolean
   selectedRdns?: string | null
@@ -26,7 +22,6 @@ export default function WalletPickerModal({
   onClose,
   discovered,
   onPick,
-  onPickMobileWallet,
   onRefresh,
   isConnecting,
   selectedRdns,
@@ -108,60 +103,15 @@ export default function WalletPickerModal({
               Waiting for your wallet to approve the connection…
             </div>
           )}
-          {/* On mobile we render direct deep-link buttons for the major
-              wallets. Tapping one fires the wallet's native scheme from
-              this React click handler, which iOS treats as a real user
-              gesture and reliably launches the app. The WC modal's own
-              "Continue in MetaMask" screen is unreliable on iOS Safari
-              (Open button can disable mid-flow), so we bypass it. */}
-          {isWalletConnectConfigured() && onMobile && onPickMobileWallet && (
+          {/* WalletConnect — single button that opens WC's own modal
+              with the full wallet list (MetaMask, Trust, Rainbow, OKX,
+              Bitget, Binance, Rabby, Zerion, Ledger, etc.). On mobile,
+              tapping a wallet in WC's modal deep-links into the wallet
+              app. On desktop it shows a QR code to scan. */}
+          {isWalletConnectConfigured() && (
             <>
               <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
-                Connect with your wallet app
-              </p>
-              <div className="space-y-2 mb-4">
-                {WC_MOBILE_WALLETS.map((w) => (
-                  <button
-                    key={w.id}
-                    type="button"
-                    onClick={() => onPickMobileWallet(w)}
-                    disabled={isConnecting}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#3B99FC]/10 border border-[#3B99FC]/40 hover:bg-[#3B99FC]/15 hover:border-[#3B99FC]/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
-                  >
-                    <img
-                      src={w.logo}
-                      alt={`${w.name} icon`}
-                      className="w-9 h-9 rounded-lg shrink-0 object-contain bg-white/5 p-0.5"
-                      onError={(e) => {
-                        const img = e.currentTarget as HTMLImageElement
-                        if (img.dataset.fallback === '1') return
-                        img.dataset.fallback = '1'
-                        img.src = brandLetterIcon(w.name.charAt(0), '#3B99FC')
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#E5E5E5] truncate">{w.name}</p>
-                      <p className="text-[10px] text-[#737373] truncate">Open in app to approve</p>
-                    </div>
-                    <span className="flex items-center gap-1 text-[10px] text-[#3B99FC] uppercase tracking-wider whitespace-nowrap">
-                      <Smartphone className="w-3 h-3" /> Open
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* WalletConnect — desktop QR only. We hide the generic WC
-              button on mobile because it leads into WC's own
-              "Continue in MetaMask" screen whose Open button can be
-              disabled by iOS Safari (proposal expired / no user
-              gesture). The 3 direct deep-link buttons above are the
-              reliable mobile path. */}
-          {isWalletConnectConfigured() && !onMobile && (
-            <>
-              <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-2">
-                Connect with your phone
+                {onMobile ? 'Connect with your wallet app' : 'Connect with your phone'}
               </p>
               <button
                 type="button"
@@ -170,16 +120,21 @@ export default function WalletPickerModal({
                 className="w-full flex items-center gap-3 p-3 mb-4 rounded-xl bg-[#3B99FC]/10 border border-[#3B99FC]/40 hover:bg-[#3B99FC]/15 hover:border-[#3B99FC]/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
               >
                 <div className="w-9 h-9 rounded-lg shrink-0 bg-[#3B99FC]/20 flex items-center justify-center">
-                  <QrCode className="w-5 h-5 text-[#3B99FC]" />
+                  {onMobile ? <Smartphone className="w-5 h-5 text-[#3B99FC]" /> : <QrCode className="w-5 h-5 text-[#3B99FC]" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#E5E5E5] truncate">WalletConnect</p>
+                  <p className="text-sm font-medium text-[#E5E5E5] truncate">
+                    {onMobile ? 'Choose your wallet' : 'WalletConnect'}
+                  </p>
                   <p className="text-[10px] text-[#737373] truncate">
-                    Scan a QR code with any of 300+ mobile wallets
+                    {onMobile
+                      ? 'MetaMask, Trust, Rainbow, OKX, and 300+ more'
+                      : 'Scan a QR code with any of 300+ mobile wallets'}
                   </p>
                 </div>
                 <span className="flex items-center gap-1 text-[10px] text-[#3B99FC] uppercase tracking-wider whitespace-nowrap">
-                  <QrCode className="w-3 h-3" /> Scan
+                  {onMobile ? <Smartphone className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
+                  {onMobile ? 'Open' : 'Scan'}
                 </span>
               </button>
             </>
