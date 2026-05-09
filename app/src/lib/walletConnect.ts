@@ -51,6 +51,13 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
         // Pin the major wallets to the top of the WC modal. All IDs verified
         // against https://explorer-api.walletconnect.com/v3/wallets — using
         // an unknown ID here silently breaks the recommended list.
+        //
+        // `explorerRecommendedWalletIds` controls the desktop "recommended"
+        // row. On mobile the modal sorts by region and ignores this, which
+        // is why MetaMask/Trust/Rainbow weren't appearing at the top of the
+        // phone modal — we pin them explicitly via `mobileWallets` (verified
+        // deep-links from the explorer API). `walletImages` supplies the
+        // logos that go with those entries.
         qrModalOptions: {
           themeMode: 'dark' as const,
           enableExplorer: true,
@@ -63,6 +70,39 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
             '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget Wallet
             '8a0ee50d1f22f6651afcae7eb4253e52a3310b90af5daef78a8c4929a9bb99d4', // Binance Wallet
           ],
+          mobileWallets: [
+            {
+              id: 'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+              name: 'MetaMask',
+              links: { native: 'metamask://', universal: 'https://metamask.app.link' },
+            },
+            {
+              id: '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+              name: 'Trust Wallet',
+              links: { native: 'trust://', universal: 'https://link.trustwallet.com' },
+            },
+            {
+              id: '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369',
+              name: 'Rainbow',
+              links: { native: 'rainbow://', universal: 'https://rnbwapp.com' },
+            },
+            // Note: Coinbase Wallet no longer publishes a WalletConnect
+            // mobile deep-link in the explorer (their `mobile.native` is
+            // empty), so it cannot be pinned via WC on mobile. Users on
+            // mobile must use Coinbase's own in-app browser to reach the
+            // dapp — that's a Coinbase-side limitation, not ours.
+          ],
+          walletImages: {
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96':
+              'https://explorer-api.walletconnect.com/v3/logo/md/eebe4a7f-7166-402f-92e0-1f64ca2aa800?projectId=' +
+              WC_PROJECT_ID,
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0':
+              'https://explorer-api.walletconnect.com/v3/logo/md/7677b54f-3486-46e2-4e37-bf8747814f00?projectId=' +
+              WC_PROJECT_ID,
+            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369':
+              'https://explorer-api.walletconnect.com/v3/logo/md/7a33d7f1-3d12-4b5c-f3ee-5cd83cb1b500?projectId=' +
+              WC_PROJECT_ID,
+          },
         },
         metadata: {
           name: 'Verdexis',
