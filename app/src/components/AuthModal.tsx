@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Shield, Fingerprint, KeyRound, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,6 +21,16 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+
+  // Lock body scroll while the modal is open so the fixed overlay always
+  // sits centered in the current viewport (prevents the user from having
+  // to scroll the page down to find the modal on long pages).
+  useEffect(() => {
+    if (!isOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -102,7 +113,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     setResetSent(false)
   }
 
-  return (
+  return createPortal(
     // overflow-y-auto + items-start sm:items-center keeps the modal scrollable
     // from the top of the viewport on short / mobile screens — previously the
     // form bled below the fold and users had to scroll the whole page to see
@@ -314,7 +325,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

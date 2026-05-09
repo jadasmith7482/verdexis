@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
@@ -109,6 +110,16 @@ export default function WalletPage() {
   // Transaction selected in the history list — opens a detail modal with
   // the exact dd/mm/yyyy timestamp and a professional description.
   const [selectedTx, setSelectedTx] = useState<WalletTransaction | null>(null)
+
+  // Lock body scroll while the detail modal is open so the fixed overlay
+  // is always centered in the current viewport (prevents the user having
+  // to scroll down to find the modal on long pages).
+  useEffect(() => {
+    if (!selectedTx) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [selectedTx])
   const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
   const [selectedBankId, setSelectedBankId] = useState<string>('')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
@@ -1953,48 +1964,50 @@ export default function WalletPage() {
 
       {/* Transaction detail modal — opens when the user taps an amount in
           the history list. Shows the exact dd/mm/yyyy date and a polished
-          professional description. */}
-      {selectedTx && (
+          professional description. Rendered via a portal so it always sits
+          at the top of the DOM and centers in the viewport regardless of
+          scroll position or any ancestor stacking/transform context. */}
+      {selectedTx && createPortal(
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm px-4 py-8 overflow-y-auto"
+          className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center bg-black/85 backdrop-blur-sm px-4 py-6 sm:py-8 overflow-y-auto"
           role="dialog"
           aria-modal="true"
           aria-label="Transaction details"
           onClick={() => setSelectedTx(null)}
         >
           <div
-            className="w-full max-w-md bg-[#0d0d0d] border border-[#ffffff10] rounded-2xl shadow-2xl"
+            className="w-full max-w-sm sm:max-w-md bg-[#0d0d0d] border border-[#ffffff10] rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-[#ffffff08] flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${txIconBg(selectedTx.type)}`}>
+            <div className="p-4 sm:p-6 border-b border-[#ffffff08] flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${txIconBg(selectedTx.type)}`}>
                   {getTransactionIcon(selectedTx.type)}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-base font-medium text-[#E5E5E5] capitalize truncate">{selectedTx.type}</h3>
-                  <p className="text-[11px] text-[#A0A0A0] tabular-nums">{formatDateLong(selectedTx.timestamp)}</p>
+                  <h3 className="text-sm sm:text-base font-medium text-[#E5E5E5] capitalize truncate">{selectedTx.type}</h3>
+                  <p className="text-[10px] sm:text-[11px] text-[#A0A0A0] tabular-nums">{formatDateLong(selectedTx.timestamp)}</p>
                 </div>
               </div>
-              <button type="button" aria-label="Close" onClick={() => setSelectedTx(null)} className="text-[#737373] hover:text-[#E5E5E5]">
+              <button type="button" aria-label="Close" onClick={() => setSelectedTx(null)} className="text-[#737373] hover:text-[#E5E5E5] shrink-0">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               <div className="text-center">
-                <p className="text-[11px] uppercase tracking-wider text-[#737373] mb-1">Amount</p>
-                <p className={`text-3xl font-semibold tabular-nums ${selectedTx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-wider text-[#737373] mb-1">Amount</p>
+                <p className={`text-xl sm:text-3xl font-semibold tabular-nums break-all ${selectedTx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
                   {selectedTx.amount >= 0 ? '+' : ''}
                   {selectedTx.amount.toLocaleString(undefined, {
                     minimumFractionDigits: selectedTx.currency === 'USD' ? 2 : 0,
                     maximumFractionDigits: selectedTx.currency === 'USD' ? 2 : 8,
                   })}{' '}
-                  <span className="text-base font-medium text-[#A0A0A0]">{selectedTx.currency}</span>
+                  <span className="text-sm sm:text-base font-medium text-[#A0A0A0]">{selectedTx.currency}</span>
                 </p>
               </div>
 
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:gap-y-3 text-[11px] sm:text-xs">
                 <dt className="text-[#737373]">Date</dt>
                 <dd className="text-right text-[#E5E5E5] tabular-nums">{formatDateDMY(selectedTx.timestamp)}</dd>
 
@@ -2016,9 +2029,9 @@ export default function WalletPage() {
                 <dd className="text-right text-[#E5E5E5] font-mono text-[10px] truncate" title={selectedTx.id}>{selectedTx.id}</dd>
               </dl>
 
-              <div className="rounded-xl border border-[#ffffff08] bg-[#1a1a1a]/50 p-4">
+              <div className="rounded-xl border border-[#ffffff08] bg-[#1a1a1a]/50 p-3 sm:p-4">
                 <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-1.5">Description</p>
-                <p className="text-xs text-[#E5E5E5] leading-relaxed">{polishDescription(selectedTx)}</p>
+                <p className="text-[11px] sm:text-xs text-[#E5E5E5] leading-relaxed">{polishDescription(selectedTx)}</p>
                 {selectedTx.description && selectedTx.description !== polishDescription(selectedTx) && (
                   <p className="text-[10px] text-[#737373] mt-2 italic">Original: {selectedTx.description}</p>
                 )}
@@ -2027,13 +2040,14 @@ export default function WalletPage() {
               <button
                 type="button"
                 onClick={() => setSelectedTx(null)}
-                className="w-full py-3 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors"
+                className="w-full py-2.5 sm:py-3 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors"
               >
                 Close
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {pendingWithdrawal && (() => {
