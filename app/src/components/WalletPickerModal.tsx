@@ -228,15 +228,13 @@ export default function WalletPickerModal({
             </>
           )}
 
-          {discovered.length === 0 && (
+          {discovered.length === 0 && !onMobile && (
             <div className="text-center py-4 mb-3">
               <p className="text-sm text-[#A0A0A0]">
-                {onMobile ? 'No wallet connected on this device.' : 'No wallets detected in this browser yet.'}
+                No wallets detected in this browser yet.
               </p>
               <p className="text-xs text-[#737373] mt-1">
-                {onMobile
-                  ? 'Use the WalletConnect button above to connect any installed mobile wallet \u2014 the wallet app will pop up to approve the connection and bring you back here. The list below is for installing a new wallet from the app store.'
-                  : 'If you just installed one, click the refresh icon above. Otherwise pick one below \u2014 the link will open the wallet directly if it\u2019s already installed, or prompt you to install it.'}
+                If you just installed one, click the refresh icon above. Otherwise pick one below — the link will open the wallet directly if it’s already installed, or prompt you to install it.
               </p>
             </div>
           )}
