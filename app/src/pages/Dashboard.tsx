@@ -520,12 +520,15 @@ export default function Dashboard() {
     smoothed[smoothed.length - 1] = series[series.length - 1]
     return smoothed
   })()
-  const periodChange = portfolioHistory.length >= 2
-    ? portfolioHistory[portfolioHistory.length - 1] - portfolioHistory[0]
-    : 0
-  const periodChangePercent = portfolioHistory.length >= 2 && portfolioHistory[0] > 0
-    ? (periodChange / portfolioHistory[0]) * 100
-    : 0
+  // Find the first non-zero value so % return is measured from the user's
+  // actual inception point rather than from a leading-zero pre-deposit
+  // segment (which would otherwise force the % to 0.00 for any window
+  // wider than the user's own history — 1M / 1Y / ALL on new accounts).
+  const firstNonZeroIdx = portfolioHistory.findIndex((v) => v > 0)
+  const baseline = firstNonZeroIdx >= 0 ? portfolioHistory[firstNonZeroIdx] : 0
+  const tail = portfolioHistory.length > 0 ? portfolioHistory[portfolioHistory.length - 1] : 0
+  const periodChange = baseline > 0 ? tail - baseline : 0
+  const periodChangePercent = baseline > 0 ? (periodChange / baseline) * 100 : 0
 
   const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
