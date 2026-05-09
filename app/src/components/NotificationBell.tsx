@@ -34,7 +34,7 @@ export default function NotificationBell() {
       setItems((prev) => {
         const prevIds = new Set(prev.map((n) => n.id))
         const fresh = r.notifications.filter((n) => !prevIds.has(n.id))
-        const moneyKinds = new Set(['deposit', 'withdraw', 'transfer', 'trade', 'fee', 'wallet'])
+        const moneyKinds = new Set(['deposit', 'withdraw', 'transfer', 'trade', 'fee', 'wallet', 'dividend', 'interest'])
         if (fresh.some((n) => moneyKinds.has(n.kind))) {
           window.dispatchEvent(new Event('verdexis:portfolio-refresh'))
         }

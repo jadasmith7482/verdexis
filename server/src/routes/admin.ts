@@ -626,15 +626,62 @@ router.post('/users/:id/transactions', async (req: AuthedRequest, res) => {
   const parsed = txSchema.safeParse(req.body)
   if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
   const { createdAt, ...rest } = parsed.data
-  const t = await prisma.transaction.create({
-    data: {
-      userId: req.params.id,
-      ...rest,
-      ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
-    },
+  const userId = req.params.id
+
+  // Determine the cash-flow direction this transaction should have on the
+  // wallet balance. Credits add, debits subtract. We only move money when
+  // status === 'completed' (pending/failed/reversed don't change the
+  // ledger). Sign on `amount` is normalised: admins enter a positive
+  // number for both credit and debit kinds.
+  const credits = new Set(['deposit', 'dividend', 'interest'])
+  const debits = new Set(['withdraw', 'transfer'])
+  const magnitude = Math.abs(rest.amount)
+  const delta = rest.status === 'completed'
+    ? (credits.has(rest.kind) ? magnitude : debits.has(rest.kind) ? -magnitude : 0)
+    : 0
+  const symbol = rest.currency === 'USD' ? '$' : rest.currency
+
+  const result = await prisma.$transaction(async (db) => {
+    let balance = null as Awaited<ReturnType<typeof db.walletBalance.upsert>> | null
+    if (delta !== 0) {
+      const existing = await db.walletBalance.findUnique({
+        where: { userId_currency: { userId, currency: rest.currency } },
+      })
+      const nextBalance = (existing?.balance ?? 0) + delta
+      const nextAvailable = (existing?.available ?? 0) + delta
+      balance = await db.walletBalance.upsert({
+        where: { userId_currency: { userId, currency: rest.currency } },
+        create: { userId, currency: rest.currency, symbol, balance: nextBalance, available: nextAvailable },
+        update: { balance: nextBalance, available: nextAvailable, symbol },
+      })
+    }
+    const transaction = await db.transaction.create({
+      data: {
+        userId,
+        ...rest,
+        ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+      },
+    })
+    return { balance, transaction }
   })
-  await audit(req.userId!, 'transaction.create', req.params.id, parsed.data)
-  res.json({ transaction: t })
+
+  // Fire a notification so the end-user's NotificationBell poll triggers
+  // a portfolio refresh in the SPA. Best-effort; failures shouldn't break
+  // the admin action.
+  if (delta !== 0) {
+    const verb = delta > 0 ? 'credited' : 'debited'
+    await prisma.notification.create({
+      data: {
+        userId,
+        kind: rest.kind,
+        title: `${symbol}${magnitude.toLocaleString()} ${rest.currency} ${verb}`,
+        body: rest.reference || `Admin ${rest.kind} (${rest.status})`,
+      },
+    }).catch(() => { /* notification is best-effort */ })
+  }
+
+  await audit(req.userId!, 'transaction.create', userId, { ...parsed.data, walletDelta: delta })
+  res.json({ transaction: result.transaction, balance: result.balance })
 })
 
 router.patch('/transactions/:tid', async (req: AuthedRequest, res) => {
