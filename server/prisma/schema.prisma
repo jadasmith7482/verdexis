@@ -63,8 +63,36 @@ model User {
   alerts        PriceAlert[]
   notifications Notification[]
   pendingDeposits PendingDeposit[]
+  walletLinks   WalletLink[]
   adminAudits   AdminAudit[]   @relation("AdminActor")
   audited       AdminAudit[]   @relation("AdminTarget")
+}
+
+/// Self-custody wallets a user has linked. A user can attach multiple
+/// addresses (e.g. one MetaMask + one Trust mobile + one hardware wallet)
+/// and pick which one is the "primary" \u2014 that one is mirrored back into
+/// the legacy User.walletAddress / walletChainId / walletProvider fields
+/// for backward compat with everywhere that still reads from there
+/// (deposit attribution, admin user detail page, etc.).
+model WalletLink {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Lower-cased EVM address (0x...).
+  address     String
+  // EIP-155 hex chain id, e.g. "0x1". Optional because some users may link
+  // a wallet without specifying a chain (we read chainId at send-tx time).
+  chainId     String?
+  // Human label of the wallet provider, e.g. "MetaMask", "WalletConnect".
+  provider    String?
+  // Optional user-set nickname shown in the picker, e.g. "Cold storage".
+  label       String?
+  // Exactly one link per user is the active / mirrored one.
+  isPrimary   Boolean  @default(false)
+  linkedAt    DateTime @default(now())
+
+  @@unique([userId, address])
+  @@index([userId, isPrimary])
 }
 
 /// On-chain deposit attempt the user kicked off from their linked wallet.
@@ -232,4 +260,20 @@ model AdminAudit {
 
   @@index([actorId, createdAt])
   @@index([targetUserId, createdAt])
+}
+
+/// Generic key/value store for admin-managed app settings.
+/// Currently used for the deposit instructions blob (wire / crypto / web3
+/// destination addresses) so they're shared across devices and persist
+/// instead of living only in one admin's localStorage.
+model AppSetting {
+  key       String   @id
+  // JSON-encoded value (stored as String for parity with our other JSON
+  // blobs like User.prefs).
+  value     String
+  // userId of the admin who last wrote this row \u2014 useful for the audit
+  // trail when paired with the AdminAudit log.
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }

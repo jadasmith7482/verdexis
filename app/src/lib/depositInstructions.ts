@@ -6,9 +6,17 @@
 //  - Crypto wallets — admin enters the deposit address per network. The
 //    Wallet page renders the address + QR code. Users scan and send.
 //
-// Stored in localStorage so a single admin can configure once on their
-// browser and the values are read by every other tab on the same device.
-// The CHANGED_EVENT lets the wallet UI react live when admin saves.
+// Persistence model:
+//  - Server is the source of truth (AppSetting row keyed
+//    `deposit_instructions`). Admin writes via PUT /api/wallet/deposit-
+//    instructions, audited.
+//  - localStorage acts as a cache so the UI renders instantly on page load
+//    before the server round-trip resolves, and so previously-saved values
+//    survive offline reloads.
+//  - The CHANGED_EVENT lets every visible UI re-read after a write or after
+//    `hydrateFromServer()` populates the cache.
+
+import { api } from './api'
 
 export const DEPOSIT_INSTRUCTIONS_EVENT = 'verdexis:depositInstructions'
 const STORAGE_KEY = 'verdexis_deposit_instructions_v1'
@@ -91,6 +99,38 @@ function write(next: DepositInstructions): void {
     window.dispatchEvent(new CustomEvent(DEPOSIT_INSTRUCTIONS_EVENT))
   } catch {
     /* localStorage may be disabled — fail silently */
+  }
+}
+
+/** Pull the canonical blob from the server and write it into the local
+ *  cache. Safe to call repeatedly; no-op if the request fails (the cached
+ *  copy keeps serving). Returns true if the cache was updated. */
+export async function hydrateFromServer(): Promise<boolean> {
+  try {
+    const { instructions } = await api.getDepositInstructions()
+    if (!instructions || typeof instructions !== 'object') return false
+    const parsed = instructions as Partial<DepositInstructions>
+    const merged: DepositInstructions = {
+      wires: parsed.wires ?? {},
+      cryptos: parsed.cryptos ?? {},
+      web3: parsed.web3 ?? {},
+    }
+    write(merged)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Push the entire current blob to the server (admin-only on the backend).
+ *  Used by the AdminDeposits page after every edit so the change reaches
+ *  the database and other devices / users see it. */
+export async function pushToServer(): Promise<boolean> {
+  try {
+    await api.putDepositInstructions(read())
+    return true
+  } catch {
+    return false
   }
 }
 

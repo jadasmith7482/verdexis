@@ -9,6 +9,8 @@ import {
   isAdmin,
   setAdmin,
   onDepositInstructionsChanged,
+  pushToServer,
+  hydrateFromServer,
   type WireInstruction,
   type CryptoWallet,
   type Web3Payout,
@@ -95,6 +97,10 @@ function AdminInner() {
 
   useEffect(() => onDepositInstructionsChanged(() => setAdminState(isAdmin())), [])
 
+  // On first mount, pull the canonical blob from the server so admin sees
+  // what every other device sees (and isn't editing a stale local cache).
+  useEffect(() => { void hydrateFromServer() }, [])
+
   function unlock(e: FormEvent) {
     e.preventDefault()
     // UI-only gate — accepts any non-empty key. The real authorization check
@@ -123,14 +129,14 @@ function AdminInner() {
       return
     }
     depositInstructions.setWire(wireCurrency, wireForm)
-    toast.success(`${wireCurrency} wire instructions saved`)
+    void persistRemote(`${wireCurrency} wire instructions saved`)
   }
 
   function deleteWire() {
     if (!confirm(`Delete ${wireCurrency} wire instructions?`)) return
     depositInstructions.removeWire(wireCurrency)
     setWireForm({ ...EMPTY_WIRE, label: `${wireCurrency} Wire Transfer` })
-    toast.success('Removed')
+    void persistRemote('Removed')
   }
 
   function saveCrypto(e: FormEvent) {
@@ -140,14 +146,14 @@ function AdminInner() {
       return
     }
     depositInstructions.setCrypto(cryptoCurrency, { ...cryptoForm, currency: cryptoCurrency })
-    toast.success(`${cryptoCurrency} deposit address saved`)
+    void persistRemote(`${cryptoCurrency} deposit address saved`)
   }
 
   function deleteCrypto() {
     if (!confirm(`Delete ${cryptoCurrency} deposit address?`)) return
     depositInstructions.removeCrypto(cryptoCurrency)
     setCryptoForm({ ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
-    toast.success('Removed')
+    void persistRemote('Removed')
   }
 
   function saveWeb3(e: FormEvent) {
@@ -157,14 +163,23 @@ function AdminInner() {
       return
     }
     depositInstructions.setWeb3Payout({ ...web3Form, address: web3Form.address.trim(), chainId: web3ChainId })
-    toast.success(`Web3 payout saved for ${WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? web3ChainId}`)
+    void persistRemote(`Web3 payout saved for ${WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? web3ChainId}`)
   }
 
   function deleteWeb3() {
     if (!confirm(`Delete Web3 payout for ${web3ChainId}?`)) return
     depositInstructions.removeWeb3Payout(web3ChainId)
     setWeb3Form({ ...EMPTY_WEB3, chainId: web3ChainId })
-    toast.success('Removed')
+    void persistRemote('Removed')
+  }
+
+  /** Sync the latest local copy up to the server so the change reaches
+   *  the database (audit trail + cross-device propagation). Falls back to
+   *  a warning toast if the server rejects (e.g. not signed in as admin). */
+  async function persistRemote(successMessage: string) {
+    const ok = await pushToServer()
+    if (ok) toast.success(successMessage)
+    else toast.warning('Saved locally only — server rejected the update (are you signed in as an admin?)')
   }
 
   return (

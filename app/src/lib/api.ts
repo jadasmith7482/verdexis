@@ -199,6 +199,30 @@ export const api = {
   unlinkWallet: () =>
     request<{ ok: boolean }>('/api/wallet/link', { method: 'DELETE' }),
 
+  // Multi-wallet linking
+  listWalletLinks: () =>
+    request<{ links: { id: string; address: string; chainId: string | null; provider: string | null; label: string | null; isPrimary: boolean; linkedAt: string }[] }>(
+      '/api/wallet/links',
+    ),
+  addWalletLink: (payload: { address: string; chainId?: string; provider?: string; label?: string; setPrimary?: boolean }) =>
+    request<{ link: { id: string; address: string; chainId: string | null; provider: string | null; label: string | null; isPrimary: boolean; linkedAt: string } }>(
+      '/api/wallet/links',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  removeWalletLink: (id: string) =>
+    request<{ ok: boolean }>(`/api/wallet/links/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  setPrimaryWalletLink: (id: string) =>
+    request<{ ok: boolean }>(`/api/wallet/links/${encodeURIComponent(id)}/primary`, { method: 'POST' }),
+
+  // Admin-managed deposit instructions (wire / crypto / web3 destinations)
+  getDepositInstructions: () =>
+    request<{ instructions: unknown; updatedAt: string | null }>('/api/wallet/deposit-instructions'),
+  putDepositInstructions: (instructions: unknown) =>
+    request<{ instructions: unknown; updatedAt: string }>(
+      '/api/wallet/deposit-instructions',
+      { method: 'PUT', body: JSON.stringify(instructions) },
+    ),
+
   // On-chain pending deposits
   recordPendingDeposit: (
     payload: { txHash: string; chainId: string; toAddress: string; fromAddress: string; asset: string; amount: number },

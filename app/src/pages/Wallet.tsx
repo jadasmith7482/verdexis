@@ -3,11 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import LinkBankModal from '../components/LinkBankModal'
+import LinkedWalletsPanel from '../components/LinkedWalletsPanel'
 import WalletPickerModal from '../components/WalletPickerModal'
 import QrCode from '../components/QrCode'
 import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
-import { depositInstructions, onDepositInstructionsChanged, isAdmin } from '../lib/depositInstructions'
+import { depositInstructions, onDepositInstructionsChanged, isAdmin, hydrateFromServer } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
 import { userWallets, USER_WALLETS_EVENT } from '../lib/userWallets'
 import { feeProofs } from '../lib/feeProofs'
@@ -153,6 +154,9 @@ export default function WalletPage() {
   const [userWalletTick, setUserWalletTick] = useState(0)
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
+  // Bumped after every successful wallet connect / disconnect so the
+  // LinkedWalletsPanel re-fetches and shows the new entry.
+  const [walletLinksTick, setWalletLinksTick] = useState(0)
   const wireInstructions = useMemo(
     () => depositInstructions.getWire(selectedCurrency),
     // re-read whenever admin saves new instructions OR currency changes
@@ -299,6 +303,14 @@ export default function WalletPage() {
       setInstructionsTick((n) => n + 1)
     })
   }, [])
+
+  // On mount, pull the admin-curated deposit instructions from the server
+  // so the user sees current addresses even on a fresh device / cleared cache.
+  useEffect(() => { void hydrateFromServer() }, [])
+
+  // When the connected wallet changes, refresh the linked-wallets panel so
+  // the new address appears (or the removed one disappears) immediately.
+  useEffect(() => { setWalletLinksTick((n) => n + 1) }, [web3.address, web3.isConnected])
 
   // Resolve the admin-managed Web3 payout for the connected chain. When found,
   // pre-fill the recipient input (locked) so the user is sending to the address
@@ -1135,6 +1147,14 @@ export default function WalletPage() {
               </div>
             )}
           </div>
+
+          {/* Linked wallets list \u2014 lets the user attach multiple addresses
+              and switch which one is the primary deposit destination. */}
+          <LinkedWalletsPanel
+            activeAddress={web3.address}
+            refreshKey={walletLinksTick}
+            onActiveRemoved={() => { void web3.disconnect() }}
+          />
 
           {/* Tabs */}
           <div className="-mx-2 px-2 mb-6 overflow-x-auto no-scrollbar">

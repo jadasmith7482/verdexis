@@ -2,7 +2,8 @@ import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { prisma } from '../db.js'
-import { requireAuth, type AuthedRequest } from '../auth.js'
+import type { Prisma } from '@prisma/client'
+import { requireAuth, requireAdmin, type AuthedRequest } from '../auth.js'
 import { idempotency } from '../idempotency.js'
 
 const router = Router()
@@ -353,24 +354,184 @@ router.post('/link', requireAuth, async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() })
     return
   }
-  const u = await prisma.user.update({
+  const address = parsed.data.address.toLowerCase()
+  const chainId = parsed.data.chainId?.toLowerCase() ?? null
+  const provider = parsed.data.provider ?? null
+
+  // Add to the per-user list (dedupes by [userId, address]). New links land
+  // primary only when the user has no other wallet yet \u2014 otherwise we
+  // keep their existing primary so connecting a fresh wallet doesn't
+  // silently change deposit attribution.
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletLink.findUnique({
+      where: { userId_address: { userId: req.userId!, address } },
+    })
+    const otherCount = await tx.walletLink.count({
+      where: { userId: req.userId!, NOT: { address } },
+    })
+    const shouldBePrimary = existing?.isPrimary || otherCount === 0
+    await tx.walletLink.upsert({
+      where: { userId_address: { userId: req.userId!, address } },
+      create: { userId: req.userId!, address, chainId, provider, isPrimary: shouldBePrimary },
+      update: { chainId, provider, ...(shouldBePrimary ? { isPrimary: true } : {}) },
+    })
+    if (shouldBePrimary) {
+      await mirrorPrimaryToUser(tx, req.userId!, { address, chainId, provider })
+    }
+  })
+
+  const u = await prisma.user.findUnique({
     where: { id: req.userId! },
-    data: {
-      walletAddress: parsed.data.address.toLowerCase(),
-      walletChainId: parsed.data.chainId?.toLowerCase() ?? null,
-      walletProvider: parsed.data.provider ?? null,
-      walletLinkedAt: new Date(),
-    },
     select: { walletAddress: true, walletChainId: true, walletProvider: true, walletLinkedAt: true },
   })
   res.json({ wallet: u })
 })
 
 router.delete('/link', requireAuth, async (req: AuthedRequest, res) => {
-  await prisma.user.update({
-    where: { id: req.userId! },
-    data: { walletAddress: null, walletChainId: null, walletProvider: null, walletLinkedAt: null },
+  // Legacy "disconnect everything" endpoint \u2014 wipes ALL linked wallets.
+  // The new picker uses DELETE /links/:id for surgical removal.
+  await prisma.$transaction([
+    prisma.walletLink.deleteMany({ where: { userId: req.userId! } }),
+    prisma.user.update({
+      where: { id: req.userId! },
+      data: { walletAddress: null, walletChainId: null, walletProvider: null, walletLinkedAt: null },
+    }),
+  ])
+  res.json({ ok: true })
+})
+
+// --- Multi-wallet API --------------------------------------------------
+// Lets a user attach multiple self-custody addresses, pick one primary
+// (mirrored back into User.walletAddress for legacy code paths), and
+// remove individual entries without disconnecting all of them.
+
+const walletLinkBodySchema = z.object({
+  address: z.string().regex(ETH_ADDRESS, 'Not a valid 0x EVM address'),
+  chainId: z.string().regex(CHAIN_HEX, 'chainId must be 0x-prefixed hex').optional(),
+  provider: z.string().min(1).max(60).optional(),
+  label: z.string().min(1).max(60).optional(),
+  setPrimary: z.boolean().optional(),
+})
+
+async function mirrorPrimaryToUser(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  primary: { address: string | null; chainId: string | null; provider: string | null },
+) {
+  await (tx.user.update as (args: unknown) => Promise<unknown>)({
+    where: { id: userId },
+    data: {
+      walletAddress: primary.address,
+      walletChainId: primary.chainId,
+      walletProvider: primary.provider,
+      walletLinkedAt: primary.address ? new Date() : null,
+    },
   })
+}
+
+router.get('/links', requireAuth, async (req: AuthedRequest, res) => {
+  const links = await prisma.walletLink.findMany({
+    where: { userId: req.userId! },
+    orderBy: [{ isPrimary: 'desc' }, { linkedAt: 'desc' }],
+  })
+  res.json({ links })
+})
+
+router.post('/links', requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = walletLinkBodySchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() })
+    return
+  }
+  const address = parsed.data.address.toLowerCase()
+  const chainId = parsed.data.chainId?.toLowerCase() ?? null
+  const provider = parsed.data.provider ?? null
+  const label = parsed.data.label ?? null
+
+  const link = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletLink.findUnique({
+      where: { userId_address: { userId: req.userId!, address } },
+    })
+    const otherCount = await tx.walletLink.count({
+      where: { userId: req.userId!, NOT: { address } },
+    })
+    const wantsPrimary = parsed.data.setPrimary === true || otherCount === 0 || existing?.isPrimary === true
+    if (wantsPrimary) {
+      // Demote any other primary first \u2014 we enforce single-primary in app
+      // logic rather than a db constraint to keep migrations simple.
+      await tx.walletLink.updateMany({
+        where: { userId: req.userId!, isPrimary: true, NOT: { address } },
+        data: { isPrimary: false },
+      })
+    }
+    const row = await tx.walletLink.upsert({
+      where: { userId_address: { userId: req.userId!, address } },
+      create: { userId: req.userId!, address, chainId, provider, label, isPrimary: wantsPrimary },
+      update: {
+        chainId, provider,
+        ...(label !== null ? { label } : {}),
+        ...(wantsPrimary ? { isPrimary: true } : {}),
+      },
+    })
+    if (wantsPrimary) {
+      await mirrorPrimaryToUser(tx, req.userId!, { address, chainId, provider })
+    }
+    return row
+  })
+
+  res.status(201).json({ link })
+})
+
+router.delete('/links/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  const result = await prisma.$transaction(async (tx) => {
+    const row = await tx.walletLink.findFirst({ where: { id, userId: req.userId! } })
+    if (!row) return { ok: false as const }
+    await tx.walletLink.delete({ where: { id } })
+    if (row.isPrimary) {
+      // Promote the most recently-linked remaining wallet to primary so the
+      // user always has a sensible default deposit destination.
+      const next = await tx.walletLink.findFirst({
+        where: { userId: req.userId! },
+        orderBy: { linkedAt: 'desc' },
+      })
+      if (next) {
+        await tx.walletLink.update({ where: { id: next.id }, data: { isPrimary: true } })
+        await mirrorPrimaryToUser(tx, req.userId!, {
+          address: next.address, chainId: next.chainId, provider: next.provider,
+        })
+      } else {
+        await mirrorPrimaryToUser(tx, req.userId!, { address: null, chainId: null, provider: null })
+      }
+    }
+    return { ok: true as const }
+  })
+  if (!result.ok) {
+    res.status(404).json({ error: 'Wallet link not found' })
+    return
+  }
+  res.json({ ok: true })
+})
+
+router.post('/links/:id/primary', requireAuth, async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  const result = await prisma.$transaction(async (tx) => {
+    const row = await tx.walletLink.findFirst({ where: { id, userId: req.userId! } })
+    if (!row) return { ok: false as const }
+    await tx.walletLink.updateMany({
+      where: { userId: req.userId!, isPrimary: true, NOT: { id } },
+      data: { isPrimary: false },
+    })
+    await tx.walletLink.update({ where: { id }, data: { isPrimary: true } })
+    await mirrorPrimaryToUser(tx, req.userId!, {
+      address: row.address, chainId: row.chainId, provider: row.provider,
+    })
+    return { ok: true as const }
+  })
+  if (!result.ok) {
+    res.status(404).json({ error: 'Wallet link not found' })
+    return
+  }
   res.json({ ok: true })
 })
 
@@ -439,6 +600,51 @@ router.get('/pending-deposits', requireAuth, async (req: AuthedRequest, res) => 
     take: 50,
   })
   res.json({ pendingDeposits: rows })
+})
+
+// --- Deposit instructions (admin-managed, all users read) -------------
+// One JSON blob keyed `'deposit_instructions'` in AppSetting that stores:
+//   { wires: [...], cryptos: [...], web3: { [chainIdHex]: {...} } }
+// Admin writes from /admin pages, all signed-in users read.
+
+const DEPOSIT_KEY = 'deposit_instructions'
+
+router.get('/deposit-instructions', requireAuth, async (_req, res) => {
+  const row = await prisma.appSetting.findUnique({ where: { key: DEPOSIT_KEY } })
+  let data: unknown = null
+  if (row?.value) {
+    try { data = JSON.parse(row.value) } catch { data = null }
+  }
+  res.json({ instructions: data, updatedAt: row?.updatedAt ?? null })
+})
+
+router.put('/deposit-instructions', requireAuth, requireAdmin, async (req: AuthedRequest, res) => {
+  const body = req.body
+  if (!body || typeof body !== 'object') {
+    res.status(400).json({ error: 'Body must be a JSON object' })
+    return
+  }
+  const json = JSON.stringify(body)
+  if (json.length > 64_000) {
+    res.status(413).json({ error: 'Deposit instructions blob too large' })
+    return
+  }
+  const row = await prisma.appSetting.upsert({
+    where: { key: DEPOSIT_KEY },
+    create: { key: DEPOSIT_KEY, value: json, updatedBy: req.userId! },
+    update: { value: json, updatedBy: req.userId! },
+  })
+  // Audit so we know who changed deposit destinations and when.
+  try {
+    await prisma.adminAudit.create({
+      data: {
+        actorId: req.userId!,
+        action: 'deposit_instructions.update',
+        payload: json.slice(0, 4000),
+      },
+    })
+  } catch { /* don't fail the write because audit logging hiccupped */ }
+  res.json({ instructions: body, updatedAt: row.updatedAt })
 })
 
 export default router
