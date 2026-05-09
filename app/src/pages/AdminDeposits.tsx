@@ -1,12 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
-import { ArrowLeft, Banknote, Coins, Shield, Trash2, Save, KeyRound, Wallet as WalletIcon } from 'lucide-react'
+import { ArrowLeft, Banknote, Coins, Shield, Trash2, Save, Wallet as WalletIcon } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import {
   depositInstructions,
-  isAdmin,
   setAdmin,
   onDepositInstructionsChanged,
   pushToServer,
@@ -67,8 +66,11 @@ const EMPTY_CRYPTO: CryptoWallet = {
 }
 
 function AdminInner() {
-  const [admin, setAdminState] = useState<boolean>(() => isAdmin())
-  const [unlockKey, setUnlockKey] = useState('')
+  // The route is already gated by RequireAdmin (App.tsx) and the server
+  // re-checks role==='admin' on every mutation, so anyone who reaches this
+  // component is authorized. We just flip the local UI flag on mount so the
+  // editor controls render immediately — no "unlock" prompt to fight with.
+  useEffect(() => { setAdmin(true) }, [])
 
   // Currency being edited
   const [wireCurrency, setWireCurrency] = useState<FiatCurrency>('USD')
@@ -95,32 +97,11 @@ function AdminInner() {
     setWeb3Form(existing && existing.chainId === web3ChainId ? existing : { ...EMPTY_WEB3, chainId: web3ChainId, label: WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? '' })
   }, [web3ChainId])
 
-  useEffect(() => onDepositInstructionsChanged(() => setAdminState(isAdmin())), [])
+  useEffect(() => onDepositInstructionsChanged(() => { /* re-render on store change */ }), [])
 
   // On first mount, pull the canonical blob from the server so admin sees
   // what every other device sees (and isn't editing a stale local cache).
   useEffect(() => { void hydrateFromServer() }, [])
-
-  function unlock(e: FormEvent) {
-    e.preventDefault()
-    // UI-only gate — accepts any non-empty key. The real authorization check
-    // lives on the server (RequireAdmin + role==='admin'). This local toggle
-    // just unlocks the editor controls on this device.
-    if (unlockKey.trim().length > 0) {
-      setAdmin(true)
-      setAdminState(true)
-      setUnlockKey('')
-      toast.success('Admin mode enabled on this device')
-    } else {
-      toast.error('Enter any key to unlock')
-    }
-  }
-
-  function lock() {
-    setAdmin(false)
-    setAdminState(false)
-    toast.info('Admin mode disabled')
-  }
 
   function saveWire(e: FormEvent) {
     e.preventDefault()
@@ -199,46 +180,9 @@ function AdminInner() {
             <h1 className="text-2xl font-light text-[#E5E5E5]">Admin · Deposit Instructions</h1>
             <p className="text-xs text-[#737373]">Configure wire transfer details and crypto deposit addresses shown to users.</p>
           </div>
-          {admin && (
-            <button
-              onClick={lock}
-              className="px-3 py-1.5 text-xs text-[#A0A0A0] bg-[#1a1a1a] border border-[#ffffff10] rounded-lg hover:text-[#f44336] hover:border-[#f44336]/40 transition-colors"
-            >
-              Lock admin mode
-            </button>
-          )}
         </div>
 
-        {!admin ? (
-          <div className="max-w-md rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-8">
-            <div className="flex items-center gap-3 mb-4">
-              <KeyRound className="w-5 h-5 text-[#0C8B44]" />
-              <h2 className="text-lg font-medium text-[#E5E5E5]">Unlock admin</h2>
-            </div>
-            <p className="text-xs text-[#A0A0A0] mb-6">
-              Enter <em>any</em> key to enable the deposit-instruction editor on this device.
-              This toggle only affects the local UI &mdash; the real authorization check is
-              already enforced by your admin login on the server.
-            </p>
-            <form onSubmit={unlock} className="space-y-3">
-              <input
-                type="password"
-                value={unlockKey}
-                onChange={(e) => setUnlockKey(e.target.value)}
-                placeholder="Any key (e.g. unlock)"
-                className="w-full px-4 py-2.5 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-[#0C8B44] text-white text-sm font-medium rounded-lg hover:bg-[#0a7539] transition-colors"
-              >
-                Unlock
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6">
             {/* WIRE TRANSFER */}
             <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
               <div className="flex items-center gap-3 mb-5">
@@ -367,7 +311,6 @@ function AdminInner() {
               </form>
             </section>
           </div>
-        )}
       </div>
     </div>
   )
