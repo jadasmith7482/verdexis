@@ -40,15 +40,27 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: 'How do I deposit funds?',
-        a: 'Open Wallet → Deposit. Choose Bank (instant verification or micro-deposits) or Crypto (send to your generated address). ACH minimum is $10, maximum $100,000 per transaction.',
+        a: 'Open Wallet → Deposit. Choose Bank (instant verification or micro-deposits) or Crypto (we display a deposit address generated for your account, per supported network). ACH minimum is $10, maximum $100,000 per transaction. Crypto deposits have no Verdexis-imposed minimum, but please respect the dust thresholds of the underlying network.',
+      },
+      {
+        q: 'Which crypto networks can I deposit?',
+        a: 'BTC (Bitcoin), ETH and ERC-20 tokens (USDT, USDC) on Ethereum mainnet, SOL on Solana, XRP on the XRP Ledger, and DOGE on Dogecoin. Each currency is shown on its own deposit screen with the correct network label — always send on the matching network or your funds may be lost.',
+      },
+      {
+        q: 'How do I deposit crypto?',
+        a: 'Wallet → Deposit → Crypto, then pick the currency. Copy the address (or scan the QR code) and send the desired amount from your external wallet or exchange. If the network requires a memo / destination tag (e.g. XRP), include it exactly — omitting it can result in lost funds. Once the network confirms the transaction, we credit it to your Verdexis wallet.',
       },
       {
         q: 'How long do deposits take?',
-        a: 'Instant bank link: same business day. Micro-deposits: 1-3 business days for verification, then funds available immediately. Crypto: 1-30 confirmations depending on the network.',
+        a: 'Instant bank link: same business day. Micro-deposits: 1–3 business days for verification, then funds available immediately. Crypto: typically a few network confirmations (a few minutes for SOL/XRP/USDC, ~10–60 minutes for ETH/BTC). Large or first-time deposits may be held for a brief compliance review before being credited.',
       },
       {
         q: 'Why is my deposit pending?',
-        a: 'Deposits over $1,000 or first-time deposits are reviewed by our compliance team (typically under 4 hours). You\'ll get a notification when approved.',
+        a: 'Deposits over $1,000 or first-time deposits are reviewed before crediting (typically under 4 hours). For crypto, we also wait until the transaction has the required number of network confirmations. You’ll get a notification when it clears.',
+      },
+      {
+        q: 'I sent crypto on the wrong network — can you recover it?',
+        a: 'In most cases, no. Funds sent on a network we do not display for that asset (e.g. USDT on Tron when only ERC-20 is shown) cannot be recovered. Always send on the exact network shown on the deposit screen.',
       },
       {
         q: 'How do I withdraw?',
