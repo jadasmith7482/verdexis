@@ -163,8 +163,16 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Mobile/tablet: notification bell + hamburger */}
+          {/* Mobile/tablet: login (when signed-out) + notification bell + hamburger */}
           <div className="flex lg:hidden items-center gap-2 shrink-0">
+            {!isAuthenticated && (
+              <button
+                onClick={openLogin}
+                className="px-3 py-1.5 text-xs font-medium tracking-[0.04em] uppercase text-[#E5E5E5] border border-[#ffffff20] rounded-lg hover:border-[#0C8B44] hover:text-[#0C8B44] transition-colors"
+              >
+                Log In
+              </button>
+            )}
             {isAuthenticated && <NotificationBell />}
             <button
               className="text-[#E5E5E5] p-2 -mr-2"
@@ -180,6 +188,13 @@ export default function Navigation() {
         {mobileOpen && (
           <div className="absolute top-16 left-0 right-0 nav-glass py-4 px-6 lg:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto">
             <div className="flex flex-col gap-4">
+              {/* Auth buttons first so signed-out users see them without scrolling. */}
+              {!isAuthenticated && (
+                <div className="flex items-center gap-3 pb-3 border-b border-[#ffffff08]">
+                  <button onClick={openLogin} className="flex-1 py-2.5 text-[#E5E5E5] text-sm font-medium tracking-[0.04em] uppercase border border-[#ffffff20] rounded-lg">Log In</button>
+                  <button onClick={openSignup} className="flex-1 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg">Sign Up</button>
+                </div>
+              )}
               {navLinks.map((link) => (
                 <Link key={link.path} to={link.path}
                   className="text-sm font-light tracking-[0.08em] uppercase text-[#A0A0A0] hover:text-[#0C8B44] transition-colors"
@@ -187,12 +202,7 @@ export default function Navigation() {
                   {link.label}
                 </Link>
               ))}
-              {!isAuthenticated ? (
-                <div className="flex items-center gap-3 pt-3 border-t border-[#ffffff08]">
-                  <button onClick={openLogin} className="flex-1 py-2.5 text-[#A0A0A0] text-sm font-light tracking-[0.04em] uppercase border border-[#ffffff15] rounded-lg">Log In</button>
-                  <button onClick={openSignup} className="flex-1 py-2.5 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg">Sign Up</button>
-                </div>
-              ) : (
+              {isAuthenticated && (
                 <div className="flex items-center justify-between pt-3 border-t border-[#ffffff08]">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] overflow-hidden">{avatar ? <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" /> : (userName[0]?.toUpperCase() || 'U')}</div>
