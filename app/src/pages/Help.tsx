@@ -102,7 +102,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'What\'s the difference between market, limit, and stop orders?',
-        a: 'Market: fills immediately at the best available price. Limit: only fills at your specified price or better. Stop: triggers when the market crosses your trigger price, then becomes a market order.',
+        a: 'Market: fills immediately at the best available live price. Limit: only fires if the live price is already at or better than your specified price. Stop: only fires if the live price is already past your trigger. Verdexis does not park limit/stop orders for later — they execute now or are rejected.',
       },
       {
         q: 'Why was my trade rejected?',
@@ -110,7 +110,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'Can I cancel an order?',
-        a: 'Market orders fill instantly so they cannot be cancelled. Open limit/stop orders can be cancelled from the Activity page until they trigger.',
+        a: 'Verdexis does not currently maintain a queue of resting limit or stop orders — every trade you place is evaluated against the live price and either fills immediately or is rejected, so there is nothing pending to cancel. If you want to wait for a target price, set a price alert from the asset page and place the trade when it triggers.',
       },
     ],
   },

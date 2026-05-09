@@ -5,5 +5,10 @@ Disallow: /wallet
 Disallow: /ai
 Disallow: /settings
 Disallow: /alerts
+Disallow: /goals
+Disallow: /activity
+Disallow: /admin
+Disallow: /admin/
+Disallow: /reset
 
 Sitemap: https://verdexis.app/sitemap.xml
