@@ -219,6 +219,22 @@
     -webkit-backdrop-filter: blur(24px);
     border-bottom: 1px solid rgba(115, 115, 115, 0.1);
   }
+  /* Fallback when backdrop-filter isn't supported (many mobile browsers / low-power mode). */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav-glass {
+      background: #070C0E;
+    }
+  }
+  /* On mobile/tablet (below lg breakpoint), force a solid bar so content doesn't bleed
+     through. Mobile Safari/Chrome often render backdrop-filter inconsistently while
+     scrolling, which makes the nav look transparent. */
+  @media (max-width: 1023px) {
+    .nav-glass {
+      background: rgba(7, 12, 14, 0.97);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+  }
 
   .glow-accent {
     box-shadow: 0 0 20px rgba(12, 139, 68, 0.3), 0 0 40px rgba(12, 139, 68, 0.1);
