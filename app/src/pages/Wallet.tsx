@@ -81,6 +81,9 @@ export default function WalletPage() {
 
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
+  // Optional on-chain transaction hash the user can paste after sending
+  // a crypto deposit — lets the operations team match the credit faster.
+  const [cryptoTxHash, setCryptoTxHash] = useState('')
   const [recipient, setRecipient] = useState('')
   // Transfer-tab mode: convert USD to crypto in your own wallet, OR send funds
   // to another Verdexis user identified by email.
@@ -196,6 +199,28 @@ export default function WalletPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedCurrency, instructionsTick, userWalletTick],
   )
+  // Currencies offered on the Deposit tab. We always include USD and any
+  // crypto with admin-configured deposit instructions (global or per-user),
+  // even if the user has no balance entry for them yet — otherwise the
+  // wallet API response (USD-only for new users) would hide crypto deposits.
+  const depositCurrencies = useMemo(() => {
+    const set = new Set<string>(['USD'])
+    for (const w of wallet) set.add(w.currency)
+    try {
+      const all = depositInstructions.all()
+      for (const cur of Object.keys(all.cryptos || {})) set.add(cur)
+    } catch { /* ignore */ }
+    const profile = getProfile()
+    if (profile?.email) {
+      const personal = userWallets.get(profile.email)
+      if (personal?.cryptos) for (const cur of Object.keys(personal.cryptos)) set.add(cur)
+    }
+    // Stable ordering: USD first, then alphabetical crypto.
+    const arr = Array.from(set)
+    return arr.sort((a, b) => (a === 'USD' ? -1 : b === 'USD' ? 1 : a.localeCompare(b)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet, instructionsTick, userWalletTick])
+
   // True when the address shown above is a per-user override rather than
   // the global default — used to render a small "assigned to you" badge.
   const cryptoIsPersonal = useMemo(() => {
@@ -497,13 +522,20 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Deposit declined', message: `No ${selectedCurrency} deposit address configured. Please reach out to your portfolio representative.` })
       return
     }
-    portfolioStore.addTransaction('deposit', amt, selectedCurrency, `Crypto Deposit (${selectedCurrency}) — ${cryptoInstructions.network}`, newIdempotencyKey())
+    portfolioStore.addTransaction(
+      'deposit',
+      amt,
+      selectedCurrency,
+      `Crypto deposit (${selectedCurrency} · ${cryptoInstructions.network})${cryptoTxHash.trim() ? ` — tx ${cryptoTxHash.trim().slice(0, 12)}…` : ''}`,
+      newIdempotencyKey(),
+    )
     setTransferStatus({
       kind: 'success',
       title: 'Deposit submitted',
-      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. Pending review — your balance will update once the deposit clears.`,
+      message: `Submitted ${amt.toLocaleString(undefined, { minimumFractionDigits: selectedCurrency === 'USD' ? 2 : 0, maximumFractionDigits: selectedCurrency === 'USD' ? 2 : 8 })} ${selectedCurrency}. We’ll credit your wallet once the network confirms the transaction.`,
     })
     setAmount('')
+    setCryptoTxHash('')
     setTransactions(portfolioStore.getTransactions())
   }
 
@@ -807,6 +839,21 @@ export default function WalletPage() {
       hour12: false,
       timeZoneName: 'short',
     })
+  }
+
+  // Human-readable confirmation expectation per asset, shown on the
+  // crypto deposit screen so users know roughly when funds will land.
+  const networkConfirmations = (currency: string): string => {
+    switch (currency.toUpperCase()) {
+      case 'BTC':  return '2 confirmations · ~20–40 min'
+      case 'ETH':  return '12 confirmations · ~3–5 min'
+      case 'USDT':
+      case 'USDC': return '12 confirmations · ~3–5 min'
+      case 'SOL':  return '32 slots · under 1 min'
+      case 'XRP':  return 'Validated ledger · under 1 min'
+      case 'DOGE': return '20 confirmations · ~20 min'
+      default:     return 'a few network confirmations'
+    }
   }
 
   // Polished, human-readable description for the detail modal. Falls back
@@ -1350,20 +1397,29 @@ export default function WalletPage() {
                 )}
               </div>
               <div className="mb-6">
-                <label className="text-sm text-[#A0A0A0] mb-2 block">Select Currency</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {wallet.map((w) => (
-                    <button key={w.currency} onClick={() => setSelectedCurrency(w.currency)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${selectedCurrency === w.currency ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50'}`}>
-                      <CurrencyIcon currency={w.currency} size={32} />
-                      <span className="text-sm text-[#E5E5E5]">{w.currency}</span>
+                <label className="text-sm text-[#A0A0A0] mb-2 block">Select currency</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {depositCurrencies.map((cur) => (
+                    <button
+                      key={cur}
+                      onClick={() => {
+                        setSelectedCurrency(cur)
+                        if (cur === 'USD' && usdMethod !== 'ach' && usdMethod !== 'wire') setUsdMethod('ach')
+                      }}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${selectedCurrency === cur ? 'border-[#0C8B44] bg-[#0C8B44]/10' : 'border-[#ffffff08] bg-[#1a1a1a]/50 hover:border-[#0C8B44]/30'}`}
+                    >
+                      <CurrencyIcon currency={cur} size={24} />
+                      <span className="text-sm text-[#E5E5E5]">{cur}</span>
                     </button>
                   ))}
                 </div>
+                {depositCurrencies.filter(c => c !== 'USD').length === 0 && (
+                  <p className="text-[11px] text-[#737373] mt-2">No crypto deposit addresses are configured yet. Please contact your portfolio representative.</p>
+                )}
               </div>
               {selectedCurrency === 'USD' ? (
                 <div className="space-y-4">
-                  {/* ACH vs Wire method picker */}
+                  {/* ACH vs Wire method picker (USD only) */}
                   <div>
                     <label className="text-sm text-[#A0A0A0] mb-2 block">Funding method</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1389,7 +1445,6 @@ export default function WalletPage() {
                       </button>
                     </div>
                   </div>
-
                   <div>
                     <label className="text-sm text-[#A0A0A0] mb-2 block" htmlFor="deposit-amt">Amount</label>
                     <div className="relative">
@@ -1497,7 +1552,9 @@ export default function WalletPage() {
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-[#A0A0A0] mb-2 block">Amount</label>
+                    <label className="text-sm text-[#A0A0A0] mb-2 block">
+                      Amount <span className="text-[11px] text-[#737373]">(optional — embeds in the QR code so your wallet pre-fills it)</span>
+                    </label>
                     <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
                       className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]" />
                   </div>
@@ -1508,7 +1565,8 @@ export default function WalletPage() {
                         <QrCode value={qrPayload(selectedCurrency, cryptoInstructions.address, amount)} size={176} />
                       </div>
                       <p className="text-sm text-[#A0A0A0] mb-1">Send {selectedCurrency} to this address</p>
-                      <p className="text-[11px] text-[#737373] mb-3">Network: <span className="text-[#E5E5E5]">{cryptoInstructions.network}</span></p>
+                      <p className="text-[11px] text-[#737373] mb-1">Network: <span className="text-[#E5E5E5]">{cryptoInstructions.network}</span></p>
+                      <p className="text-[11px] text-[#737373] mb-3">Credited after <span className="text-[#E5E5E5]">{networkConfirmations(selectedCurrency)}</span></p>
                       {cryptoIsPersonal && (
                         <p className="inline-flex items-center gap-1 text-[10px] font-medium text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30 rounded-full px-2 py-0.5 mb-3">
                           <WalletIcon className="w-3 h-3" /> Personal address assigned to you
@@ -1519,10 +1577,13 @@ export default function WalletPage() {
                         <button type="button" aria-label="Copy address" onClick={() => copyToClipboard(cryptoInstructions.address, 'Address copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0"><Copy className="w-4 h-4" /></button>
                       </div>
                       {cryptoInstructions.memo && (
-                        <div className="flex items-center gap-2 justify-center mt-2">
-                          <span className="text-[10px] uppercase tracking-[0.05em] text-[#737373]">Memo</span>
-                          <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg">{cryptoInstructions.memo}</code>
-                          <button type="button" aria-label="Copy memo" onClick={() => copyToClipboard(cryptoInstructions.memo!, 'Memo copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors"><Copy className="w-4 h-4" /></button>
+                        <div className="mt-3 p-3 rounded-lg bg-[#F57C00]/10 border border-[#F57C00]/30">
+                          <p className="text-[10px] uppercase tracking-[0.05em] text-[#F57C00] font-medium mb-1.5">Memo / destination tag required</p>
+                          <div className="flex items-center gap-2 justify-center">
+                            <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg break-all">{cryptoInstructions.memo}</code>
+                            <button type="button" aria-label="Copy memo" onClick={() => copyToClipboard(cryptoInstructions.memo!, 'Memo copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0"><Copy className="w-4 h-4" /></button>
+                          </div>
+                          <p className="text-[10px] text-[#A0A0A0] mt-1.5">Omitting the memo will result in lost funds.</p>
                         </div>
                       )}
                       {cryptoInstructions.notes && (
@@ -1539,12 +1600,47 @@ export default function WalletPage() {
                     </div>
                   )}
 
+                  {cryptoInstructions && (
+                    <div className="p-4 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff08]">
+                      <p className="text-[10px] uppercase tracking-[0.05em] text-[#737373] font-medium mb-2">How it works</p>
+                      <ol className="text-[11px] text-[#A0A0A0] space-y-1 list-decimal list-inside leading-relaxed">
+                        <li>Copy the address above (and memo if shown) or scan the QR with your wallet.</li>
+                        <li>Send {selectedCurrency} on the {cryptoInstructions.network} network — no other network.</li>
+                        <li>Wait for the network to confirm ({networkConfirmations(selectedCurrency)}).</li>
+                        <li>Your Verdexis wallet is credited automatically once confirmed.</li>
+                      </ol>
+                    </div>
+                  )}
+
                   <div className="p-4 rounded-xl bg-[#F57C00]/10 border border-[#F57C00]/20">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-[#F57C00] shrink-0 mt-0.5" />
-                      <div><p className="text-sm font-medium text-[#F57C00]">Important</p><p className="text-xs text-[#A0A0A0] mt-1">Send only {selectedCurrency}{cryptoInstructions ? ` on ${cryptoInstructions.network}` : ''} to this address. Other assets or networks may be lost.</p></div>
+                      <div>
+                        <p className="text-sm font-medium text-[#F57C00]">Important</p>
+                        <p className="text-xs text-[#A0A0A0] mt-1">
+                          Send only {selectedCurrency}{cryptoInstructions ? ` on ${cryptoInstructions.network}` : ''} to this address.
+                          Funds sent on a different asset or network cannot be recovered.
+                        </p>
+                      </div>
                     </div>
                   </div>
+
+                  {cryptoInstructions && (
+                    <div>
+                      <label htmlFor="crypto-tx-hash" className="text-sm text-[#A0A0A0] mb-2 block">
+                        Transaction hash <span className="text-[11px] text-[#737373]">(optional — speeds up matching)</span>
+                      </label>
+                      <input
+                        id="crypto-tx-hash"
+                        type="text"
+                        value={cryptoTxHash}
+                        onChange={(e) => setCryptoTxHash(e.target.value)}
+                        placeholder="0x… or block-explorer tx id"
+                        className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-[12px] text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] font-mono"
+                      />
+                    </div>
+                  )}
+
                   <button onClick={handleDeposit} disabled={!cryptoInstructions || !amount} className="w-full py-3.5 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     I sent {amount || '0'} {selectedCurrency}
                   </button>
