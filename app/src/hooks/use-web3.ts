@@ -255,9 +255,14 @@ export function useWeb3() {
         setState((s) => ({ ...s, isConnecting: false, error: 'WalletConnect failed to initialize' }))
         return
       }
-      // eth_requestAccounts triggers WC's own QR / deep-link modal on
-      // first call. After approval, the provider is ready for use.
-      const accounts = await wc.request<string[]>({ method: 'eth_requestAccounts' })
+      // `enable()` is the documented entry point on the WC v2 provider:
+      // it opens the QR / deep-link modal, waits for the user to approve
+      // in their wallet, and resolves with the account list. Calling
+      // `request({ method: 'eth_requestAccounts' })` directly throws
+      // "Please call connect() before request()" because the EIP-1193
+      // request layer is gated until the session exists.
+      type WcEnable = { enable: () => Promise<string[]> }
+      const accounts = await (wc as unknown as WcEnable).enable()
       const chainId = await wc.request<string>({ method: 'eth_chainId' }).catch(() => null)
       if (accounts && accounts.length > 0) {
         const addr = accounts[0]
