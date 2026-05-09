@@ -539,8 +539,8 @@ export default function Dashboard() {
                         return (
                           <Link key={tx.id} to={`/activity?tx=${encodeURIComponent(tx.id)}`} className="flex items-center justify-between py-2 -mx-2 px-2 rounded-lg hover:bg-[#ffffff05] transition-colors">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] shrink-0 ${tx.type === 'deposit' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
-                                {tx.type === 'deposit' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] leading-none shrink-0 ${tx.type === 'deposit' || tx.type === 'dividend' || tx.type === 'interest' ? 'bg-[#4CAF50]/15 text-[#4CAF50]' : tx.type === 'withdraw' ? 'bg-[#f44336]/15 text-[#f44336]' : 'bg-[#FF9800]/15 text-[#FF9800]'}`}>
+                                {tx.type === 'deposit' || tx.type === 'dividend' || tx.type === 'interest' ? '↓' : tx.type === 'withdraw' ? '↑' : '↔'}
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm text-[#E5E5E5] truncate">{tx.description}</p>

@@ -1227,12 +1227,12 @@ export default function WalletPage() {
                         <p className="text-xs text-[#737373]">{formatTimeAgo(tx.timestamp)}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-medium ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className={`text-sm font-medium whitespace-nowrap tabular-nums ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
                         {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, {
                           minimumFractionDigits: tx.currency === 'USD' ? 2 : 0,
                           maximumFractionDigits: tx.currency === 'USD' ? 2 : 8,
-                        })} {tx.currency}
+                        })} {tx.currency}
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}

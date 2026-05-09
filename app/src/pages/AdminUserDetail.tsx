@@ -28,84 +28,84 @@ type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watc
 type PresetGroup = { label: string; items: string[] }
 const DEPOSIT_PRESETS: Record<'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', PresetGroup[]> = {
   deposit: [
-    { label: 'Investment earnings', items: [
-      'Investment earnings — quarterly distribution',
-      'Investment earnings — monthly yield payout',
-      'Investment earnings — managed portfolio gain',
-      'Capital gains payout — closed position',
-      'Profit share — strategy performance fee rebate',
-      'Realized profit — successful trade execution',
+    { label: 'Investment Earnings', items: [
+      'Investment Earnings — Quarterly Distribution',
+      'Investment Earnings — Monthly Yield Payout',
+      'Investment Earnings — Managed Portfolio Gain',
+      'Capital Gains Payout — Closed Position',
+      'Profit Share — Strategy Performance Fee Rebate',
+      'Realized Profit — Successful Trade Execution',
     ] },
-    { label: 'Bonuses & rewards', items: [
-      'Welcome bonus — new account',
-      'Loyalty bonus — account anniversary',
-      'Referral reward — invited user funded',
-      'Promotional credit — campaign reward',
-      'Trading rebate — high-volume tier',
-      'Cashback reward — card spend',
+    { label: 'Bonuses & Rewards', items: [
+      'Welcome Bonus — New Account',
+      'Loyalty Bonus — Account Anniversary',
+      'Referral Reward — Invited User Funded',
+      'Promotional Credit — Campaign Reward',
+      'Trading Rebate — High-Volume Tier',
+      'Cashback Reward — Card Spend',
     ] },
-    { label: 'Lucky win / promotional', items: [
-      'Lucky win — promotional draw',
-      'Jackpot win — featured event',
-      'Tournament prize — trading contest',
-      'Giveaway winner — community event',
-      'Daily streak reward',
+    { label: 'Lucky Win / Promotional', items: [
+      'Lucky Win — Promotional Draw',
+      'Jackpot Win — Featured Event',
+      'Tournament Prize — Trading Contest',
+      'Giveaway Winner — Community Event',
+      'Daily Streak Reward',
     ] },
     { label: 'Funding', items: [
-      'Wire transfer — bank deposit',
-      'ACH bank deposit',
-      'Card deposit',
-      'Crypto deposit — on-chain transfer',
-      'Internal transfer — sister account',
-      'Reimbursement — fee credit',
+      'Wire Transfer — Bank Deposit',
+      'ACH Bank Deposit',
+      'Card Deposit',
+      'Crypto Deposit — On-Chain Transfer',
+      'Internal Transfer — Sister Account',
+      'Reimbursement — Fee Credit',
     ] },
     { label: 'Other', items: [
-      'Manual adjustment by admin',
-      'Refund — cancelled transaction',
-      'Goodwill credit — service issue',
-      'Audit correction',
+      'Manual Adjustment By Admin',
+      'Refund — Cancelled Transaction',
+      'Goodwill Credit — Service Issue',
+      'Audit Correction',
     ] },
   ],
   withdraw: [
     { label: 'Withdrawals', items: [
-      'Wire withdrawal — bank',
-      'ACH withdrawal — bank',
-      'Crypto withdrawal — on-chain',
-      'Card withdrawal — debit',
-      'Check withdrawal — mailed',
+      'Wire Withdrawal — Bank',
+      'ACH Withdrawal — Bank',
+      'Crypto Withdrawal — On-Chain',
+      'Card Withdrawal — Debit',
+      'Check Withdrawal — Mailed',
     ] },
-    { label: 'Fees & deductions', items: [
-      'Withdrawal fee',
-      'Network fee — gas',
-      'Service charge — monthly',
-      'Tax withholding',
-      'Manual deduction by admin',
-      'Reversal of credit — chargeback',
+    { label: 'Fees & Deductions', items: [
+      'Withdrawal Fee',
+      'Network Fee — Gas',
+      'Service Charge — Monthly',
+      'Tax Withholding',
+      'Manual Deduction By Admin',
+      'Reversal Of Credit — Chargeback',
     ] },
   ],
   transfer: [
     { label: 'Transfers', items: [
-      'Internal transfer — between wallets',
-      'Conversion — currency swap',
-      'Sent to another user',
-      'Received from another user',
+      'Internal Transfer — Between Wallets',
+      'Conversion — Currency Swap',
+      'Sent To Another User',
+      'Received From Another User',
     ] },
   ],
   dividend: [
     { label: 'Dividends', items: [
-      'Stock dividend payout',
-      'ETF distribution',
-      'REIT distribution',
-      'Special dividend',
+      'Stock Dividend Payout',
+      'ETF Distribution',
+      'REIT Distribution',
+      'Special Dividend',
     ] },
   ],
   interest: [
-    { label: 'Interest & yield', items: [
-      'Cash sweep interest',
-      'Staking reward — daily payout',
-      'Yield farming reward',
-      'Lending interest payout',
-      'Savings interest — monthly',
+    { label: 'Interest & Yield', items: [
+      'Cash Sweep Interest',
+      'Staking Reward — Daily Payout',
+      'Yield Farming Reward',
+      'Lending Interest Payout',
+      'Savings Interest — Monthly',
     ] },
   ],
 }
@@ -530,7 +530,7 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
           </select>
           <span className="block text-[10px] text-[#737373] mt-1">Picking a preset fills the description below; you can still edit it.</span>
         </label>
-        <Input label="Description" value={reference} onChange={setReference} placeholder="e.g. Investment earnings — Q2 distribution" />
+        <Input label="Description" value={reference} onChange={setReference} placeholder="e.g. Investment Earnings — Q2 Distribution" />
         <label className="block">
           <span className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-1.5">When (optional backdate)</span>
           <input
