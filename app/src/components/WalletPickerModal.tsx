@@ -43,14 +43,12 @@ export default function WalletPickerModal({
   const detectedRdns = new Set(discovered.map((d) => d.info.rdns))
   let installOptions = WALLET_INSTALL_OPTIONS.filter((w) => !detectedRdns.has(w.rdns))
   const onMobile = isMobile()
-  // On mobile, deep-link buttons (https://metamask.app.link/dapp/...) yank
-  // the user out of Safari/Chrome into the wallet's own in-app browser,
-  // which loads a fresh logged-out copy of Verdexis. WalletConnect connects
-  // back to THIS tab via wc: URI and keeps the session intact, so it's the
-  // only sane mobile path. Drop deep-link entries on mobile entirely; only
-  // keep "install" entries for users who don't have any wallet yet.
+  // On mobile, the WalletConnect button at the top covers every installed
+  // wallet (it shows the same wallets in its own modal with proper
+  // deep-links and session handoff). The install/open list below it just
+  // duplicates that menu and confuses the user — hide it entirely on mobile.
   if (onMobile) {
-    installOptions = installOptions.filter((w) => !w.deepLink)
+    installOptions = []
   }
 
   return (
