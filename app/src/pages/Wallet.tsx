@@ -896,11 +896,6 @@ export default function WalletPage() {
               <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">Wallet</h1>
               <p className="text-sm text-[#737373] mt-1">Manage your assets</p>
             </div>
-            <button onClick={() => setShowBalance(!showBalance)} aria-label={showBalance ? 'Hide balance' : 'Show balance'}
-              className="inline-flex items-center gap-1.5 self-start px-2.5 py-1.5 rounded-md bg-[#1a1a1a] border border-[#ffffff08] text-xs text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#0C8B44]/30 transition-colors">
-              {showBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{showBalance ? 'Hide' : 'Show'}</span>
-            </button>
           </div>
 
           {/* Main Balance */}
@@ -908,11 +903,17 @@ export default function WalletPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <p className="text-sm text-[#A0A0A0] mb-2">Total Balance</p>
-                <p className="text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5]">
-                  {showBalance
-                    ? `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : '****'}
-                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5]">
+                    {showBalance
+                      ? `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : '****'}
+                  </p>
+                  <button onClick={() => setShowBalance(!showBalance)} aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#0C8B44]/30 transition-colors">
+                    {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <p className="text-sm text-[#4CAF50] mt-2 flex items-center gap-1">
                   <ArrowDownRight className="w-4 h-4" /> +5.2% this month
                 </p>
