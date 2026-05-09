@@ -81,7 +81,7 @@ try {
       currency: 'USD',
       amount: START_AMOUNT,
       status: 'completed',
-      reference: 'Initial investment',
+      reference: 'Initial investment funding — Verdexis Managed Portfolio',
       createdAt: INITIAL_DEPOSIT_DATE,
     },
   })
@@ -107,7 +107,7 @@ try {
         currency: 'USD',
         amount: fee,
         status: 'completed',
-        reference: `Monthly account fee (${cycleYear}-${String(cycleMonth + 1).padStart(2, '0')})`,
+        reference: `Verdexis monthly account & management fee — ${new Date(Date.UTC(cycleYear, cycleMonth, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`,
         createdAt: feeDate,
       },
     })
@@ -130,7 +130,7 @@ try {
         currency: 'USD',
         amount: interest,
         status: 'completed',
-        reference: `Monthly interest (${cycleYear}-${String(cycleMonth + 1).padStart(2, '0')})`,
+        reference: `Monthly performance interest credit — ${new Date(Date.UTC(cycleYear, cycleMonth, 1)).toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`,
         createdAt: interestDate,
       },
     })

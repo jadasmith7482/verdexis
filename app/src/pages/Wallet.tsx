@@ -6,7 +6,7 @@ import LinkBankModal from '../components/LinkBankModal'
 import LinkedWalletsPanel from '../components/LinkedWalletsPanel'
 import WalletPickerModal from '../components/WalletPickerModal'
 import QrCode from '../components/QrCode'
-import { portfolioStore } from '../lib/portfolioStore'
+import { portfolioStore, type WalletTransaction } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin, hydrateFromServer } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
@@ -106,6 +106,9 @@ export default function WalletPage() {
   const [incomeSource, setIncomeSource] = useState('')
   const [wallet, setWallet] = useState(() => portfolioStore.getWallet())
   const [transactions, setTransactions] = useState(() => portfolioStore.getTransactions())
+  // Transaction selected in the history list — opens a detail modal with
+  // the exact dd/mm/yyyy timestamp and a professional description.
+  const [selectedTx, setSelectedTx] = useState<WalletTransaction | null>(null)
   const [banks, setBanks] = useState<BankAccount[]>(() => listBanks())
   const [selectedBankId, setSelectedBankId] = useState<string>('')
   const [linkBankOpen, setLinkBankOpen] = useState(false)
@@ -768,14 +771,60 @@ export default function WalletPage() {
     return 'text-[#737373]'
   }
 
-  const formatTimeAgo = (date: Date) => {
-    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-    if (seconds < 60) return 'Just now'
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    return `${Math.floor(hours / 24)}d ago`
+  // Compact dd/mm/yyyy used in the transaction history list. Keeps every
+  // row at a glance-friendly fixed width while still showing the exact day
+  // (replaces the older "336d ago" format that hid the actual date).
+  const formatDateDMY = (date: Date) => {
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return ''
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    return `${dd}/${mm}/${d.getFullYear()}`
+  }
+
+  // Long-form date used inside the transaction-detail modal (e.g.
+  // "30 June 2025 · 09:00 GMT").
+  const formatDateLong = (date: Date) => {
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleString(undefined, {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZoneName: 'short',
+    })
+  }
+
+  // Polished, human-readable description for the detail modal. Falls back
+  // to whatever was stored if we can't infer a nicer label.
+  const polishDescription = (tx: WalletTransaction): string => {
+    const monthYear = new Date(tx.timestamp).toLocaleString(undefined, { month: 'long', year: 'numeric' })
+    const cur = tx.currency || 'USD'
+    switch (tx.type) {
+      case 'interest':
+        return `Monthly performance interest credit \u2014 ${monthYear}. Net return distributed to your ${cur} wallet for the active investment cycle.`
+      case 'dividend':
+        return `Asset dividend distribution \u2014 ${monthYear}. Proceeds settled to your ${cur} wallet.`
+      case 'deposit':
+        return tx.description?.toLowerCase().includes('initial')
+          ? `Initial investment funding received and credited to your ${cur} wallet.`
+          : (tx.description || `Funds received and credited to your ${cur} wallet.`)
+      case 'withdraw':
+        return tx.description || `Funds withdrawn from your ${cur} wallet to your nominated destination.`
+      case 'transfer':
+        return tx.description || `${cur} transfer between accounts.`
+      default: {
+        // Fee transactions surface here (the WalletTransaction union doesn't
+        // include 'fee', but server data can carry it through).
+        if ((tx.type as string) === 'fee') {
+          return `Verdexis monthly account & management fee \u2014 ${monthYear}. Standard 0.4% portfolio service charge debited from your ${cur} wallet.`
+        }
+        return tx.description || `${cur} transaction.`
+      }
+    }
   }
 
   const getTransactionIcon = (type: string) => {
@@ -1245,14 +1294,20 @@ export default function WalletPage() {
               </div>
               <div className="divide-y divide-[#ffffff05]">
                 {transactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-[#ffffff02] transition-colors">
+                  <button
+                    key={tx.id}
+                    type="button"
+                    onClick={() => setSelectedTx(tx)}
+                    className="w-full text-left flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-[#ffffff05] focus:bg-[#ffffff05] focus:outline-none transition-colors"
+                    aria-label={`Open transaction details for ${tx.description}`}
+                  >
                     <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                       <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${txIconBg(tx.type)}`}>
                         {getTransactionIcon(tx.type)}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs sm:text-sm font-medium text-[#E5E5E5] truncate">{tx.description}</p>
-                        <p className="text-[10px] sm:text-xs text-[#737373]">{formatTimeAgo(tx.timestamp)}</p>
+                        <p className="text-[10px] sm:text-xs text-[#737373] tabular-nums">{formatDateDMY(tx.timestamp)}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -1267,7 +1322,7 @@ export default function WalletPage() {
                         <span className={`text-[10px] sm:text-xs capitalize ${getStatusColor(tx.status)}`}>{getStatusText(tx.status)}</span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1895,6 +1950,91 @@ export default function WalletPage() {
         </div>
       </div>
       <Footer />
+
+      {/* Transaction detail modal — opens when the user taps an amount in
+          the history list. Shows the exact dd/mm/yyyy date and a polished
+          professional description. */}
+      {selectedTx && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-sm px-4 py-8 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Transaction details"
+          onClick={() => setSelectedTx(null)}
+        >
+          <div
+            className="w-full max-w-md bg-[#0d0d0d] border border-[#ffffff10] rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-[#ffffff08] flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${txIconBg(selectedTx.type)}`}>
+                  {getTransactionIcon(selectedTx.type)}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-medium text-[#E5E5E5] capitalize truncate">{selectedTx.type}</h3>
+                  <p className="text-[11px] text-[#A0A0A0] tabular-nums">{formatDateLong(selectedTx.timestamp)}</p>
+                </div>
+              </div>
+              <button type="button" aria-label="Close" onClick={() => setSelectedTx(null)} className="text-[#737373] hover:text-[#E5E5E5]">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="text-center">
+                <p className="text-[11px] uppercase tracking-wider text-[#737373] mb-1">Amount</p>
+                <p className={`text-3xl font-semibold tabular-nums ${selectedTx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
+                  {selectedTx.amount >= 0 ? '+' : ''}
+                  {selectedTx.amount.toLocaleString(undefined, {
+                    minimumFractionDigits: selectedTx.currency === 'USD' ? 2 : 0,
+                    maximumFractionDigits: selectedTx.currency === 'USD' ? 2 : 8,
+                  })}{' '}
+                  <span className="text-base font-medium text-[#A0A0A0]">{selectedTx.currency}</span>
+                </p>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                <dt className="text-[#737373]">Date</dt>
+                <dd className="text-right text-[#E5E5E5] tabular-nums">{formatDateDMY(selectedTx.timestamp)}</dd>
+
+                <dt className="text-[#737373]">Time</dt>
+                <dd className="text-right text-[#E5E5E5] tabular-nums">
+                  {new Date(selectedTx.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                </dd>
+
+                <dt className="text-[#737373]">Type</dt>
+                <dd className="text-right text-[#E5E5E5] capitalize">{selectedTx.type}</dd>
+
+                <dt className="text-[#737373]">Status</dt>
+                <dd className={`text-right capitalize ${getStatusColor(selectedTx.status)}`}>{getStatusText(selectedTx.status)}</dd>
+
+                <dt className="text-[#737373]">Currency</dt>
+                <dd className="text-right text-[#E5E5E5]">{selectedTx.currency}</dd>
+
+                <dt className="text-[#737373]">Reference</dt>
+                <dd className="text-right text-[#E5E5E5] font-mono text-[10px] truncate" title={selectedTx.id}>{selectedTx.id}</dd>
+              </dl>
+
+              <div className="rounded-xl border border-[#ffffff08] bg-[#1a1a1a]/50 p-4">
+                <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-1.5">Description</p>
+                <p className="text-xs text-[#E5E5E5] leading-relaxed">{polishDescription(selectedTx)}</p>
+                {selectedTx.description && selectedTx.description !== polishDescription(selectedTx) && (
+                  <p className="text-[10px] text-[#737373] mt-2 italic">Original: {selectedTx.description}</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedTx(null)}
+                className="w-full py-3 bg-[#0C8B44] text-white text-sm font-medium rounded-xl hover:bg-[#0a7539] transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingWithdrawal && (() => {
         const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
