@@ -10,7 +10,7 @@ import { portfolioStore } from '../lib/portfolioStore'
 import { listBanks, removeBank, onBanksChanged, type BankAccount } from '../lib/bankLink'
 import { depositInstructions, onDepositInstructionsChanged, isAdmin, hydrateFromServer } from '../lib/depositInstructions'
 import type { Web3Payout } from '../lib/depositInstructions'
-import { userWallets, USER_WALLETS_EVENT } from '../lib/userWallets'
+import { userWallets, USER_WALLETS_EVENT, hydrateUserWalletsFromServer } from '../lib/userWallets'
 import { feeProofs } from '../lib/feeProofs'
 import { getProfile } from '../lib/userProfile'
 import { useWeb3 } from '../hooks/use-web3'
@@ -165,10 +165,31 @@ export default function WalletPage() {
     [selectedCurrency, instructionsTick],
   )
   const cryptoInstructions = useMemo(
-    () => depositInstructions.getCrypto(selectedCurrency),
+    () => {
+      // Prefer the per-user address the admin assigned (server-persisted in
+      // their prefs) over the global default so a deposit reaches the right
+      // wallet even when an account manager has set a unique destination
+      // for this user. Read directly from `userWallets` so we don't depend
+      // on the `userOverride` memo declared further down (would be in TDZ
+      // on first render).
+      const profile = getProfile()
+      const personal = profile?.email
+        ? userWallets.get(profile.email)?.cryptos?.[selectedCurrency]
+        : undefined
+      if (personal && personal.address) return personal
+      return depositInstructions.getCrypto(selectedCurrency)
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedCurrency, instructionsTick],
+    [selectedCurrency, instructionsTick, userWalletTick],
   )
+  // True when the address shown above is a per-user override rather than
+  // the global default — used to render a small "assigned to you" badge.
+  const cryptoIsPersonal = useMemo(() => {
+    const profile = getProfile()
+    if (!profile?.email) return false
+    return !!userWallets.get(profile.email)?.cryptos?.[selectedCurrency]?.address
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCurrency, userWalletTick])
   const web3 = useWeb3()
   const [web3TransferAmount, setWeb3TransferAmount] = useState('')
   const [web3Recipient, setWeb3Recipient] = useState('')
@@ -369,6 +390,13 @@ export default function WalletPage() {
     const onChange = () => setUserWalletTick(t => t + 1)
     window.addEventListener(USER_WALLETS_EVENT, onChange)
     return () => window.removeEventListener(USER_WALLETS_EVENT, onChange)
+  }, [])
+  // Pull the override the admin saved server-side when the page loads, so
+  // the user sees their personal address even on a fresh device / browser.
+  useEffect(() => {
+    const profile = getProfile()
+    if (!profile?.email) return
+    void hydrateUserWalletsFromServer({ email: profile.email })
   }, [])
   const userOverride = useMemo(() => {
     const profile = getProfile()
@@ -1415,6 +1443,11 @@ export default function WalletPage() {
                       </div>
                       <p className="text-sm text-[#A0A0A0] mb-1">Send {selectedCurrency} to this address</p>
                       <p className="text-[11px] text-[#737373] mb-3">Network: <span className="text-[#E5E5E5]">{cryptoInstructions.network}</span></p>
+                      {cryptoIsPersonal && (
+                        <p className="inline-flex items-center gap-1 text-[10px] font-medium text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30 rounded-full px-2 py-0.5 mb-3">
+                          <WalletIcon className="w-3 h-3" /> Personal address assigned to you
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 justify-center mb-2">
                         <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-3 py-1.5 rounded-lg break-all max-w-[280px]">{cryptoInstructions.address}</code>
                         <button type="button" aria-label="Copy address" onClick={() => copyToClipboard(cryptoInstructions.address, 'Address copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0"><Copy className="w-4 h-4" /></button>

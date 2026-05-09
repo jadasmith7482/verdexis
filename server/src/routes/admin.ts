@@ -1451,4 +1451,74 @@ router.get('/audit-old', async (_req, res) => {
   res.status(404).json({ error: 'use /audit' })
 })
 
+// --- per-user deposit addresses ------------------------------------------
+// Admin sets the crypto / wire destination shown to a specific user.
+// Stored inside the user's `prefs` JSON under `depositAddresses` so we
+// don't need a schema migration. The user reads them via
+// GET /api/wallet/me/deposit-addresses.
+
+const depositAddrCryptoSchema = z.object({
+  currency: z.string().min(1).max(20),
+  network: z.string().min(1).max(80),
+  address: z.string().min(4).max(200),
+  memo: z.string().max(200).optional(),
+  notes: z.string().max(500).optional(),
+})
+
+const depositAddrWireSchema = z.object({
+  beneficiaryName: z.string().min(1).max(120),
+  bankName: z.string().min(1).max(120),
+  routingNumber: z.string().max(40).optional(),
+  swiftCode: z.string().max(40).optional(),
+  accountNumber: z.string().min(1).max(80),
+  reference: z.string().max(200).optional(),
+  notes: z.string().max(500).optional(),
+}).optional()
+
+const depositAddressesSchema = z.object({
+  cryptos: z.record(depositAddrCryptoSchema).default({}),
+  wire: depositAddrWireSchema,
+  notes: z.string().max(1000).optional(),
+  updatedAt: z.string().optional(),
+})
+
+router.get('/users/:id/deposit-addresses', async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  const u = await prisma.user.findUnique({ where: { id }, select: { prefs: true } })
+  if (!u) { res.status(404).json({ error: 'Not found' }); return }
+  let prefs: Record<string, unknown> = {}
+  try { if (u.prefs) prefs = JSON.parse(u.prefs) } catch { prefs = {} }
+  res.json({ addresses: (prefs as { depositAddresses?: unknown }).depositAddresses ?? null })
+})
+
+router.put('/users/:id/deposit-addresses', async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  const parsed = depositAddressesSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+  const target = await prisma.user.findUnique({ where: { id }, select: { prefs: true } })
+  if (!target) { res.status(404).json({ error: 'Not found' }); return }
+  let prefs: Record<string, unknown> = {}
+  try { if (target.prefs) prefs = JSON.parse(target.prefs) } catch { prefs = {} }
+  const next = { ...parsed.data, updatedAt: new Date().toISOString() }
+  prefs.depositAddresses = next
+  await prisma.user.update({ where: { id }, data: { prefs: JSON.stringify(prefs) } })
+  await audit(req.userId!, 'user.depositAddresses.update', id, {
+    cryptoCount: Object.keys(next.cryptos || {}).length,
+    hasWire: !!next.wire,
+  })
+  res.json({ addresses: next })
+})
+
+router.delete('/users/:id/deposit-addresses', async (req: AuthedRequest, res) => {
+  const id = req.params.id
+  const target = await prisma.user.findUnique({ where: { id }, select: { prefs: true } })
+  if (!target) { res.status(404).json({ error: 'Not found' }); return }
+  let prefs: Record<string, unknown> = {}
+  try { if (target.prefs) prefs = JSON.parse(target.prefs) } catch { prefs = {} }
+  delete (prefs as { depositAddresses?: unknown }).depositAddresses
+  await prisma.user.update({ where: { id }, data: { prefs: JSON.stringify(prefs) } })
+  await audit(req.userId!, 'user.depositAddresses.clear', id, null)
+  res.json({ ok: true })
+})
+
 export default router

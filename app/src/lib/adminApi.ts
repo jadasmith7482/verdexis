@@ -333,6 +333,16 @@ export const adminApi = {
   deleteWallet: (id: string) =>
     request<{ ok: boolean }>(`/api/admin/wallet/${id}`, { method: 'DELETE' }),
 
+  // Per-user crypto / wire deposit destinations the admin assigns.
+  // Stored server-side in the user's prefs.depositAddresses, so they
+  // surface to the user on any device they sign in on.
+  getUserDepositAddresses: (userId: string) =>
+    request<{ addresses: unknown | null }>(`/api/admin/users/${userId}/deposit-addresses`),
+  setUserDepositAddresses: (userId: string, addresses: unknown) =>
+    request<{ addresses: unknown }>(`/api/admin/users/${userId}/deposit-addresses`, { method: 'PUT', body: JSON.stringify(addresses) }),
+  clearUserDepositAddresses: (userId: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${userId}/deposit-addresses`, { method: 'DELETE' }),
+
   // Transactions
   createTransaction: (userId: string, tx: { kind: string; currency: string; amount: number; status?: string; reference?: string; createdAt?: string }) =>
     request<{ transaction: AdminTransaction }>(`/api/admin/users/${userId}/transactions`, { method: 'POST', body: JSON.stringify(tx) }),

@@ -223,6 +223,10 @@ export const api = {
       { method: 'PUT', body: JSON.stringify(instructions) },
     ),
 
+  // Per-user crypto / wire deposit destinations the admin assigned to me.
+  getMyDepositAddresses: () =>
+    request<{ addresses: unknown | null }>('/api/wallet/me/deposit-addresses'),
+
   // On-chain pending deposits
   recordPendingDeposit: (
     payload: { txHash: string; chainId: string; toAddress: string; fromAddress: string; asset: string; amount: number },

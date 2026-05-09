@@ -4,9 +4,11 @@
 // to each individual user. The values fall back to the global
 // `depositInstructions` if not set for that user.
 //
-// Storage: localStorage on the admin device (mirrors how
-// `depositInstructions` already works). Keyed by user email so the same
-// override surfaces when that user logs in on the same browser/device.
+// Storage: server-persisted inside the user's `prefs.depositAddresses`
+// JSON via /api/admin/users/:id/deposit-addresses (admin write) and
+// /api/wallet/me/deposit-addresses (user read). Mirrored to localStorage
+// as a fast cache, keyed by user email AND user id so both the admin
+// (who knows the email) and the user (whose own profile we know) hit it.
 
 const STORAGE_KEY = 'verdexis_user_wallets_v1'
 export const USER_WALLETS_EVENT = 'verdexis:userWallets'
@@ -83,4 +85,66 @@ export const userWallets = {
     write(s)
   },
   all(): Store { return read() },
+  /** Cache an override under a given key without dispatching the event. */
+  cache(emailOrId: string, override: UserWalletOverride | null): void {
+    const k = key(emailOrId)
+    if (!k) return
+    const s = read()
+    if (override) s[k] = override
+    else delete s[k]
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+  },
+}
+
+// --- Server sync ---------------------------------------------------------
+// Lazy-import api to avoid a circular dep at module load.
+
+/**
+ * Pull the per-user override the admin saved server-side and cache it
+ * under both the email and (optionally) the user id. Call this after
+ * login on the user side, and after opening a user detail page on the
+ * admin side. Safe to call repeatedly.
+ */
+export async function hydrateUserWalletsFromServer(opts: {
+  email?: string
+  userId?: string
+  /** When true, fetch via the admin endpoint (admin viewing another user). */
+  admin?: boolean
+}): Promise<UserWalletOverride | null> {
+  try {
+    const { api } = await import('./api')
+    let addresses: UserWalletOverride | null = null
+    if (opts.admin && opts.userId) {
+      const { adminApi } = await import('./adminApi')
+      const res = await adminApi.getUserDepositAddresses(opts.userId)
+      addresses = (res.addresses as UserWalletOverride | null) ?? null
+    } else {
+      const res = await api.getMyDepositAddresses()
+      addresses = (res.addresses as UserWalletOverride | null) ?? null
+    }
+    if (opts.email) userWallets.cache(opts.email, addresses)
+    if (opts.userId) userWallets.cache(opts.userId, addresses)
+    window.dispatchEvent(new Event(USER_WALLETS_EVENT))
+    return addresses
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Push an admin-edited override up to the server, so the user sees it on
+ * any device. Returns the saved value (with server timestamp) or null on
+ * failure.
+ */
+export async function pushUserWalletsToServer(
+  userId: string,
+  override: UserWalletOverride,
+): Promise<UserWalletOverride | null> {
+  try {
+    const { adminApi } = await import('./adminApi')
+    const res = await adminApi.setUserDepositAddresses(userId, override)
+    return (res.addresses as UserWalletOverride | null) ?? null
+  } catch {
+    return null
+  }
 }

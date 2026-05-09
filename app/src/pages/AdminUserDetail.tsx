@@ -17,7 +17,7 @@ import {
   ArrowDownToLine, ArrowUpFromLine, Lock, Unlock, FileCheck2, Activity, UserCog, Wifi, RotateCcw, DollarSign,
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
-import { userWallets, type UserWalletOverride } from '../lib/userWallets'
+import { userWallets, type UserWalletOverride, hydrateUserWalletsFromServer, pushUserWalletsToServer } from '../lib/userWallets'
 import { feeProofs, FEE_PROOFS_EVENT, type FeeProof } from '../lib/feeProofs'
 
 type Tab = 'profile' | 'wallet' | 'holdings' | 'transactions' | 'trades' | 'watchlist' | 'alerts' | 'notifications' | 'audit' | 'danger'
@@ -353,7 +353,7 @@ function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; 
     <div className="space-y-6">
       <FeePanel userId={userId} balances={balances} onChange={onChange} />
       <FeeProofsPanel userId={userId} userEmail={userEmail} onChange={onChange} />
-      <UserWalletPanel userEmail={userEmail} />
+      <UserWalletPanel userId={userId} userEmail={userEmail} />
       <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
       <div className="grid lg:grid-cols-3 gap-6">
         <form onSubmit={add} className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-3">
@@ -972,18 +972,34 @@ function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userE
 // Lets the admin assign a unique crypto address (per ticker) and a USD wire
 // destination to THIS user. Surfaces in the user's Wallet page (deposit +
 // processing-fee modal) instead of the global default.
-function UserWalletPanel({ userEmail }: { userEmail: string }) {
+function UserWalletPanel({ userId, userEmail }: { userId: string; userEmail: string }) {
   const [override, setOverride] = useState<UserWalletOverride>(() =>
-    userWallets.get(userEmail) || { cryptos: {}, wire: undefined, notes: '' },
+    userWallets.get(userEmail) || userWallets.get(userId) || { cryptos: {}, wire: undefined, notes: '' },
   )
   const [cryptoTicker, setCryptoTicker] = useState('BTC')
   const [cryptoNetwork, setCryptoNetwork] = useState('Bitcoin')
   const [cryptoAddress, setCryptoAddress] = useState('')
   const [cryptoMemo, setCryptoMemo] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  function persist(next: UserWalletOverride) {
+  // Hydrate from server on mount so the admin sees what was saved on any device.
+  useEffect(() => {
+    let cancelled = false
+    void hydrateUserWalletsFromServer({ email: userEmail, userId, admin: true }).then((srv) => {
+      if (cancelled) return
+      if (srv) setOverride(srv)
+    })
+    return () => { cancelled = true }
+  }, [userId, userEmail])
+
+  async function persist(next: UserWalletOverride) {
     setOverride(next)
     userWallets.set(userEmail, next)
+    userWallets.cache(userId, next)
+    setSaving(true)
+    const saved = await pushUserWalletsToServer(userId, next)
+    setSaving(false)
+    if (!saved) toast.error('Saved locally but failed to sync to server')
   }
 
   function addCrypto() {
@@ -1018,10 +1034,17 @@ function UserWalletPanel({ userEmail }: { userEmail: string }) {
     toast.success('Wire override cleared')
   }
 
-  function clearAll() {
+  async function clearAll() {
     if (!confirm(`Clear ALL personal wallet addresses for ${userEmail}?`)) return
     userWallets.remove(userEmail)
+    userWallets.cache(userId, null)
     setOverride({ cryptos: {}, wire: undefined, notes: '' })
+    setSaving(true)
+    try {
+      const { adminApi: a } = await import('../lib/adminApi')
+      await a.clearUserDepositAddresses(userId)
+    } catch { /* best-effort */ }
+    setSaving(false)
     toast.success('Cleared')
   }
 
@@ -1036,7 +1059,7 @@ function UserWalletPanel({ userEmail }: { userEmail: string }) {
           <p className="text-[11px] text-[#737373] mt-1">
             Per-user crypto / wire addresses shown to this user when paying processing fees or making deposits. Falls back to the global deposit instructions if empty.
           </p>
-          <p className="text-[10px] text-[#737373] mt-0.5">Stored locally on this admin device, keyed by user email.</p>
+          <p className="text-[10px] text-[#737373] mt-0.5">Saved on the server &mdash; reaches this user on any device they sign in on.{saving ? ' Syncing…' : ''}</p>
         </div>
         {(cryptoEntries.length > 0 || w) && (
           <button onClick={clearAll} className="text-[11px] text-[#f44336] hover:underline">Clear all</button>

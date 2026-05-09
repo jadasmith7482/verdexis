@@ -30,6 +30,17 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
   res.json({ balances, transactions })
 })
 
+// Per-user deposit destinations (admin-managed). Returns the override the
+// admin set for THIS user, or null if none. Falls back to the global
+// deposit instructions on the client side.
+router.get('/me/deposit-addresses', requireAuth, async (req: AuthedRequest, res) => {
+  const u = await prisma.user.findUnique({ where: { id: req.userId! }, select: { prefs: true } })
+  let prefs: Record<string, unknown> = {}
+  try { if (u?.prefs) prefs = JSON.parse(u.prefs) } catch { prefs = {} }
+  const addresses = (prefs as { depositAddresses?: unknown }).depositAddresses ?? null
+  res.json({ addresses })
+})
+
 const txSchema = z.object({
   kind: z.enum(['deposit', 'withdraw', 'transfer', 'dividend', 'interest']),
   currency: z.string().min(1).max(20),
