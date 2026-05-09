@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import AuthModal from '../components/AuthModal'
+import Testimonials from '../components/Testimonials'
 import ScrambleText from '../components/ScrambleText'
 import TetrahedronCanvas from '../components/Tetrahedron'
 import { aiService, type AIInsight } from '../lib/aiService'
@@ -13,11 +14,15 @@ import {
   TrendingUp, TrendingDown, ArrowRight, Sparkles, Shield,
   Zap, BarChart3, PieChart, Activity, Bot,
   ChevronRight, Wallet, LineChart, BrainCircuit, Lock,
-  Globe, Server, CheckCircle, Star, Play,
+  Globe, Server, CheckCircle, Play,
   FileText, Fingerprint, Eye,
 } from 'lucide-react'
 
 const testimonials: { name: string; role: string; company: string; image: string; text: string; rating: number }[] = []
+// `testimonials` is intentionally empty + unused; the homepage testimonial
+// section is rendered by <Testimonials /> which fetches real reviews from
+// /api/reviews and merges them with curated seed quotes.
+void testimonials
 
 const howItWorks = [
   { step: '01', title: 'Connect Your Accounts', desc: 'Link your exchange accounts, wallets, and bank accounts securely. Verdexis supports leading exchanges and major blockchains.', icon: Globe, color: '#0C8B44' },
@@ -495,32 +500,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS (rendered only when populated) ===== */}
-      {testimonials.length > 0 && (
-      <section className="py-24 px-6">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44] mb-3 block">Testimonials</span>
-            <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">What our customers say</h2>
-            <p className="text-[#A0A0A0] max-w-lg mx-auto">From retail traders to institutional funds.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {testimonials.map((t) => (
-              <div key={t.name} className="p-8 rounded-2xl bg-[#0f1619]/50 border border-[#ffffff05] hover:border-[#0C8B44]/20 transition-all">
-                <div className="flex items-center gap-1 mb-6">
-                  {Array.from({ length: t.rating }, (_, i) => <Star key={i} className="w-5 h-5 text-[#F57C00]" fill="#F57C00" />)}
-                </div>
-                <p className="text-base text-[#A0A0A0] leading-relaxed mb-8">&ldquo;{t.text}&rdquo;</p>
-                <div className="flex items-center gap-4 pt-6 border-t border-[#ffffff08]">
-                  <img src={t.image} alt={t.name} className="w-14 h-14 rounded-full object-cover" />
-                  <div><p className="text-base font-medium text-[#E5E5E5]">{t.name}</p><p className="text-sm text-[#737373]">{t.role} at {t.company}</p></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      )}
+      {/* ===== TESTIMONIALS — horizontal swipe carousel + user-submitted reviews ===== */}
+      <Testimonials onSignInRequired={openLogin} />
       {/* ===== HUMAN IMAGE SHOWCASE ===== */}
       <section className="py-24 px-6 bg-[#0a0f11]">
         <div className="max-w-[1280px] mx-auto">

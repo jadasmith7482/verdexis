@@ -279,6 +279,23 @@ export const api = {
   // so the caller can fall back to its rule-based answer.
   aiChat: (payload: { query: string; persona?: string; context?: string }) =>
     request<{ answer: string; model: string }>('/api/ai/chat', { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Public testimonials shown on the homepage carousel. GET is unauthenticated
+  // so the marketing page works for signed-out visitors.
+  listReviews: () =>
+    request<{ reviews: { id: string; rating: number; text: string; authorName: string; authorAvatar: string | null; createdAt: string }[] }>(
+      '/api/reviews',
+    ),
+  getMyReview: () =>
+    request<{ review: { id: string; rating: number; text: string; authorName: string; authorAvatar: string | null; approved: boolean; createdAt: string; updatedAt: string } | null }>(
+      '/api/reviews/me',
+    ),
+  upsertReview: (payload: { rating: number; text: string }) =>
+    request<{ review: { id: string; rating: number; text: string; authorName: string; authorAvatar: string | null; approved: boolean; createdAt: string; updatedAt: string } }>(
+      '/api/reviews',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  deleteMyReview: () => request<{ ok: boolean }>('/api/reviews/me', { method: 'DELETE' }),
 }
 
 /**

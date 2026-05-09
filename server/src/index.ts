@@ -25,6 +25,7 @@ import alertsRoutes from './routes/alerts.js'
 import notificationsRoutes from './routes/notifications.js'
 import aiRoutes from './routes/ai.js'
 import marketRoutes from './routes/market.js'
+import reviewsRoutes from './routes/reviews.js'
 import adminRoutes from './routes/admin.js'
 import { startAlertPoller } from './alertPoller.js'
 import { startKeepAlive } from './keepAlive.js'
@@ -143,6 +144,7 @@ app.use('/api/alerts', alertsRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/market', marketRoutes)
+app.use('/api/reviews', reviewsRoutes)
 app.use('/api/admin', adminRoutes)
 
 // In production, serve the built frontend (copied into ./public during the

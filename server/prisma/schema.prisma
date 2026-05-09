@@ -64,6 +64,7 @@ model User {
   notifications Notification[]
   pendingDeposits PendingDeposit[]
   walletLinks   WalletLink[]
+  reviews       Review[]
   adminAudits   AdminAudit[]   @relation("AdminActor")
   audited       AdminAudit[]   @relation("AdminTarget")
 }
@@ -271,9 +272,36 @@ model AppSetting {
   // JSON-encoded value (stored as String for parity with our other JSON
   // blobs like User.prefs).
   value     String
-  // userId of the admin who last wrote this row \u2014 useful for the audit
+  // userId of the admin who last wrote this row — useful for the audit
   // trail when paired with the AdminAudit log.
   updatedBy String?
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+/// Public testimonial / review left by a real user. Surfaced on the
+/// marketing homepage. One row per user (upserted on POST) so the same
+/// person can update their review without spawning duplicates. We pin
+/// the user's name + avatar at write-time so renaming/avatar changes
+/// don't retroactively rewrite the homepage testimonial unless the
+/// user explicitly re-submits.
+model Review {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 1..5 stars.
+  rating    Int
+  // 1..400 chars. Plain text — no markdown / html rendered.
+  text      String
+  // Pinned at write-time so the testimonial keeps the name+avatar the
+  // user wanted associated with this review.
+  authorName   String
+  authorAvatar String?
+  // Whether this review is shown publicly on the homepage. Default true;
+  // admins can flip to false from the audit page if it needs pulling.
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([approved, createdAt])
 }
