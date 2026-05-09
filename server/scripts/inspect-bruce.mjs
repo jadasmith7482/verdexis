@@ -1,0 +1,10 @@
+import { PrismaClient } from '@prisma/client'
+const p = new PrismaClient()
+const u = await p.user.findUnique({ where: { email: 'brucew6525@verdexis.com' } })
+const h = await p.holding.findMany({ where: { userId: u.id } })
+const w = await p.walletBalance.findMany({ where: { userId: u.id } })
+console.log('HOLDINGS:')
+for (const x of h) console.log(' ', x.symbol, 'qty=', x.amount, 'avg=', x.avgPrice, 'val=', x.amount * x.avgPrice)
+console.log('WALLET:')
+for (const x of w) console.log(' ', x.currency, 'bal=', x.balance)
+await p.$disconnect()
