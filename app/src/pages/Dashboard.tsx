@@ -20,7 +20,7 @@ import ExportMenu from '../components/dashboard/ExportMenu'
 import CustomizeWidgets from '../components/dashboard/CustomizeWidgets'
 import AdminQuickPanel from '../components/dashboard/AdminQuickPanel'
 import AdminConsoleEmbed from '../components/dashboard/AdminConsoleEmbed'
-import TimeRangePicker, { type ChartRange } from '../components/dashboard/TimeRangePicker'
+import TimeRangePicker, { type ChartRange, rangeLabel } from '../components/dashboard/TimeRangePicker'
 import NetWorthChart from '../components/NetWorthChart'
 import EmptyStateCta from '../components/dashboard/EmptyStateCta'
 import WatchlistPanel from '../components/WatchlistPanel'
@@ -43,6 +43,7 @@ import {
   PieChart, Activity, Lock,
   ArrowRight, Gem, Layers,
   History, Star, Repeat, Coins, Settings as SettingsIcon,
+  Eye, EyeOff,
 } from 'lucide-react'
 
 const getCryptoLogo = (idOrSymbol: string, type?: string) => assetIconFor(idOrSymbol, type)
@@ -162,6 +163,17 @@ export default function Dashboard() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [chartRange, setChartRange] = useState<ChartRange>('1W')
   const [showBenchmark, setShowBenchmark] = useState(false)
+  const [showNetWorth, setShowNetWorth] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('verdexis_show_networth') !== '0'
+  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('verdexis_show_networth', showNetWorth ? '1' : '0')
+  }, [showNetWorth])
+  // Mask digits while preserving currency symbol, separators, and length
+  // so the masked value visually conveys the same magnitude as the real one
+  // (e.g. "$12,345.67" -> "$**,***.**").
+  const maskMoney = (s: string) => s.replace(/\d/g, '*')
   const [hiddenWidgets, setHiddenWidgets] = useState(() => dashboardLayout.hidden())
   const isAuthenticated = !!localStorage.getItem('verdexis_holdings')
   const userName = (() => {
@@ -386,9 +398,48 @@ export default function Dashboard() {
       const scale = positionsValue / last
       for (let i = 0; i < series.length; i++) series[i] *= scale
     }
-    // Add wallet cash as a flat lift across the whole window.
-    if (walletValueUsd > 0) {
-      for (let i = 0; i < series.length; i++) series[i] += walletValueUsd
+    // Add wallet entries: stablecoins / USD lift the curve flat, but
+    // crypto wallet balances (BTC, ETH, SOL, …) follow their own
+    // sparkline so the chart actually moves for users whose value lives
+    // in the wallet rather than in formal "holdings".
+    const STABLE = new Set(['USD', 'USDC', 'USDT'])
+    let walletStableUsd = 0
+    for (const w of wallet) {
+      const cur = (w.currency || '').toUpperCase()
+      if (!w.balance || w.balance <= 0) continue
+      if (STABLE.has(cur)) {
+        walletStableUsd += w.balance
+        continue
+      }
+      const q = quoteById[cur.toLowerCase()] || quoteById[cur]
+      const sp = q?.sparkline_in_7d?.price
+      const livePrice = portfolioStore.getQuote(cur) ?? q?.current_price ?? 0
+      if (sp && sp.length >= 2) {
+        haveSparkline = true
+        const window = chartRange === '1D' ? sp.slice(-24) : sp
+        for (let i = 0; i < HISTORY_POINTS; i++) {
+          const idx = Math.min(window.length - 1, Math.round((i / (HISTORY_POINTS - 1)) * (window.length - 1)))
+          series[i] += w.balance * window[idx]
+        }
+      } else if (livePrice > 0) {
+        const flat = w.balance * livePrice
+        for (let i = 0; i < HISTORY_POINTS; i++) series[i] += flat
+      }
+    }
+    if (walletStableUsd > 0) {
+      for (let i = 0; i < series.length; i++) series[i] += walletStableUsd
+    }
+    // Anchor the most recent point to the live totalValue so the chart's
+    // right edge ticks in lockstep with the headline number on every
+    // mark-to-market update / live price tick (otherwise the tail is
+    // pinned to whatever stale hourly sparkline value CoinGecko returned).
+    if (totalValue > 0 && series[series.length - 1] > 0) {
+      const scale = totalValue / series[series.length - 1]
+      // Blend toward the live anchor so we don't yank the entire history.
+      for (let i = 0; i < series.length; i++) {
+        const t = i / Math.max(1, series.length - 1) // 0 -> 1 across window
+        series[i] *= 1 + (scale - 1) * t
+      }
     }
     // Light moving-average smoothing (window = 5) to remove hourly noise.
     const W = 5
@@ -451,27 +502,42 @@ export default function Dashboard() {
                 </div>
               </div>
               {isAuthenticated && (
-                <div className="text-right">
-                  <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
-                    {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                    {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">{chartRange.toLowerCase()}</span>
-                  </p>
-                  <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
-                    {fmtMoney(periodChange, { sign: true })}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowNetWorth((v) => !v)}
+                    aria-label={showNetWorth ? 'Hide net worth' : 'Show net worth'}
+                    className="w-9 h-9 rounded-full border border-[#ffffff10] bg-[#1a1a1a]/60 hover:border-[#0C8B44]/40 hover:text-[#0C8B44] text-[#A0A0A0] transition-colors flex items-center justify-center"
+                  >
+                    {showNetWorth ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <div className="text-right">
+                    <p className={`text-sm flex items-center gap-1 justify-end ${periodChangePercent >= 0 ? 'text-[#4CAF50]' : 'text-[#f44336]'}`}>
+                      {periodChangePercent >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                      {periodChangePercent >= 0 ? '+' : ''}{periodChangePercent.toFixed(2)}% <span className="text-[#737373]">past {rangeLabel(chartRange).toLowerCase()}</span>
+                    </p>
+                    <p className={`text-xs ${periodChange >= 0 ? 'text-[#4CAF50]/80' : 'text-[#f44336]/80'}`}>
+                      {fmtMoney(periodChange, { sign: true })}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
             {isAuthenticated ? (
               <>
-                <CountUp
-                  value={totalValue}
-                  format={fmtMoney}
-                  className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums block`}
-                />
+                {showNetWorth ? (
+                  <CountUp
+                    value={totalValue}
+                    format={fmtMoney}
+                    className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums block`}
+                  />
+                ) : (
+                  <p className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums block select-none`}>
+                    {maskMoney(fmtMoney(totalValue))}
+                  </p>
+                )}
                 <p className="text-xs text-[#737373] mb-4">
-                  Cash {fmtMoney(walletValueUsd)} <span className="text-[#404040]">·</span> Positions {fmtMoney(positionsValue)}
+                  Cash {showNetWorth ? fmtMoney(walletValueUsd) : maskMoney(fmtMoney(walletValueUsd))} <span className="text-[#404040]">·</span> Positions {showNetWorth ? fmtMoney(positionsValue) : maskMoney(fmtMoney(positionsValue))}
                 </p>
 
                 {/* Range picker + benchmark toggle */}

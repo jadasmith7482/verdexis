@@ -237,13 +237,22 @@ class PortfolioStoreImpl {
   markToMarket(quotes: Record<string, number>): void {
     // Always cache quotes (even when no holdings) so wallet conversions can
     // use them. Keys come in as coin id ('bitcoin') and/or symbol ('btc').
+    let quoteChanged = false
     for (const [k, v] of Object.entries(quotes)) {
       if (typeof v === 'number' && isFinite(v) && v > 0) {
-        this.lastQuotes[k.toLowerCase()] = v
-        this.lastQuotes[k.toUpperCase()] = v
+        const lk = k.toLowerCase()
+        const uk = k.toUpperCase()
+        if (this.lastQuotes[lk] !== v || this.lastQuotes[uk] !== v) quoteChanged = true
+        this.lastQuotes[lk] = v
+        this.lastQuotes[uk] = v
       }
     }
-    if (!this.holdings.length) return
+    if (!this.holdings.length) {
+      // No holdings, but a wallet conversion rate just changed — let
+      // subscribers (Dashboard total net worth, charts) re-render.
+      if (quoteChanged) emit()
+      return
+    }
     let changed = false
     for (const h of this.holdings) {
       const live = quotes[h.id] ?? quotes[h.symbol?.toLowerCase()] ?? quotes[h.symbol]

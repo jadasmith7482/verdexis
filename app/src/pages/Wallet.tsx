@@ -1182,10 +1182,11 @@ export default function WalletPage() {
                 <div className="flex items-center gap-3 flex-wrap">
                   {(() => {
                     const formatted = `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    const sizeClass = showBalance ? headlineAmountClass(formatted) : 'text-5xl md:text-6xl'
+                    const display = showBalance ? formatted : formatted.replace(/\d/g, '*')
+                    const sizeClass = headlineAmountClass(display)
                     return (
-                      <p className={`${sizeClass} font-light tracking-[-0.03em] text-[#E5E5E5] whitespace-nowrap tabular-nums`}>
-                        {showBalance ? formatted : '****'}
+                      <p className={`${sizeClass} font-light tracking-[-0.03em] text-[#E5E5E5] whitespace-nowrap tabular-nums ${showBalance ? '' : 'select-none'}`}>
+                        {display}
                       </p>
                     )
                   })()}
@@ -1262,7 +1263,7 @@ export default function WalletPage() {
                   </div>
                   {w.currency !== 'USD' && <span className="text-xs text-[#737373] shrink-0">${(w.balance * getUsdRate(w.currency)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}
                 </div>
-                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? <>{w.symbol}{w.balance.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</> : '****'}</p>
+                <p className="text-2xl font-light text-[#E5E5E5] truncate">{(() => { const v = `${w.symbol}${w.balance.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}`; return showBalance ? v : v.replace(/\d/g, '*') })()}</p>
                 <p className="text-xs text-[#737373] mt-1 truncate">Available: {w.symbol}{w.available.toLocaleString(undefined, { minimumFractionDigits: w.currency === 'USD' ? 2 : 0, maximumFractionDigits: w.currency === 'USD' ? 2 : 4 })}</p>
               </div>
             ))}
@@ -1275,7 +1276,7 @@ export default function WalletPage() {
                   </div>
                   <span className="text-xs text-[#737373] shrink-0">${h.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 </div>
-                <p className="text-2xl font-light text-[#E5E5E5] truncate">{showBalance ? h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 }) : '****'}</p>
+                <p className="text-2xl font-light text-[#E5E5E5] truncate">{(() => { const v = h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 }); return showBalance ? v : v.replace(/\d/g, '*') })()}</p>
                 <p className="text-xs text-[#737373] mt-1 truncate">{h.name}</p>
               </div>
             ))}
