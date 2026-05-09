@@ -56,7 +56,26 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'Are there withdrawal fees?',
-        a: 'Bank withdrawals: free. Crypto withdrawals: network gas fee only — no Verdexis markup.',
+        a: 'Bank withdrawals are free. Crypto withdrawals incur the network gas fee plus a Verdexis processing fee that scales with the withdrawal amount (approximately 0.8% on small withdrawals down to a flat tier on very large ones). The exact fee is shown in the Withdraw screen before you confirm.',
+      },
+    ],
+  },
+  {
+    id: 'fees',
+    title: 'Fees & Charges',
+    icon: WalletIcon,
+    items: [
+      {
+        q: 'What fees does Verdexis charge?',
+        a: 'Three things to know: (1) a 0.10% trading fee is added to buys and deducted from sells, shown in the Review modal before you confirm; (2) crypto withdrawals carry a small processing fee plus the network gas cost (always shown before you confirm); (3) funded accounts are subject to a 0.4% monthly account & management fee, debited from your USD wallet on the 26th of each month. Bank deposits, bank withdrawals, market data, alerts, and portfolio tracking are free.',
+      },
+      {
+        q: 'When is the monthly account fee taken?',
+        a: 'On the 26th of each calendar month, the 0.4% account & management fee is debited from your USD wallet. The fee is itemised in your transaction history with a clear description so you can reconcile it.',
+      },
+      {
+        q: 'Are there any subscription fees?',
+        a: 'The Starter plan is free forever. Pro and Enterprise plans (shown on the home page) are billed monthly and can be cancelled at any time from Settings.',
       },
     ],
   },
@@ -90,7 +109,7 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: 'How is my data protected?',
-        a: 'AES-256 encryption at rest, TLS 1.3 in transit, SOC 2-aligned controls. Passwords are hashed with bcrypt. We never sell user data.',
+        a: 'AES-256 encryption at rest, TLS 1.3 in transit, and security controls designed to align with the SOC 2 framework (we are not yet SOC 2 certified — certification work is in progress). Passwords are hashed with bcrypt. We never sell user data.',
       },
       {
         q: 'How do I enable two-factor authentication?',

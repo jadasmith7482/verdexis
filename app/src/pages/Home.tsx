@@ -45,10 +45,10 @@ import { cryptoIconFor, cryptoIconErrorFallback } from '../lib/cryptoIcon'
 
 const securityFeatures = [
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit' },
-  { icon: Fingerprint, title: 'Multi-Factor Authentication', desc: 'FIDO2 WebAuthn + TOTP support' },
-  { icon: Eye, title: 'Privacy by Design', desc: 'Zero-knowledge architecture, no data selling' },
-  { icon: Server, title: 'Cold Storage', desc: 'Majority of crypto assets held in air-gapped cold wallets' },
-  { icon: Shield, title: 'Insurance Coverage', desc: 'Custodial assets covered by partner policies' },
+  { icon: Fingerprint, title: 'Two-Factor Authentication', desc: 'TOTP authenticator app support; WebAuthn/passkeys on the roadmap' },
+  { icon: Eye, title: 'Privacy by Design', desc: 'Consent-based analytics, no data selling' },
+  { icon: Server, title: 'Segregated Custody', desc: 'Custodial deposits held in segregated institutional infrastructure' },
+  { icon: Shield, title: 'Non-Custodial Option', desc: 'Read-only API connections leave your exchange keys with you' },
   { icon: FileText, title: 'Full Audit Trail', desc: 'Immutable logs of every action on your account' },
 ]
 
@@ -263,7 +263,7 @@ export default function Home() {
               <div className="absolute -bottom-6 -right-6 glass-card p-4 rounded-xl border border-[#0C8B44]/30">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#0C8B44]/20 flex items-center justify-center"><TrendingUp className="w-6 h-6 text-[#0C8B44]" /></div>
-                  <div><p className="text-lg font-light text-[#E5E5E5]">+156.8%²</p><p className="text-xs text-[#737373]">Avg. user return (2024)</p></div>
+                  <div><p className="text-lg font-light text-[#E5E5E5]">Multi-asset</p><p className="text-xs text-[#737373]">Crypto, equities &amp; fiat in one view</p></div>
                 </div>
               </div>
             </div>
@@ -612,7 +612,7 @@ export default function Home() {
               { q: 'Is Verdexis really free?', a: 'Yes. The Starter plan is free forever and includes real-time market data, portfolio tracking for up to 50 assets, and basic AI insights. Upgrade only when you need advanced features.' },
               { q: 'Do you custody my crypto?', a: 'No. Verdexis is non-custodial by default — your keys, your crypto. We support read-only API connections to your exchanges and wallets so you can track and analyse without giving up control.' },
               { q: 'How is my data secured?', a: 'All data is encrypted with AES-256 at rest and TLS 1.3 in transit. Our controls are designed to align with SOC 2, ISO 27001 and PCI DSS frameworks, and we never sell user data.' },
-              { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to leading centralised exchanges (Binance, Coinbase, Kraken and more) and the major blockchains (Bitcoin, Ethereum, Solana, BNB Chain, Polygon). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
+              { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to Coinbase today (Binance and Kraken integrations are on the roadmap) and the major blockchains (Bitcoin, Ethereum, Solana, Polygon). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
               { q: 'Can I cancel my subscription anytime?', a: 'Yes — cancel any time from Settings. Paid plans are billed monthly with no long-term commitment, and you keep access until the end of the billing period.' },
               { q: 'Is the AI advice financial advice?', a: 'No. Verdexis AI provides market analysis and portfolio insights for educational purposes. It is not a registered investment adviser and nothing on the platform constitutes personalised investment advice.' },
             ].map((item) => (
