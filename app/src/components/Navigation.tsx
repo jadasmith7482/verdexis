@@ -105,7 +105,7 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${scrolled || mobileOpen ? 'nav-glass' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${mobileOpen ? 'nav-glass' : 'bg-transparent'}`}>
         <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -163,10 +163,11 @@ export default function Navigation() {
             )}
           </div>
 
-          {/* Mobile/tablet: just the hamburger. Notifications + auth + profile
-             all live inside the opened menu so the collapsed bar stays minimal
-             (logo + three lines) regardless of auth state. */}
-          <div className="flex lg:hidden items-center shrink-0">
+          {/* Mobile/tablet: notification bell (signed-in) + hamburger. The bar
+             itself stays transparent while scrolling — only the icons float
+             over the page. Tapping the hamburger reveals the solid menu. */}
+          <div className="flex lg:hidden items-center gap-2 shrink-0">
+            {isAuthenticated && <NotificationBell />}
             <button
               className="text-[#E5E5E5] p-2 -mr-2"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -202,7 +203,6 @@ export default function Navigation() {
                     <span className="text-sm text-[#A0A0A0]">{userName}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <NotificationBell />
                     <Link to="/settings" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">
                       <SettingsIcon className="w-4 h-4" /> Settings
                     </Link>
