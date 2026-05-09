@@ -85,3 +85,22 @@ export function formatPrice(n: number): string {
   }
   return `${n < 0 ? '-' : ''}$${body}`
 }
+
+/**
+ * Pick a responsive Tailwind font-size class set for a headline number so
+ * the formatted string stays on one line at any magnitude (thousands ->
+ * trillions). Pair with `whitespace-nowrap` (no `truncate`) on the element
+ * so the number never wraps and never gets clipped to "...".
+ *
+ *   text-3xl sm:text-4xl md:text-5xl  - up to ~$999,999.99   (10 chars)
+ *   text-2xl sm:text-3xl md:text-4xl  - up to ~$999,999,999  (13 chars)
+ *   text-xl  sm:text-2xl md:text-3xl  - up to ~$999B         (16 chars)
+ *   text-lg  sm:text-xl  md:text-2xl  - trillions and beyond
+ */
+export function headlineAmountClass(formatted: string): string {
+  const len = formatted.length
+  if (len <= 10) return 'text-3xl sm:text-4xl md:text-5xl'
+  if (len <= 13) return 'text-2xl sm:text-3xl md:text-4xl'
+  if (len <= 16) return 'text-xl sm:text-2xl md:text-3xl'
+  return 'text-lg sm:text-xl md:text-2xl'
+}

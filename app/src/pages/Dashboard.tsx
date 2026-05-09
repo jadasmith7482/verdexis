@@ -33,6 +33,7 @@ import { useCurrency } from '../lib/currencyContext'
 import { dashboardLayout, DASHBOARD_LAYOUT_EVENT } from '../lib/dashboardLayout'
 import { computePortfolioHealth } from '../lib/portfolioHealth'
 import { dcaStore, nextRunMs } from '../lib/dcaStore'
+import { headlineAmountClass } from '../lib/utils'
 import { Toaster, toast } from 'sonner'
 import {
   TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight,
@@ -461,7 +462,7 @@ export default function Dashboard() {
 
             {isAuthenticated ? (
               <>
-                <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 truncate">
+                <p className={`${headlineAmountClass(fmtMoney(totalValue))} font-light tracking-[-0.03em] text-[#E5E5E5] mb-1 whitespace-nowrap tabular-nums`}>
                   {fmtMoney(totalValue)}
                 </p>
                 <p className="text-xs text-[#737373] mb-4">

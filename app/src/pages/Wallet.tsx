@@ -16,6 +16,7 @@ import { getProfile } from '../lib/userProfile'
 import { useWeb3 } from '../hooks/use-web3'
 import { cryptoIconFor, assetIconFor } from '../lib/cryptoIcon'
 import { api, getToken, newIdempotencyKey } from '../lib/api'
+import { headlineAmountClass } from '../lib/utils'
 import { Toaster, toast } from 'sonner'
 import {
   ArrowDownRight, ArrowUpRight, ArrowLeftRight,
@@ -904,11 +905,15 @@ export default function WalletPage() {
               <div>
                 <p className="text-sm text-[#A0A0A0] mb-2">Total Balance</p>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <p className="text-5xl md:text-6xl font-light tracking-[-0.03em] text-[#E5E5E5]">
-                    {showBalance
-                      ? `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                      : '****'}
-                  </p>
+                  {(() => {
+                    const formatted = `$${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    const sizeClass = showBalance ? headlineAmountClass(formatted) : 'text-5xl md:text-6xl'
+                    return (
+                      <p className={`${sizeClass} font-light tracking-[-0.03em] text-[#E5E5E5] whitespace-nowrap tabular-nums`}>
+                        {showBalance ? formatted : '****'}
+                      </p>
+                    )
+                  })()}
                   <button onClick={() => setShowBalance(!showBalance)} aria-label={showBalance ? 'Hide balance' : 'Show balance'}
                     className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-[#1a1a1a] border border-[#ffffff08] text-[#A0A0A0] hover:text-[#E5E5E5] hover:border-[#0C8B44]/30 transition-colors">
                     {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
