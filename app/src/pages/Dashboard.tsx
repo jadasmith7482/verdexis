@@ -631,7 +631,13 @@ export default function Dashboard() {
                         if (!btcSp || btcSp.length < 2) return null
                         const btcStart = btcSp[0]
                         const points = portfolioHistory.length
-                        const baseStart = portfolioHistory[0]
+                        // Anchor the BTC overlay to the user's first non-zero
+                        // net worth point (not portfolioHistory[0], which is
+                        // $0 for any range that pre-dates the first deposit
+                        // — that would collapse the entire BTC line to 0).
+                        const anchorIdx = portfolioHistory.findIndex((v) => v > 0)
+                        const baseStart = anchorIdx >= 0 ? portfolioHistory[anchorIdx] : 0
+                        if (!btcStart || baseStart <= 0) return null
                         const out: number[] = []
                         for (let i = 0; i < points; i++) {
                           const idx = Math.min(btcSp.length - 1, Math.round((i / (points - 1)) * (btcSp.length - 1)))
