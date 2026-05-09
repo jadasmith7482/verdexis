@@ -204,7 +204,11 @@ export default function WalletPage() {
   // even if the user has no balance entry for them yet — otherwise the
   // wallet API response (USD-only for new users) would hide crypto deposits.
   const depositCurrencies = useMemo(() => {
-    const set = new Set<string>(['USD'])
+    // Always offer the core crypto rails alongside USD so users can see the
+    // crypto deposit flow even before their balance row or an admin
+    // address exists. The crypto branch already shows a friendly empty
+    // state when no address is configured for the picked asset.
+    const set = new Set<string>(['USD', 'BTC', 'ETH', 'USDT', 'USDC', 'SOL'])
     for (const w of wallet) set.add(w.currency)
     try {
       const all = depositInstructions.all()
