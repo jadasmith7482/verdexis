@@ -87,22 +87,38 @@ export default function AssetDetail() {
     return () => clearInterval(i)
   }, [id, coin?.symbol])
 
-  // Watchlist toggle (localStorage)
+  // Watchlist toggle (server-backed). Uses the same /api/watchlist store as
+  // the dashboard WatchlistPanel so add/remove here syncs everywhere.
   useEffect(() => {
-    try {
-      const list = JSON.parse(localStorage.getItem('verdexis_watchlist') ?? '[]') as string[]
-      setWatch(list.includes(id))
-    } catch { /* ignore */ }
-  }, [id])
+    if (!getToken()) { setWatch(false); return }
+    let alive = true
+    api.listWatchlist()
+      .then((r) => {
+        if (!alive) return
+        const sym = (coin?.symbol ?? id ?? '').toUpperCase()
+        setWatch(r.watchlist.some((w) => (w.symbol || '').toUpperCase() === sym))
+      })
+      .catch(() => { /* offline */ })
+    return () => { alive = false }
+  }, [id, coin?.symbol])
 
-  const toggleWatch = () => {
+  const toggleWatch = async () => {
+    if (!getToken()) { toast.error('Sign in to use the watchlist'); return }
+    const sym = (coin?.symbol ?? id ?? '').toUpperCase()
+    const name = coin?.name ?? id
     try {
-      const list = JSON.parse(localStorage.getItem('verdexis_watchlist') ?? '[]') as string[]
-      const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
-      localStorage.setItem('verdexis_watchlist', JSON.stringify(next))
-      setWatch(next.includes(id))
-      toast.success(next.includes(id) ? `Added ${coin?.symbol?.toUpperCase()} to watchlist` : `Removed from watchlist`)
-    } catch { /* ignore */ }
+      if (watch) {
+        await api.removeWatch(sym)
+        setWatch(false)
+        toast.success(`Removed ${sym} from watchlist`)
+      } else {
+        await api.addWatch({ symbol: sym, name, type: 'crypto' })
+        setWatch(true)
+        toast.success(`Added ${sym} to watchlist`)
+      }
+    } catch {
+      toast.error('Could not update watchlist')
+    }
   }
 
   const price = livePrice ?? coin?.current_price ?? 0
@@ -161,9 +177,12 @@ export default function AssetDetail() {
       if (!holding) return
       setAmount(((holding.quantity * pct) / 100).toFixed(6))
     } else {
-      // For buy, treat as % of $10k mock buying power
-      const buyingPower = 10000
-      setAmount(((buyingPower * pct) / 100 / (price || 1)).toFixed(6))
+      // For buy, % of the user's actual USD wallet (available cash). Falls
+      // back to 0 when offline or unfunded so we never quote a fake amount.
+      const usdWallet = portfolioStore.getWallet().find((w) => w.currency === 'USD')
+      const buyingPower = usdWallet?.available ?? usdWallet?.balance ?? 0
+      if (buyingPower <= 0 || !price) { setAmount(''); return }
+      setAmount(((buyingPower * pct) / 100 / price).toFixed(6))
     }
   }
 

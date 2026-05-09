@@ -36,7 +36,9 @@ export default function Trading() {
   const [amount, setAmount] = useState('')
   const [price, setPrice] = useState('')
   const [timeRange, setTimeRange] = useState<TimeRange>('1D')
-  const [watchlist, setWatchlist] = useState<string[]>(['bitcoin', 'ethereum', 'solana'])
+  // Persisted watchlist (server-backed via /api/watchlist). Stored as upper-
+  // case symbols so it agrees with WatchlistPanel + AssetDetail.
+  const [watchlist, setWatchlist] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [orderBookTab, setOrderBookTab] = useState<'orderbook' | 'trades' | 'depth'>('orderbook')
@@ -76,6 +78,21 @@ export default function Trading() {
     window.addEventListener('verdexis:profile', onProfile)
     return () => window.removeEventListener('verdexis:profile', onProfile)
   }, [])
+
+  // Hydrate the persisted watchlist (server-backed) so the star button
+  // reflects whatever the user has pinned anywhere else in the app.
+  useEffect(() => {
+    if (!isAuthenticated) { setWatchlist([]); return }
+    let alive = true
+    const load = () => {
+      api.listWatchlist()
+        .then((r) => { if (alive) setWatchlist(r.watchlist.map((w) => (w.symbol || '').toUpperCase())) })
+        .catch(() => { /* offline */ })
+    }
+    load()
+    window.addEventListener('verdexis:profile', load)
+    return () => { alive = false; window.removeEventListener('verdexis:profile', load) }
+  }, [isAuthenticated])
 
   // Subscribe to sub-second Binance ticker for the currently selected coin so
   // the header price + chart + trade preview all tick smoothly.
@@ -147,8 +164,23 @@ export default function Trading() {
       )
   )
 
-  const toggleWatchlist = (id: string) => {
-    setWatchlist((prev) => (prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]))
+  const toggleWatchlist = async () => {
+    if (!selectedCrypto) return
+    if (!isAuthenticated) { toast.error('Sign in to use the watchlist'); return }
+    const sym = (selectedCrypto.symbol || selectedCrypto.id).toUpperCase()
+    const name = selectedCrypto.name || selectedCrypto.id
+    const isWatched = watchlist.includes(sym)
+    try {
+      if (isWatched) {
+        await api.removeWatch(sym)
+        setWatchlist((prev) => prev.filter((w) => w !== sym))
+      } else {
+        await api.addWatch({ symbol: sym, name, type: 'crypto' })
+        setWatchlist((prev) => [...prev, sym])
+      }
+    } catch {
+      toast.error('Could not update watchlist')
+    }
   }
 
   // Live values used by both the inline order summary and the confirm modal.
@@ -319,11 +351,18 @@ export default function Trading() {
                     {(selectedCrypto.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
                     {(selectedCrypto.price_change_percentage_24h ?? 0).toFixed(2)}%
                   </div>
-                  <button
-                    onClick={() => toggleWatchlist(selectedCrypto.id)}
-                    className={`p-2 rounded-lg transition-colors ${watchlist.includes(selectedCrypto.id) ? 'text-[#F57C00]' : 'text-[#737373] hover:text-[#F57C00]'}`}>
-                    <Star className="w-4 h-4" fill={watchlist.includes(selectedCrypto.id) ? '#F57C00' : 'none'} />
-                  </button>
+                  {(() => {
+                    const sym = (selectedCrypto.symbol || selectedCrypto.id).toUpperCase()
+                    const isWatched = watchlist.includes(sym)
+                    return (
+                      <button
+                        onClick={toggleWatchlist}
+                        aria-label={isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
+                        className={`p-2 rounded-lg transition-colors ${isWatched ? 'text-[#F57C00]' : 'text-[#737373] hover:text-[#F57C00]'}`}>
+                        <Star className="w-4 h-4" fill={isWatched ? '#F57C00' : 'none'} />
+                      </button>
+                    )
+                  })()}
                 </>
               ) : (
                 <p className="text-[#737373]">Select a trading pair</p>
