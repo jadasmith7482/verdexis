@@ -94,6 +94,15 @@ export default function Home() {
   }, [topIds])
 
   const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
+  // Gated nav: if the visitor is signed in, follow the link; otherwise prompt
+  // them to sign up. Stops the silent redirect-to-/ that <RequireAuth> does.
+  const goAuthed = (path: string) => {
+    if (isAuthed) {
+      window.location.href = path
+    } else {
+      openSignup()
+    }
+  }
   const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
 
   // Overlay live ticker prices on top of the CoinGecko snapshot so every
@@ -359,7 +368,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <Link to="/ai" className="flex items-center justify-center gap-2 mt-6 py-3 rounded-xl bg-[#6A0DAD]/20 text-[#9C27B0] text-sm font-medium hover:bg-[#6A0DAD]/30 transition-colors"><Bot className="w-4 h-4" />Ask AI Analyst</Link>
+              <button type="button" onClick={() => goAuthed('/ai')} className="w-full flex items-center justify-center gap-2 mt-6 py-3 rounded-xl bg-[#6A0DAD]/20 text-[#9C27B0] text-sm font-medium hover:bg-[#6A0DAD]/30 transition-colors"><Bot className="w-4 h-4" />Ask AI Analyst</button>
             </div>
             {/* Market Cap Breakdown (top 3 cryptos, real share of basket) */}
             <div className="liquid-card p-8" style={{ '--fill-color': 'rgba(0,131,143,0.15)' } as React.CSSProperties}>
@@ -464,7 +473,7 @@ export default function Home() {
                   <div key={f.text} className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-[#0C8B44]/20 flex items-center justify-center"><f.icon className="w-4 h-4 text-[#0C8B44]" /></div><span className="text-sm text-[#E5E5E5]">{f.text}</span></div>
                 ))}
               </div>
-              <Link to="/ai" className="inline-flex items-center gap-2 mt-8 px-6 py-3 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Try AI Analyst<ArrowRight className="w-4 h-4" /></Link>
+              <button type="button" onClick={() => goAuthed('/ai')} className="inline-flex items-center gap-2 mt-8 px-6 py-3 bg-[#0C8B44] text-white text-sm font-medium tracking-[0.04em] uppercase rounded-lg hover:bg-[#0a7539] transition-colors glow-accent">Try AI Analyst<ArrowRight className="w-4 h-4" /></button>
             </div>
             {/* REAL AI ROBOT IMAGE */}
             <div className="rounded-2xl overflow-hidden border border-[#ffffff08]">
