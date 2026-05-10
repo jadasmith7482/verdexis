@@ -1,14 +1,33 @@
-import { BadgeCheck } from 'lucide-react'
+import { useId } from 'react'
 
-export default function VerifiedBadge({ className = '', label = 'Verified' }: { className?: string; label?: string }) {
+/** Twitter/Meta-style verified badge — icon only, no text */
+export default function VerifiedBadge({ className = '' }: { className?: string }) {
+  const gradId = useId()
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border border-[#3b82f6]/30 bg-gradient-to-r from-[#3b82f6]/15 to-[#2563eb]/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#93c5fd] shadow-[0_0_0_1px_rgba(59,130,246,0.08)] ${className}`}
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 22 22"
+      aria-label="Verified"
+      className={`inline-block h-5 w-5 flex-shrink-0 ${className}`}
     >
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#3b82f6] text-white shadow-sm shadow-[#3b82f6]/30">
-        <BadgeCheck className="h-2.5 w-2.5" />
-      </span>
-      <span>{label}</span>
-    </span>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#56CCF2" />
+          <stop offset="100%" stopColor="#2F80ED" />
+        </linearGradient>
+      </defs>
+      <path
+        fill={`url(#${gradId})`}
+        d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.043-.526-.051-1.054-.277-1.531-.226-.477-.563-.898-.988-1.215-.423-.317-.916-.52-1.436-.59-.52-.07-1.05.004-1.535.215-.494-.567-1.172-.942-1.912-1.048-.74-.106-1.49.068-2.11.488-.62-.42-1.37-.594-2.11-.488-.74.106-1.418.48-1.912 1.048-.485-.211-1.015-.285-1.535-.215-.52.07-1.013.273-1.436.59-.425.317-.762.738-.988 1.215-.226.477-.32 1.005-.277 1.531-.586.274-1.084.706-1.438 1.246-.355.54-.552 1.17-.57 1.816.018.646.215 1.275.57 1.816.354.54.852.972 1.438 1.246-.043.526.051 1.054.277 1.531.226.477.563.898.988 1.215.423.317.916.52 1.436.59.52.07 1.05-.004 1.535-.215.494.567 1.172.942 1.912 1.048.74.106 1.49-.068 2.11-.488.62.42 1.37.594 2.11.488.74-.106 1.418-.48 1.912-1.048.485.211 1.015.285 1.535.215.52-.07 1.013-.273 1.436-.59.425-.317.762-.738.988-1.215.226-.477.32-1.005.277-1.531.586-.274 1.084-.706 1.438-1.246.355-.54.552-1.17.57-1.816z"
+      />
+      <polyline
+        points="6.5,11.5 9.5,14.5 15.5,8.5"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
