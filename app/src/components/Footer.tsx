@@ -127,7 +127,17 @@ export default function Footer() {
               <li><Link to="/about#mission" className="hover:text-[#0C8B44] transition-colors">Mission</Link></li>
               <li><Link to="/legal#security" className="hover:text-[#0C8B44] transition-colors">Security</Link></li>
               <li><Link to="/disclosures" className="hover:text-[#0C8B44] transition-colors">Disclosures</Link></li>
-              <li><a href="mailto:hello@verdexis.com" className="hover:text-[#0C8B44] transition-colors">Contact</a></li>
+              <li>
+                <a
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 hover:text-[#0C8B44] transition-colors"
+                >
+                  <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
 

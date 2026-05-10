@@ -4,6 +4,7 @@ import ScrollToTop from './components/ScrollToTop'
 import DocumentTitle from './components/DocumentTitle'
 import CookieBanner from './components/CookieBanner'
 import OfflineToast from './components/OfflineToast'
+import WhatsAppFab from './components/WhatsAppFab'
 import RequireAuth from './components/RequireAuth'
 import RequireAdmin from './components/RequireAdmin'
 import CommandPalette from './components/CommandPalette'
@@ -58,6 +59,7 @@ export default function App() {
       <CookieBanner />
       <OfflineToast />
       <AlertChecker />
+      <WhatsAppFab />
       <Toaster position="top-right" theme="dark" richColors />
     </ErrorBoundary>
   )

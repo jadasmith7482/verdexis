@@ -553,11 +553,11 @@ export default function Home() {
           </div>
           <div className="space-y-3">
             {[
-              { q: 'Is Verdexis really free?', a: 'Yes. The Starter plan is free forever and includes real-time market data, portfolio tracking for up to 50 assets, and basic AI insights. Upgrade only when you need advanced features.' },
+              { q: 'Is Verdexis really free?', a: 'Yes. Verdexis is free to sign up and use — real-time market data, portfolio tracking, AI insights and price alerts are all included at no cost. We only charge transparent on-chain network fees and exchange spreads when you trade.' },
               { q: 'Do you custody my crypto?', a: 'No. Verdexis is non-custodial by default — your keys, your crypto. We support read-only API connections to your exchanges and wallets so you can track and analyse without giving up control.' },
               { q: 'How is my data secured?', a: 'All data is encrypted with AES-256 at rest and TLS 1.3 in transit. Our controls are designed to align with SOC 2, ISO 27001 and PCI DSS frameworks, and we never sell user data.' },
               { q: 'Which exchanges and assets do you support?', a: 'Verdexis connects to Coinbase today (Binance and Kraken integrations are on the roadmap) and the major blockchains (Bitcoin, Ethereum, Solana, Polygon). Stocks and ETFs are sourced from Alpha Vantage and Finnhub.' },
-              { q: 'Can I cancel my subscription anytime?', a: 'Yes — cancel any time from Settings. Paid plans are billed monthly with no long-term commitment, and you keep access until the end of the billing period.' },
+              { q: 'How do I get help?', a: 'Our support team is available on WhatsApp at +1 (719) 679-8790. Tap the green chat button at the bottom-right of any page to start a conversation, or browse the in-app Help Center for guides and walkthroughs.' },
               { q: 'Is the AI advice financial advice?', a: 'No. Verdexis AI provides market analysis and portfolio insights for educational purposes. It is not a registered investment adviser and nothing on the platform constitutes personalised investment advice.' },
             ].map((item) => (
               <details key={item.q} className="group p-5 rounded-xl bg-[#0f1619]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-colors">
@@ -586,8 +586,8 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-center gap-6 mt-8 text-xs text-[#737373]">
                 <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />No credit card required</span>
-                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />Free forever plan</span>
-                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />Cancel anytime</span>
+                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />Free to sign up</span>
+                <span className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#0C8B44]" />Non-custodial by default</span>
               </div>
             </div>
           </div>
