@@ -151,8 +151,10 @@ export default function Navigation() {
                 <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
                   <ShieldCheck className="w-3 h-3" />{roleLabel}
                 </span>
-                {isVerified && <VerifiedBadge className="hidden xl:inline-flex" />}
-                <span className="text-xs text-[#737373] hidden xl:inline">{userName}</span>
+                <span className="hidden xl:inline-flex items-center gap-1.5">
+                  <span className="text-xs text-[#737373]">{userName}</span>
+                  {isVerified && <VerifiedBadge />}
+                </span>
                 <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
                   {avatar ? (
@@ -212,12 +214,14 @@ export default function Navigation() {
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] overflow-hidden">{avatar ? <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" /> : (userName[0]?.toUpperCase() || 'U')}</div>
                     <div className="flex flex-col">
-                      <span className="text-sm text-[#A0A0A0]">{userName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm text-[#A0A0A0]">{userName}</span>
+                        {isVerified && <VerifiedBadge />}
+                      </div>
                       <div className="flex items-center gap-1.5 flex-wrap mt-1">
                         <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
                           <ShieldCheck className="w-3 h-3" />{roleLabel}
                         </span>
-                        {isVerified && <VerifiedBadge />}
                       </div>
                     </div>
                   </div>
