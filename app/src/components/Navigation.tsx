@@ -11,7 +11,6 @@ const publicLinks = [
   { label: 'Markets', path: '/markets' },
   { label: 'Trade', path: '/trading' },
   { label: 'News', path: '/news' },
-  { label: 'Pricing', path: '/#pricing' },
 ]
 
 const privateLinks = [

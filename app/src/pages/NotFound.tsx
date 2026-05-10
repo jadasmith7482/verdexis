@@ -45,7 +45,6 @@ export default function NotFound() {
                 { label: 'AI Analyst', path: '/ai' },
                 { label: 'Wallet', path: '/wallet' },
                 { label: 'News', path: '/news' },
-                { label: 'Pricing', path: '/#pricing' },
                 { label: 'Settings', path: '/settings' },
               ].map((l) => (
                 <Link key={l.path} to={l.path} className="text-[#A0A0A0] hover:text-[#0C8B44] transition-colors">

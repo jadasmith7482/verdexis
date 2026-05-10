@@ -31,12 +31,6 @@ const howItWorks = [
   { step: '04', title: 'Execute With One Click', desc: 'Act on insights directly from the dashboard. Smart order routing finds the best prices. Set automated strategies.', icon: CheckCircle, color: '#2196F3' },
 ]
 
-const pricingPlans = [
-  { name: 'Starter', price: '0', period: 'forever free', desc: 'Perfect for new investors exploring the platform.', features: ['Real-time market data', 'Portfolio tracking (50 assets)', 'Basic AI insights', '1 connected exchange', 'Email support', 'Standard charting'], cta: 'Get Started Free', highlighted: false },
-  { name: 'Pro', price: '29', period: '/month', desc: 'For serious traders who need professional tools.', features: ['Everything in Starter', 'Unlimited portfolio assets', 'Full AI analyst access', 'Unlimited exchanges', 'Priority execution routing', 'Advanced charting & indicators', 'Unlimited price alerts', 'API access (1K calls/day)'], cta: 'Upgrade to Pro', highlighted: true },
-  { name: 'Institution', price: '99', period: '/month', desc: 'For funds, family offices, and professional teams.', features: ['Everything in Pro', 'Multi-user team accounts', 'Custom AI model training', 'White-label options', 'Dedicated account manager', 'Custom integrations', 'Unlimited API access', 'Priority support SLA', 'On-premise deployment'], cta: 'Contact Sales', highlighted: false },
-]
-
 const partnerLogos = [
   { name: 'CoinGecko', image: '/assets/logo-coingecko.png' },
   { name: 'Plaid', image: '/assets/logo-plaid.png' },
@@ -510,37 +504,6 @@ export default function Home() {
               <div key={card.title} className="rounded-2xl overflow-hidden border border-[#ffffff08] group">
                 <img src={card.img} alt={card.title} className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="p-6"><p className="text-base font-medium text-[#E5E5E5]">{card.title}</p><p className="text-sm text-[#737373] mt-1">{card.desc}</p></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== PRICING ===== */}
-      <section id="pricing" className="py-24 px-6">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-xs tracking-[0.05em] uppercase text-[#0C8B44] mb-3 block">Pricing</span>
-            <h2 className="text-4xl md:text-5xl font-light tracking-[-0.03em] text-[#E5E5E5] mb-4">Choose Your Plan</h2>
-            <p className="text-[#A0A0A0] max-w-lg mx-auto">Start free, scale as you grow. No hidden fees. Cancel anytime.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {pricingPlans.map((plan) => (
-              <div key={plan.name} className={`p-8 rounded-2xl border transition-all relative ${plan.highlighted ? 'bg-[#0C8B44]/5 border-[#0C8B44]/40' : 'bg-[#0f1619]/50 border-[#ffffff05]'}`}>
-                {plan.highlighted && <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#0C8B44] rounded-full text-xs font-medium text-white tracking-wide">MOST POPULAR</div>}
-                <h3 className="text-xl font-medium text-[#E5E5E5] mb-2">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 mb-2"><span className="text-4xl font-light text-[#E5E5E5]">${plan.price}</span><span className="text-sm text-[#737373]">{plan.period}</span></div>
-                <p className="text-sm text-[#A0A0A0] mb-6">{plan.desc}</p>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => <li key={feature} className="flex items-start gap-3 text-sm text-[#A0A0A0]"><CheckCircle className="w-4 h-4 text-[#0C8B44] shrink-0 mt-0.5" />{feature}</li>)}
-                </ul>
-                <button onClick={() => {
-                  if (plan.name === 'Institution') {
-                    window.location.href = 'mailto:sales@verdexis.com?subject=Institution%20plan%20inquiry'
-                  } else {
-                    openSignup()
-                  }
-                }} className={`w-full py-3 rounded-xl text-sm font-medium transition-colors ${plan.highlighted ? 'bg-[#0C8B44] text-white hover:bg-[#0a7539]' : 'bg-[#1a1a1a] text-[#E5E5E5] hover:bg-[#252525]'}`}>{plan.cta}</button>
               </div>
             ))}
           </div>
