@@ -190,6 +190,7 @@ export default function Dashboard() {
     } catch { /* ignore */ }
     return undefined
   })()
+  const isAdminRole = roleLabel === 'Admin'
   const verified = (() => {
     try {
       const auth = localStorage.getItem('verdexis_auth')
@@ -752,8 +753,8 @@ export default function Dashboard() {
             <EmptyStateCta />
           )}
 
-          {/* Top Movers strip — public, always visible */}
-          {!hiddenWidgets.has('topMovers') && cryptoData.length > 0 && (
+          {/* Top Movers strip — user-focused market widget (hidden for admins). */}
+          {!isAdminRole && !hiddenWidgets.has('topMovers') && cryptoData.length > 0 && (
             <TopMovers data={cryptoData} />
           )}
 
@@ -915,21 +916,30 @@ export default function Dashboard() {
             <div className="liquid-card p-6" style={{ '--fill-color': 'rgba(0,131,143,0.15)' } as React.CSSProperties}>
               <h3 className="text-lg font-medium text-[#E5E5E5] mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  { label: 'Deposit', icon: ArrowDownRight, path: '/wallet?action=deposit', color: '#0C8B44', desc: 'Add funds' },
-                  { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet?action=withdraw', color: '#f44336', desc: 'Cash out' },
-                  { label: 'Transfer', icon: ArrowRight, path: '/wallet?action=transfer', color: '#00838F', desc: 'Send funds' },
-                  { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy / Sell' },
-                  { label: 'Convert', icon: Repeat, path: '/wallet?action=convert', color: '#26A69A', desc: 'Swap assets' },
-                  { label: 'Stake', icon: Coins, path: '/wallet?action=stake', color: '#8E24AA', desc: 'Earn yield' },
-                  { label: 'Activity', icon: History, path: '/activity', color: '#5C6BC0', desc: 'Transaction log' },
-                  { label: 'Watchlist', icon: Star, path: '/dashboard?widget=watchlist', color: '#FFC107', desc: 'Saved assets' },
-                  { label: 'AI Insights', icon: BrainCircuit, path: '/ai', color: '#6A0DAD', desc: 'Ask AI' },
-                  { label: 'Set Alert', icon: AlertTriangle, path: '/alerts', color: '#F57C00', desc: 'Price alerts' },
-                  { label: 'Goals', icon: Gem, path: '/goals', color: '#4CAF50', desc: 'Track goals' },
-                  { label: 'News', icon: Layers, path: '/news', color: '#2196F3', desc: 'Markets' },
-                  { label: 'Settings', icon: SettingsIcon, path: '/settings', color: '#757575', desc: 'Preferences' },
-                ].map((action) => (
+                {(isAdminRole
+                  ? [
+                      { label: 'Users', icon: Layers, path: '/admin/users', color: '#0C8B44', desc: 'Manage accounts' },
+                      { label: 'Transfer', icon: ArrowRight, path: '/admin/transfer', color: '#00838F', desc: 'Move funds' },
+                      { label: 'Deposits', icon: Wallet, path: '/admin/deposits', color: '#26A69A', desc: 'Review requests' },
+                      { label: 'Broadcast', icon: AlertTriangle, path: '/admin/broadcast', color: '#F57C00', desc: 'Send updates' },
+                      { label: 'Audit', icon: History, path: '/admin/audit', color: '#5C6BC0', desc: 'Track actions' },
+                      { label: 'Settings', icon: SettingsIcon, path: '/settings', color: '#757575', desc: 'Preferences' },
+                    ]
+                  : [
+                      { label: 'Deposit', icon: ArrowDownRight, path: '/wallet?action=deposit', color: '#0C8B44', desc: 'Add funds' },
+                      { label: 'Withdraw', icon: ArrowUpRight, path: '/wallet?action=withdraw', color: '#f44336', desc: 'Cash out' },
+                      { label: 'Transfer', icon: ArrowRight, path: '/wallet?action=transfer', color: '#00838F', desc: 'Send funds' },
+                      { label: 'Trade', icon: BarChart3, path: '/trading', color: '#FF9800', desc: 'Buy / Sell' },
+                      { label: 'Convert', icon: Repeat, path: '/wallet?action=convert', color: '#26A69A', desc: 'Swap assets' },
+                      { label: 'Stake', icon: Coins, path: '/wallet?action=stake', color: '#8E24AA', desc: 'Earn yield' },
+                      { label: 'Activity', icon: History, path: '/activity', color: '#5C6BC0', desc: 'Transaction log' },
+                      { label: 'Watchlist', icon: Star, path: '/dashboard?widget=watchlist', color: '#FFC107', desc: 'Saved assets' },
+                      { label: 'AI Insights', icon: BrainCircuit, path: '/ai', color: '#6A0DAD', desc: 'Ask AI' },
+                      { label: 'Set Alert', icon: AlertTriangle, path: '/alerts', color: '#F57C00', desc: 'Price alerts' },
+                      { label: 'Goals', icon: Gem, path: '/goals', color: '#4CAF50', desc: 'Track goals' },
+                      { label: 'News', icon: Layers, path: '/news', color: '#2196F3', desc: 'Markets' },
+                      { label: 'Settings', icon: SettingsIcon, path: '/settings', color: '#757575', desc: 'Preferences' },
+                    ]).map((action) => (
                   <Link key={action.label} to={action.path}
                     className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] hover:border-[#0C8B44]/30 transition-all group">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${action.color}15` }}>
@@ -991,7 +1001,11 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-lg font-medium text-[#E5E5E5]">Portfolio Breakdown</h3>
                 </div>
-                <Link to="/trading" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">Rebalance</Link>
+                {!isAdminRole ? (
+                  <Link to="/trading" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">Rebalance</Link>
+                ) : (
+                  <Link to="/admin/users" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors">Manage Users</Link>
+                )}
               </div>
 
               {isAuthenticated ? (
@@ -1091,7 +1105,7 @@ export default function Dashboard() {
               )}
 
               {/* Recent Trades */}
-              {isAuthenticated && trades.length > 0 && (
+              {isAuthenticated && !isAdminRole && trades.length > 0 && (
                 <div className="mt-6 pt-6 border-t border-[#ffffff08]">
                   <h4 className="text-sm font-medium text-[#E5E5E5] mb-3">Recent Trades</h4>
                   <div className="space-y-2">
@@ -1172,7 +1186,7 @@ export default function Dashboard() {
             {isAuthenticated && (
               <>
                 {!hiddenWidgets.has('alertsSummary') && <AlertsSummaryCard />}
-                {!hiddenWidgets.has('goalsProgress') && <GoalsProgressCard portfolioValue={totalValue} />}
+                {!isAdminRole && !hiddenWidgets.has('goalsProgress') && <GoalsProgressCard portfolioValue={totalValue} />}
                 {!hiddenWidgets.has('newsSnippet') && <NewsSnippetCard />}
               </>
             )}
@@ -1190,7 +1204,7 @@ export default function Dashboard() {
             )}
 
             {/* New widget row 3 — staking + dca + watchlist */}
-            {isAuthenticated && (
+            {isAuthenticated && !isAdminRole && (
               <>
                 {!hiddenWidgets.has('staking') && <StakingCard />}
                 {!hiddenWidgets.has('dca') && <DcaCard />}
@@ -1204,42 +1218,44 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Market Overview - Public */}
-            <div className="lg:col-span-3 liquid-card p-6" style={{ '--fill-color': 'rgba(12,139,68,0.08)' } as React.CSSProperties}>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/20 flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-[#0C8B44]" />
-                  </div>
-                  <h3 className="text-lg font-medium text-[#E5E5E5]">Market Overview</h3>
-                </div>
-                <Link to="/markets" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
-                  Full Markets <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              {loading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="w-5 h-5 rounded-full" />
-                        <Skeleton className="h-3 w-12" />
-                      </div>
-                      <Skeleton className="h-5 w-20" />
-                      <Skeleton className="h-3 w-14" />
-                      <Skeleton className="h-7 w-full" />
+            {/* Market Overview - user-focused (hidden for admins). */}
+            {!isAdminRole && (
+              <div className="lg:col-span-3 liquid-card p-6" style={{ '--fill-color': 'rgba(12,139,68,0.08)' } as React.CSSProperties}>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/20 flex items-center justify-center">
+                      <Activity className="w-5 h-5 text-[#0C8B44]" />
                     </div>
-                  ))}
+                    <h3 className="text-lg font-medium text-[#E5E5E5]">Market Overview</h3>
+                  </div>
+                  <Link to="/markets" className="text-xs text-[#0C8B44] hover:text-[#00E676] transition-colors flex items-center gap-1">
+                    Full Markets <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                  {cryptoData.slice(0, 6).map((crypto) => (
-                    <LiveMarketCard key={crypto.id} crypto={crypto} fmtMoney={fmtMoney} />
-                  ))}
-                </div>
-              )}
-            </div>
+
+                {loading ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="p-3 rounded-xl bg-[#1a1a1a]/50 border border-[#ffffff05] space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="w-5 h-5 rounded-full" />
+                          <Skeleton className="h-3 w-12" />
+                        </div>
+                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-3 w-14" />
+                        <Skeleton className="h-7 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                    {cryptoData.slice(0, 6).map((crypto) => (
+                      <LiveMarketCard key={crypto.id} crypto={crypto} fmtMoney={fmtMoney} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

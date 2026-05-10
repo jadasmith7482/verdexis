@@ -14,7 +14,7 @@ const publicLinks = [
   { label: 'News', path: '/news' },
 ]
 
-const privateLinks = [
+const userPrivateLinks = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Markets', path: '/markets' },
   { label: 'Trade', path: '/trading' },
@@ -27,6 +27,10 @@ const privateLinks = [
   { label: 'Copy', path: '/copy-trading' },
   { label: 'Learn', path: '/learn' },
   { label: 'Paper', path: '/paper-trading' },
+]
+
+const adminPrivateLinks = [
+  { label: 'Dashboard', path: '/dashboard' },
 ]
 
 export default function Navigation() {
@@ -74,10 +78,12 @@ export default function Navigation() {
     }
   }, [])
 
-  const isPrivatePage = ['/dashboard', '/ai', '/wallet'].includes(location.pathname)
+  const isPrivatePage = location.pathname.startsWith('/dashboard')
+    || location.pathname.startsWith('/admin')
+    || ['/ai', '/wallet'].includes(location.pathname)
   const showPrivateNav = isAuthenticated || isPrivatePage
-  const baseLinks = showPrivateNav ? privateLinks : publicLinks
-  const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/dashboard' }] : baseLinks
+  const baseLinks = showPrivateNav ? (isAdmin ? adminPrivateLinks : userPrivateLinks) : publicLinks
+  const navLinks = baseLinks
   const roleLabel = isAuthenticated && isAdmin ? 'Admin' : ''
   const roleBadgeClass = isAdmin
     ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'
