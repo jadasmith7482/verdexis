@@ -23,6 +23,7 @@ export default function AdminUsers() {
   const [bulkReason, setBulkReason] = useState('')
   const [bulkHoldType, setBulkHoldType] = useState<'all' | 'withdraw' | 'transfer'>('all')
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set())
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const allChecked = useMemo(() => users.length > 0 && users.every((u) => selected.has(u.id)), [users, selected])
@@ -75,6 +76,28 @@ export default function AdminUsers() {
     e.preventDefault()
     setPage(1)
     load()
+  }
+
+  async function verifyUser(u: AdminUserSummary) {
+    if (u.kycStatus === 'approved') return
+    setVerifyingIds((prev) => new Set(prev).add(u.id))
+    try {
+      await adminApi.setKyc(u.id, {
+        status: 'approved',
+        notes: 'Manually verified by admin',
+        notify: true,
+      })
+      toast.success(`${u.name} is now verified`)
+      load()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to verify user')
+    } finally {
+      setVerifyingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(u.id)
+        return next
+      })
+    }
   }
 
   return (
@@ -204,7 +227,19 @@ export default function AdminUsers() {
                     <td className="px-4 py-3 text-right text-[#A0A0A0]">{u._count.transactions}</td>
                     <td className="px-4 py-3 text-right text-[11px] text-[#737373]">{new Date(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-right">
-                      <Link to={`/admin/users/${u.id}`} className="px-3 py-1.5 text-xs text-[#0C8B44] hover:bg-[#0C8B44]/10 rounded-lg transition-colors">Manage →</Link>
+                      <div className="inline-flex items-center gap-2">
+                        {u.kycStatus !== 'approved' && (
+                          <button
+                            type="button"
+                            onClick={() => verifyUser(u)}
+                            disabled={verifyingIds.has(u.id)}
+                            className="px-3 py-1.5 text-xs text-white bg-[#2196F3] rounded-lg hover:bg-[#1e88e5] transition-colors disabled:opacity-50"
+                          >
+                            {verifyingIds.has(u.id) ? 'Verifying…' : 'Verify'}
+                          </button>
+                        )}
+                        <Link to={`/admin/users/${u.id}`} className="px-3 py-1.5 text-xs text-[#0C8B44] hover:bg-[#0C8B44]/10 rounded-lg transition-colors">Manage →</Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

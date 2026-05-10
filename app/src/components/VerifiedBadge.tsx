@@ -1,33 +1,16 @@
-import { useId } from 'react'
+const VERIFIED_ICON_URL = 'https://img.icons8.com/3d-fluency/96/verified-account.png'
 
-/** Twitter/Meta-style verified badge — icon only, no text */
+/** Icons8 3D Fluency verification badge (icon only). */
 export default function VerifiedBadge({ className = '' }: { className?: string }) {
-  const gradId = useId()
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 22 22"
-      aria-label="Verified"
-      className={`inline-block h-5 w-5 flex-shrink-0 ${className}`}
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#56CCF2" />
-          <stop offset="100%" stopColor="#2F80ED" />
-        </linearGradient>
-      </defs>
-      <path
-        fill={`url(#${gradId})`}
-        d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.043-.526-.051-1.054-.277-1.531-.226-.477-.563-.898-.988-1.215-.423-.317-.916-.52-1.436-.59-.52-.07-1.05.004-1.535.215-.494-.567-1.172-.942-1.912-1.048-.74-.106-1.49.068-2.11.488-.62-.42-1.37-.594-2.11-.488-.74.106-1.418.48-1.912 1.048-.485-.211-1.015-.285-1.535-.215-.52.07-1.013.273-1.436.59-.425.317-.762.738-.988 1.215-.226.477-.32 1.005-.277 1.531-.586.274-1.084.706-1.438 1.246-.355.54-.552 1.17-.57 1.816.018.646.215 1.275.57 1.816.354.54.852.972 1.438 1.246-.043.526.051 1.054.277 1.531.226.477.563.898.988 1.215.423.317.916.52 1.436.59.52.07 1.05-.004 1.535-.215.494.567 1.172.942 1.912 1.048.74.106 1.49-.068 2.11-.488.62.42 1.37.594 2.11.488.74-.106 1.418-.48 1.912-1.048.485.211 1.015.285 1.535.215.52-.07 1.013-.273 1.436-.59.425-.317.762-.738.988-1.215.226-.477.32-1.005.277-1.531.586-.274 1.084-.706 1.438-1.246.355-.54.552-1.17.57-1.816z"
-      />
-      <polyline
-        points="6.5,11.5 9.5,14.5 15.5,8.5"
-        fill="none"
-        stroke="white"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <img
+      src={VERIFIED_ICON_URL}
+      alt="Verified"
+      width={22}
+      height={22}
+      loading="lazy"
+      decoding="async"
+      className={`inline-block h-[22px] w-[22px] flex-shrink-0 select-none ${className}`}
+    />
   )
 }

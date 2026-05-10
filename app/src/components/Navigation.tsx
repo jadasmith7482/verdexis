@@ -78,7 +78,7 @@ export default function Navigation() {
   const showPrivateNav = isAuthenticated || isPrivatePage
   const baseLinks = showPrivateNav ? privateLinks : publicLinks
   const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/admin' }] : baseLinks
-  const roleLabel = isAuthenticated ? (isAdmin ? 'Admin' : 'User') : ''
+  const roleLabel = isAuthenticated && isAdmin ? 'Admin' : ''
   const roleBadgeClass = isAdmin
     ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'
     : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'
@@ -148,9 +148,11 @@ export default function Navigation() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
-                  <ShieldCheck className="w-3 h-3" />{roleLabel}
-                </span>
+                {roleLabel && (
+                  <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
+                    <ShieldCheck className="w-3 h-3" />{roleLabel}
+                  </span>
+                )}
                 <span className="hidden xl:inline-flex items-center gap-1.5">
                   <span className="text-xs text-[#737373]">{userName}</span>
                   {isVerified && <VerifiedBadge />}
@@ -218,11 +220,13 @@ export default function Navigation() {
                         <span className="text-sm text-[#A0A0A0]">{userName}</span>
                         {isVerified && <VerifiedBadge />}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
-                          <ShieldCheck className="w-3 h-3" />{roleLabel}
-                        </span>
-                      </div>
+                      {roleLabel && (
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
+                            <ShieldCheck className="w-3 h-3" />{roleLabel}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
