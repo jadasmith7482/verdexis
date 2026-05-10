@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
 import VerifiedBadge from '../components/VerifiedBadge'
-import { adminApi, HOLD_TYPES, type AdminUserSummary } from '../lib/adminApi'
+import { adminApi, HOLD_REASONS, HOLD_TYPES, type AdminUserSummary } from '../lib/adminApi'
 import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight, UserPlus, X, Lock, LockOpen, KeyRound, Trash2, AlertTriangle } from 'lucide-react'
 
 const PAGE_SIZE = 25
@@ -24,6 +24,7 @@ export default function AdminUsers() {
   const [bulkHoldType, setBulkHoldType] = useState<'all' | 'withdraw' | 'transfer'>('all')
   const [bulkBusy, setBulkBusy] = useState(false)
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set())
+  const [lockingIds, setLockingIds] = useState<Set<string>>(new Set())
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const allChecked = useMemo(() => users.length > 0 && users.every((u) => selected.has(u.id)), [users, selected])
@@ -93,6 +94,58 @@ export default function AdminUsers() {
       toast.error((err as { error?: string }).error || 'Failed to verify user')
     } finally {
       setVerifyingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(u.id)
+        return next
+      })
+    }
+  }
+
+  function locationLabel(u: AdminUserSummary): string {
+    const city = u.lastLoginGeo?.city?.trim()
+    const region = u.lastLoginGeo?.region?.trim()
+    const country = u.lastLoginGeo?.country?.trim()
+    if (city && country) return `${city}, ${country}`
+    if (region && country) return `${region}, ${country}`
+    if (country) return country
+    return 'Unknown'
+  }
+
+  async function lockTransfer(u: AdminUserSummary) {
+    const catalogue = HOLD_REASONS.map((r) => `${r.value} = ${r.label}`).join('\n')
+    const selected = (window.prompt(
+      `Lock TRANSFERS for ${u.email}.\n\nChoose reason code (examples below):\n${catalogue}`,
+      'suspicious_activity',
+    ) || 'suspicious_activity').trim()
+    const reason = HOLD_REASONS.some((r) => r.value === selected) ? selected : 'suspicious_activity'
+    const note = window.prompt('Optional internal note for this transfer lock:', '') || undefined
+    setLockingIds((prev) => new Set(prev).add(u.id))
+    try {
+      await adminApi.placeHold(u.id, { holdType: 'transfer', reason, note, notify: true })
+      toast.success(`Transfer lock placed on ${u.name}`)
+      load()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to place transfer lock')
+    } finally {
+      setLockingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(u.id)
+        return next
+      })
+    }
+  }
+
+  async function unlockTransfer(u: AdminUserSummary) {
+    if (!window.confirm(`Release transfer lock for ${u.email}?`)) return
+    setLockingIds((prev) => new Set(prev).add(u.id))
+    try {
+      await adminApi.releaseHold(u.id)
+      toast.success(`Transfer lock released for ${u.name}`)
+      load()
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to release transfer lock')
+    } finally {
+      setLockingIds((prev) => {
         const next = new Set(prev)
         next.delete(u.id)
         return next
@@ -180,6 +233,7 @@ export default function AdminUsers() {
                   <th className="text-left px-4 py-3 font-normal">Investment ID</th>
                   <th className="text-left px-4 py-3 font-normal">Role</th>
                   <th className="text-left px-4 py-3 font-normal">Status</th>
+                  <th className="text-left px-4 py-3 font-normal">Last login location</th>
                   <th className="text-right px-4 py-3 font-normal">Holdings</th>
                   <th className="text-right px-4 py-3 font-normal">Trades</th>
                   <th className="text-right px-4 py-3 font-normal">Tx</th>
@@ -189,9 +243,9 @@ export default function AdminUsers() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={10} className="text-center py-12 text-[#737373]">Loading…</td></tr>
+                  <tr><td colSpan={11} className="text-center py-12 text-[#737373]">Loading…</td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-12 text-[#737373]">No users found.</td></tr>
+                  <tr><td colSpan={11} className="text-center py-12 text-[#737373]">No users found.</td></tr>
                 ) : users.map((u) => (
                   <tr key={u.id} className="border-t border-[#ffffff05] hover:bg-[#0C8B44]/5 transition-colors">
                     <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${u.email}`} checked={selected.has(u.id)} onChange={() => toggle(u.id)} className="accent-[#0C8B44]" /></td>
@@ -216,11 +270,25 @@ export default function AdminUsers() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {u.suspended ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>
-                      ) : (
-                        <span className="text-[11px] text-[#4CAF50]">Active</span>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {u.suspended ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>
+                        ) : (
+                          <span className="text-[11px] text-[#4CAF50]">Active</span>
+                        )}
+                        {u.holdActive && (
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded">
+                            <Lock className="w-3 h-3" />{u.holdType === 'transfer' ? 'Transfer locked' : `Hold (${u.holdType})`}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-[11px] text-[#E5E5E5]">{locationLabel(u)}</div>
+                      <div className="text-[10px] text-[#737373]">
+                        {u.lastLoginIp ?? 'IP unknown'}
+                        {u.lastLoginAt ? ` · ${new Date(u.lastLoginAt).toLocaleString()}` : ''}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[#A0A0A0]">{u._count.holdings}</td>
                     <td className="px-4 py-3 text-right text-[#A0A0A0]">{u._count.trades}</td>
@@ -238,6 +306,25 @@ export default function AdminUsers() {
                             {verifyingIds.has(u.id) ? 'Verifying…' : 'Verify'}
                           </button>
                         )}
+                        {u.holdActive && u.holdType === 'transfer' ? (
+                          <button
+                            type="button"
+                            onClick={() => unlockTransfer(u)}
+                            disabled={lockingIds.has(u.id)}
+                            className="px-3 py-1.5 text-xs text-[#0C8B44] border border-[#0C8B44]/40 rounded-lg hover:bg-[#0C8B44]/10 transition-colors disabled:opacity-50"
+                          >
+                            {lockingIds.has(u.id) ? 'Unlocking…' : 'Unlock transfer'}
+                          </button>
+                        ) : !u.holdActive ? (
+                          <button
+                            type="button"
+                            onClick={() => lockTransfer(u)}
+                            disabled={lockingIds.has(u.id)}
+                            className="px-3 py-1.5 text-xs text-white bg-[#F57C00] rounded-lg hover:bg-[#e36e00] transition-colors disabled:opacity-50"
+                          >
+                            {lockingIds.has(u.id) ? 'Locking…' : 'Lock transfer'}
+                          </button>
+                        ) : null}
                         <Link to={`/admin/users/${u.id}`} className="px-3 py-1.5 text-xs text-[#0C8B44] hover:bg-[#0C8B44]/10 rounded-lg transition-colors">Manage →</Link>
                       </div>
                     </td>

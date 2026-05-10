@@ -77,7 +77,7 @@ export default function Navigation() {
   const isPrivatePage = ['/dashboard', '/ai', '/wallet'].includes(location.pathname)
   const showPrivateNav = isAuthenticated || isPrivatePage
   const baseLinks = showPrivateNav ? privateLinks : publicLinks
-  const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/admin' }] : baseLinks
+  const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/dashboard' }] : baseLinks
   const roleLabel = isAuthenticated && isAdmin ? 'Admin' : ''
   const roleBadgeClass = isAdmin
     ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'

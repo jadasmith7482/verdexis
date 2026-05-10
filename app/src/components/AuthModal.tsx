@@ -76,8 +76,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       onClose()
       window.dispatchEvent(new Event('storage'))
       window.dispatchEvent(new Event('verdexis:profile'))
-      // Admins land on the admin console; everyone else on dashboard.
-      const dest = res.user?.role === 'admin' ? '/admin' : '/dashboard'
+      // Keep admin and portfolio controls unified in one place: dashboard.
+      const dest = '/dashboard'
       navigate(dest, { replace: true })
       return
     } catch (err) {

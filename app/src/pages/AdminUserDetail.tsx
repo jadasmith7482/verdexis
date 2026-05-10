@@ -240,6 +240,21 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
   const [newPassword, setNewPassword] = useState('')
   // <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in local time.
   const [createdAt, setCreatedAt] = useState(() => toLocalInput(u.createdAt))
+  const securityMeta = (() => {
+    const security = (u.prefs?.security && typeof u.prefs.security === 'object') ? u.prefs.security as Record<string, unknown> : null
+    const last = (security?.lastLogin && typeof security.lastLogin === 'object') ? security.lastLogin as Record<string, unknown> : null
+    const geo = (last?.geo && typeof last.geo === 'object') ? last.geo as Record<string, unknown> : null
+    return {
+      at: typeof last?.at === 'string' ? last.at : null,
+      ip: typeof last?.ip === 'string' ? last.ip : null,
+      userAgent: typeof last?.userAgent === 'string' ? last.userAgent : null,
+      city: typeof geo?.city === 'string' ? geo.city : null,
+      region: typeof geo?.region === 'string' ? geo.region : null,
+      country: typeof geo?.country === 'string' ? geo.country : null,
+      timezone: typeof geo?.timezone === 'string' ? geo.timezone : null,
+      isp: typeof geo?.isp === 'string' ? geo.isp : null,
+    }
+  })()
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -318,6 +333,18 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
         <KycPanel user={u} onChange={onChange} />
         <LimitsPanel user={u} onChange={onChange} />
         <IpAllowlistPanel user={u} onChange={onChange} />
+        <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+          <h2 className="text-sm font-medium text-[#E5E5E5] mb-2 flex items-center gap-2"><Wifi className="w-4 h-4 text-[#0C8B44]" />Login IP & geolocation</h2>
+          <p className="text-xs text-[#A0A0A0] mb-3">Use this to spot suspicious sign-ins or impossible travel patterns.</p>
+          <div className="space-y-1.5 text-xs">
+            <div className="text-[#E5E5E5]">Last login: <span className="text-[#A0A0A0]">{securityMeta.at ? new Date(securityMeta.at).toLocaleString() : 'Unknown'}</span></div>
+            <div className="text-[#E5E5E5]">IP: <span className="text-[#A0A0A0] font-mono">{securityMeta.ip || 'Unknown'}</span></div>
+            <div className="text-[#E5E5E5]">Location: <span className="text-[#A0A0A0]">{[securityMeta.city, securityMeta.region, securityMeta.country].filter(Boolean).join(', ') || 'Unknown'}</span></div>
+            {securityMeta.timezone && <div className="text-[#E5E5E5]">Timezone: <span className="text-[#A0A0A0]">{securityMeta.timezone}</span></div>}
+            {securityMeta.isp && <div className="text-[#E5E5E5]">ISP: <span className="text-[#A0A0A0]">{securityMeta.isp}</span></div>}
+            {securityMeta.userAgent && <div className="text-[#737373] break-all pt-1">UA: {securityMeta.userAgent}</div>}
+          </div>
+        </section>
         <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
           <h2 className="text-sm font-medium text-[#E5E5E5] mb-4 flex items-center gap-2"><KeyRound className="w-4 h-4 text-[#0C8B44]" />Reset password</h2>
           <p className="text-xs text-[#A0A0A0] mb-3">Set a new password for this user. All existing sessions will be revoked.</p>

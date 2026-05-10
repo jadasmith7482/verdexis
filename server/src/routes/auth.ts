@@ -74,6 +74,103 @@ function publicUser(u: { id: string; email: string; username?: string | null; na
   }
 }
 
+type LoginGeo = {
+  country?: string
+  countryCode?: string
+  region?: string
+  city?: string
+  latitude?: number
+  longitude?: number
+  timezone?: string
+  isp?: string
+}
+
+function getClientIp(req: { headers: Record<string, unknown>; ip?: string }): string {
+  const fwd = typeof req.headers['x-forwarded-for'] === 'string'
+    ? req.headers['x-forwarded-for']
+    : Array.isArray(req.headers['x-forwarded-for'])
+      ? req.headers['x-forwarded-for'][0]
+      : ''
+  const ip = (fwd?.split(',')[0]?.trim() || req.ip || '').trim()
+  return ip.replace(/^::ffff:/, '')
+}
+
+function isPrivateOrLocalIp(ip: string): boolean {
+  if (!ip) return true
+  if (ip === '::1' || ip === '127.0.0.1' || ip === 'localhost') return true
+  if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('169.254.')) return true
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)) return true
+  if (ip.startsWith('fc') || ip.startsWith('fd')) return true
+  return false
+}
+
+async function fetchGeoForIp(ip: string): Promise<LoginGeo | null> {
+  if (!ip || isPrivateOrLocalIp(ip)) return null
+  try {
+    const ac = new AbortController()
+    const t = setTimeout(() => ac.abort(), 1500)
+    const response = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, { signal: ac.signal })
+    clearTimeout(t)
+    if (!response.ok) return null
+    const data = await response.json() as {
+      success?: boolean
+      country?: string
+      country_code?: string
+      region?: string
+      city?: string
+      latitude?: number
+      longitude?: number
+      timezone?: { id?: string } | string
+      connection?: { isp?: string }
+    }
+    if (data.success === false) return null
+    const timezone = typeof data.timezone === 'string' ? data.timezone : data.timezone?.id
+    return {
+      country: data.country,
+      countryCode: data.country_code,
+      region: data.region,
+      city: data.city,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      timezone,
+      isp: data.connection?.isp,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function recordLoginMetadata(userId: string, ip: string, userAgent?: string): Promise<void> {
+  try {
+    const current = await prisma.user.findUnique({ where: { id: userId }, select: { prefs: true } })
+    let prefs: Record<string, unknown> = {}
+    try { if (current?.prefs) prefs = JSON.parse(current.prefs) } catch { prefs = {} }
+
+    const geo = await fetchGeoForIp(ip)
+    const security = (typeof prefs.security === 'object' && prefs.security) ? prefs.security as Record<string, unknown> : {}
+    const history = Array.isArray(security.loginHistory) ? security.loginHistory as Array<Record<string, unknown>> : []
+    const entry: Record<string, unknown> = {
+      at: new Date().toISOString(),
+      ip,
+      userAgent: (userAgent || '').slice(0, 300),
+    }
+    if (geo) entry.geo = geo
+
+    const nextSecurity = {
+      ...security,
+      lastLogin: entry,
+      loginHistory: [entry, ...history].slice(0, 10),
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { prefs: JSON.stringify({ ...prefs, security: nextSecurity }) },
+    })
+  } catch {
+    // best-effort only
+  }
+}
+
 // Admins are seeded with a treasury balance they can disburse to users via
 // the Admin → Transfer flow. Currently 1 trillion USD.
 const ADMIN_TREASURY_USD = 1_000_000_000_000
@@ -84,13 +181,7 @@ async function ensureAdminTreasury(userId: string): Promise<void> {
     await prisma.walletBalance.create({
       data: { userId, currency: 'USD', symbol: '$', balance: ADMIN_TREASURY_USD, available: ADMIN_TREASURY_USD },
     })
-    return
   }
-  if (existing.balance >= ADMIN_TREASURY_USD) return
-  await prisma.walletBalance.update({
-    where: { id: existing.id },
-    data: { balance: ADMIN_TREASURY_USD, available: ADMIN_TREASURY_USD },
-  })
 }
 
 export async function autoPromoteIfAdminEmail(userId: string, email: string, currentRole: string): Promise<string> {
@@ -184,6 +275,8 @@ router.post('/login', authLimiter, async (req, res) => {
       // log it so we can see it in Render logs.
       console.error('[verdexis-api] autoPromote failed for', user.email, promoteErr)
     }
+    const clientIp = getClientIp(req)
+    void recordLoginMetadata(user.id, clientIp, String(req.headers['user-agent'] || ''))
     const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
     res.json({ token, user: publicUser({ ...user, role }) })
   } catch (err) {

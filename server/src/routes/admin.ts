@@ -70,6 +70,44 @@ async function audit(actorId: string, action: string, targetUserId: string | nul
   }
 }
 
+function readLastLoginMeta(prefsJson: string | null): {
+  lastLoginAt: string | null
+  lastLoginIp: string | null
+  lastLoginGeo: {
+    country?: string
+    countryCode?: string
+    region?: string
+    city?: string
+    latitude?: number
+    longitude?: number
+    timezone?: string
+    isp?: string
+  } | null
+} {
+  try {
+    const prefs = prefsJson ? JSON.parse(prefsJson) as Record<string, unknown> : {}
+    const security = (prefs.security && typeof prefs.security === 'object') ? prefs.security as Record<string, unknown> : null
+    const last = (security?.lastLogin && typeof security.lastLogin === 'object') ? security.lastLogin as Record<string, unknown> : null
+    const geo = (last?.geo && typeof last.geo === 'object') ? last.geo as Record<string, unknown> : null
+    return {
+      lastLoginAt: typeof last?.at === 'string' ? last.at : null,
+      lastLoginIp: typeof last?.ip === 'string' ? last.ip : null,
+      lastLoginGeo: geo ? {
+        country: typeof geo.country === 'string' ? geo.country : undefined,
+        countryCode: typeof geo.countryCode === 'string' ? geo.countryCode : undefined,
+        region: typeof geo.region === 'string' ? geo.region : undefined,
+        city: typeof geo.city === 'string' ? geo.city : undefined,
+        latitude: typeof geo.latitude === 'number' ? geo.latitude : undefined,
+        longitude: typeof geo.longitude === 'number' ? geo.longitude : undefined,
+        timezone: typeof geo.timezone === 'string' ? geo.timezone : undefined,
+        isp: typeof geo.isp === 'string' ? geo.isp : undefined,
+      } : null,
+    }
+  } catch {
+    return { lastLoginAt: null, lastLoginIp: null, lastLoginGeo: null }
+  }
+}
+
 // --- stats ---------------------------------------------------------------
 
 router.get('/stats', async (_req, res) => {
@@ -136,12 +174,24 @@ router.get('/users', async (req, res) => {
       skip: (page - 1) * limit, take: limit,
       select: {
         id: true, email: true, name: true, role: true, suspended: true, kycStatus: true,
+        holdActive: true, holdType: true,
+        prefs: true,
         twoFactor: true, createdAt: true, updatedAt: true, investmentId: true,
         _count: { select: { holdings: true, trades: true, transactions: true, alerts: true } },
       },
     }),
   ])
-  res.json({ users, total, page, limit })
+  const hydrated = users.map((u) => {
+    const { lastLoginAt, lastLoginIp, lastLoginGeo } = readLastLoginMeta(u.prefs)
+    const { prefs: _prefs, ...rest } = u
+    return {
+      ...rest,
+      lastLoginAt,
+      lastLoginIp,
+      lastLoginGeo,
+    }
+  })
+  res.json({ users: hydrated, total, page, limit })
 })
 
 // --- create user ---------------------------------------------------------
@@ -702,7 +752,10 @@ router.post('/users/:id/deduct', async (req: AuthedRequest, res) => {
 const HOLD_REASONS = [
   'aml_kyc_review', 'suspected_fraud', 'document_verification', 'court_order',
   'sanctions_screening', 'chargeback_investigation', 'compliance_review',
-  'suspicious_activity', 'user_requested_freeze', 'pending_transfer_review', 'other',
+  'suspicious_activity', 'user_requested_freeze', 'pending_transfer_review',
+  'high_risk_jurisdiction', 'multiple_failed_auth', 'device_fingerprint_mismatch',
+  'impossible_travel_login', 'velocity_limit_breach', 'source_of_funds_review',
+  'pep_review', 'beneficiary_verification', 'manual_risk_override', 'other',
 ] as const
 const HOLD_TYPES = ['all', 'withdraw', 'transfer'] as const
 

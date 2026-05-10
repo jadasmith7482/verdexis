@@ -29,8 +29,22 @@ export interface AdminUserSummary {
   role: 'user' | 'admin'
   suspended: boolean
   kycStatus: 'none' | 'pending' | 'approved' | 'rejected'
+  holdActive: boolean
+  holdType: 'all' | 'withdraw' | 'transfer' | null
   twoFactor: boolean
   investmentId: string | null
+  lastLoginAt: string | null
+  lastLoginIp: string | null
+  lastLoginGeo: {
+    country?: string
+    countryCode?: string
+    region?: string
+    city?: string
+    latitude?: number
+    longitude?: number
+    timezone?: string
+    isp?: string
+  } | null
   createdAt: string
   updatedAt: string
   _count: { holdings: number; trades: number; transactions: number; alerts: number }
@@ -101,6 +115,15 @@ export const HOLD_REASONS: Array<{ value: string; label: string }> = [
   { value: 'suspicious_activity', label: 'Suspicious activity' },
   { value: 'user_requested_freeze', label: 'User-requested freeze' },
   { value: 'pending_transfer_review', label: 'Pending transfer review' },
+  { value: 'high_risk_jurisdiction', label: 'High-risk jurisdiction review' },
+  { value: 'multiple_failed_auth', label: 'Multiple failed authentication attempts' },
+  { value: 'device_fingerprint_mismatch', label: 'Device fingerprint mismatch' },
+  { value: 'impossible_travel_login', label: 'Impossible-travel login pattern' },
+  { value: 'velocity_limit_breach', label: 'Transfer velocity limit breach' },
+  { value: 'source_of_funds_review', label: 'Source of funds review' },
+  { value: 'pep_review', label: 'PEP review required' },
+  { value: 'beneficiary_verification', label: 'Beneficiary verification pending' },
+  { value: 'manual_risk_override', label: 'Manual risk override' },
   { value: 'other', label: 'Other (see note)' },
 ]
 export const HOLD_TYPES: Array<{ value: 'all' | 'withdraw' | 'transfer'; label: string; description: string }> = [
