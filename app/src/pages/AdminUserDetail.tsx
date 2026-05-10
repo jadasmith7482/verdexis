@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
 import {
   adminApi, type AdminUserDetailResponse, type AdminHolding,
-  type AdminWalletBalance, type AdminTransaction, type AdminTrade,
+  type AdminWalletBalance, type AdminTransaction, type AdminTrade, type AdminWalletLink,
   type AdminPriceAlert, type AdminWatchItem, type AdminNotification, type AdminAuditLog,
   DEPOSIT_REASONS, DEDUCT_REASONS, HOLD_REASONS, HOLD_TYPES,
   HOLDING_REASONS, FEE_TYPES, KYC_STATUSES, EMAIL_TEMPLATES,
@@ -208,7 +208,7 @@ export default function AdminUserDetail() {
         </div>
 
         {tab === 'profile' && <ProfileTab data={data} onChange={reload} />}
-        {tab === 'wallet' && <WalletTab userId={u.id} userEmail={u.email} balances={data.walletBalances} onChange={reload} />}
+        {tab === 'wallet' && <WalletTab userId={u.id} userEmail={u.email} balances={data.walletBalances} walletLinks={data.walletLinks ?? []} onChange={reload} />}
         {tab === 'holdings' && <HoldingsTab userId={u.id} holdings={data.holdings} onChange={reload} />}
         {tab === 'transactions' && <TransactionsTab userId={u.id} txs={data.transactions} onChange={reload} />}
         {tab === 'trades' && <TradesTab userId={u.id} trades={data.trades} onChange={reload} />}
@@ -332,7 +332,7 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
 }
 
 // ---------- Wallet ----------
-function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; userEmail: string; balances: AdminWalletBalance[]; onChange: () => void }) {
+function WalletTab({ userId, userEmail, balances, walletLinks, onChange }: { userId: string; userEmail: string; balances: AdminWalletBalance[]; walletLinks: AdminWalletLink[]; onChange: () => void }) {
   const [currency, setCurrency] = useState('USD')
   const [symbol, setSymbol] = useState('$')
   const [balance, setBalance] = useState('0')
@@ -353,6 +353,7 @@ function WalletTab({ userId, userEmail, balances, onChange }: { userId: string; 
     <div className="space-y-6">
       <FeePanel userId={userId} balances={balances} onChange={onChange} />
       <FeeProofsPanel userId={userId} userEmail={userEmail} onChange={onChange} />
+      <UserLinkedWalletsPanel userId={userId} initialLinks={walletLinks} />
       <UserWalletPanel userId={userId} userEmail={userEmail} />
       <DepositDeductPanel userId={userId} balances={balances} onChange={onChange} />
       <div className="grid lg:grid-cols-3 gap-6">
@@ -968,6 +969,147 @@ function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userE
   )
 }
 
+// ---------- Linked Web3 wallets (admin-managed) ----------
+function UserLinkedWalletsPanel({ userId, initialLinks }: { userId: string; initialLinks: AdminWalletLink[] }) {
+  const [links, setLinks] = useState<AdminWalletLink[]>(initialLinks)
+  const [address, setAddress] = useState('')
+  const [chainId, setChainId] = useState('0x1')
+  const [provider, setProvider] = useState('')
+  const [label, setLabel] = useState('')
+  const [setPrimary, setSetPrimary] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { setLinks(initialLinks) }, [initialLinks])
+
+  async function reload() {
+    try {
+      const res = await adminApi.listUserWalletLinks(userId)
+      setLinks(res.links)
+    } catch {
+      // best-effort
+    }
+  }
+
+  async function upsert() {
+    const a = address.trim().toLowerCase()
+    if (!/^0x[a-f0-9]{40}$/.test(a)) {
+      toast.error('Enter a valid 0x wallet address')
+      return
+    }
+    if (chainId.trim() && !/^0x[a-fA-F0-9]{1,16}$/.test(chainId.trim())) {
+      toast.error('chainId must be 0x-prefixed hex (e.g. 0x1)')
+      return
+    }
+    setBusy(true)
+    try {
+      await adminApi.upsertUserWalletLink(userId, {
+        address: a,
+        chainId: chainId.trim() || undefined,
+        provider: provider.trim() || undefined,
+        label: label.trim() || undefined,
+        setPrimary,
+      })
+      setAddress('')
+      setLabel('')
+      setProvider('')
+      setSetPrimary(true)
+      await reload()
+      toast.success('Linked wallet saved')
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to save wallet link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function makePrimary(linkId: string) {
+    setBusy(true)
+    try {
+      await adminApi.setUserWalletLinkPrimary(userId, linkId)
+      await reload()
+      toast.success('Primary wallet updated')
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to set primary wallet')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(linkId: string) {
+    if (!confirm('Remove this linked wallet?')) return
+    setBusy(true)
+    try {
+      await adminApi.deleteUserWalletLink(userId, linkId)
+      await reload()
+      toast.success('Wallet link removed')
+    } catch (err) {
+      toast.error((err as { error?: string }).error || 'Failed to remove wallet link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-4">
+      <div>
+        <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><Wallet className="w-4 h-4" />Linked Web3 wallets
+          <span className="text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30 rounded-full px-2 py-0.5">Self-custody</span>
+        </h2>
+        <p className="text-[11px] text-[#737373] mt-1">
+          Admin can manually add, remove, or change the user's primary linked wallet. The primary link is mirrored into the legacy wallet fields used across the app.
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Input label="Address" value={address} onChange={setAddress} placeholder="0x..." />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Chain ID (hex)" value={chainId} onChange={setChainId} placeholder="0x1" />
+            <Input label="Provider (optional)" value={provider} onChange={setProvider} placeholder="MetaMask" />
+          </div>
+          <Input label="Label (optional)" value={label} onChange={setLabel} placeholder="Cold wallet" />
+          <label className="inline-flex items-center gap-2 text-xs text-[#A0A0A0]">
+            <input type="checkbox" checked={setPrimary} onChange={(e) => setSetPrimary(e.target.checked)} className="accent-[#0C8B44]" />
+            Set as primary wallet
+          </label>
+          <button
+            onClick={upsert}
+            disabled={busy}
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />{busy ? 'Saving…' : 'Save linked wallet'}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {links.length === 0 && <p className="text-[11px] text-[#737373]">No linked wallets on this account yet.</p>}
+          {links.map((l) => (
+            <div key={l.id} className="rounded-lg bg-[#1a1a1a] border border-[#ffffff08] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-[#E5E5E5] font-mono truncate">{l.address}</p>
+                  <p className="text-[10px] text-[#737373] mt-1">
+                    {l.chainId || '—'}{l.provider ? ` · ${l.provider}` : ''}{l.label ? ` · ${l.label}` : ''}
+                  </p>
+                  <p className="text-[10px] text-[#737373]">Linked {new Date(l.linkedAt).toLocaleString()}</p>
+                </div>
+                {l.isPrimary ? (
+                  <span className="text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded">Primary</span>
+                ) : (
+                  <button onClick={() => makePrimary(l.id)} disabled={busy} className="text-[10px] text-[#0C8B44] hover:underline">Set primary</button>
+                )}
+              </div>
+              <div className="flex justify-end mt-2">
+                <button onClick={() => remove(l.id)} disabled={busy} className="text-[10px] text-[#f44336] hover:underline">Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ---------- Per-user wallet override (admin-edited) ----------
 // Lets the admin assign a unique crypto address (per ticker) and a USD wire
 // destination to THIS user. Surfaces in the user's Wallet page (deposit +
@@ -1055,7 +1197,9 @@ function UserWalletPanel({ userId, userEmail }: { userId: string; userEmail: str
     <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><Wallet className="w-4 h-4" />Personal payment destinations</h2>
+          <h2 className="text-sm font-medium text-[#E5E5E5] flex items-center gap-2"><Wallet className="w-4 h-4" />Personal payment destinations
+            <span className="text-[10px] uppercase tracking-wider text-[#2196F3] bg-[#2196F3]/10 border border-[#2196F3]/30 rounded-full px-2 py-0.5">Custodial / manual</span>
+          </h2>
           <p className="text-[11px] text-[#737373] mt-1">
             Per-user crypto / wire addresses shown to this user when paying processing fees or making deposits. Falls back to the global deposit instructions if empty.
           </p>

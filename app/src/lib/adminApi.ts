@@ -163,11 +163,22 @@ export interface AdminTrade { id: string; userId: string; symbol: string; side: 
 export interface AdminWatchItem { id: string; userId: string; symbol: string; name: string; type: string; createdAt: string }
 export interface AdminPriceAlert { id: string; userId: string; symbol: string; name: string; direction: 'above' | 'below'; target: number; active: boolean; triggered: boolean; createdAt: string }
 export interface AdminNotification { id: string; userId: string; kind: string; title: string; body: string | null; read: boolean; createdAt: string }
+export interface AdminWalletLink {
+  id: string
+  userId: string
+  address: string
+  chainId: string | null
+  provider: string | null
+  label: string | null
+  isPrimary: boolean
+  linkedAt: string
+}
 
 export interface AdminUserDetailResponse {
   user: AdminUserFull
   holdings: AdminHolding[]
   walletBalances: AdminWalletBalance[]
+  walletLinks?: AdminWalletLink[]
   transactions: AdminTransaction[]
   trades: AdminTrade[]
   watchlist: AdminWatchItem[]
@@ -342,6 +353,19 @@ export const adminApi = {
     request<{ addresses: unknown }>(`/api/admin/users/${userId}/deposit-addresses`, { method: 'PUT', body: JSON.stringify(addresses) }),
   clearUserDepositAddresses: (userId: string) =>
     request<{ ok: boolean }>(`/api/admin/users/${userId}/deposit-addresses`, { method: 'DELETE' }),
+
+  // Admin-managed linked Web3 wallets (user self-custody addresses)
+  listUserWalletLinks: (userId: string) =>
+    request<{ links: AdminWalletLink[] }>(`/api/admin/users/${userId}/wallet-links`),
+  upsertUserWalletLink: (
+    userId: string,
+    input: { address: string; chainId?: string; provider?: string; label?: string; setPrimary?: boolean },
+  ) =>
+    request<{ link: AdminWalletLink }>(`/api/admin/users/${userId}/wallet-links`, { method: 'POST', body: JSON.stringify(input) }),
+  setUserWalletLinkPrimary: (userId: string, linkId: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${userId}/wallet-links/${linkId}/primary`, { method: 'POST' }),
+  deleteUserWalletLink: (userId: string, linkId: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${userId}/wallet-links/${linkId}`, { method: 'DELETE' }),
 
   // Transactions
   createTransaction: (userId: string, tx: { kind: string; currency: string; amount: number; status?: string; reference?: string; createdAt?: string }) =>

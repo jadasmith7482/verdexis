@@ -1,0 +1,19 @@
+name: web3_wallet_demo
+description: Safe local wallet demo (mnemonic generation + secure key storage)
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  bip39: ^1.0.6
+  web3dart: ^2.7.3
+  flutter_secure_storage: ^9.2.2
+  convert: ^3.1.1
+  ed25519_hd_key: ^2.3.0
+
+flutter:
+  uses-material-design: true

@@ -506,6 +506,12 @@ export default function WalletPage() {
     return userWallets.get(profile.email)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userWalletTick])
+  const hasPersonalOverride = !!(
+    userOverride && (
+      Object.keys(userOverride.cryptos || {}).length > 0 ||
+      userOverride.wire
+    )
+  )
 
   // Cryptos a user can convert USD into. Independent of what they currently
   // hold, so a cash-only account can still pick a target.
@@ -1314,7 +1320,22 @@ export default function WalletPage() {
                   <WalletIcon className="w-5 h-5 text-[#0C8B44]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#E5E5E5]">Web3 Wallet</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-[#E5E5E5]">Web3 Wallet</p>
+                    {web3.isConnected ? (
+                      <span className="text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30 rounded-full px-2 py-0.5">
+                        Self-custody connected
+                      </span>
+                    ) : hasPersonalOverride ? (
+                      <span className="text-[10px] uppercase tracking-wider text-[#2196F3] bg-[#2196F3]/10 border border-[#2196F3]/30 rounded-full px-2 py-0.5">
+                        Custodial (admin-managed)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase tracking-wider text-[#737373] bg-[#1a1a1a] border border-[#ffffff12] rounded-full px-2 py-0.5">
+                        Custodial mode
+                      </span>
+                    )}
+                  </div>
                   {web3.isConnected ? (
                     <p className="text-xs text-[#A0A0A0] flex items-center gap-2 truncate">
                       <span className="font-mono text-[#0C8B44]">{web3.shortAddress}</span>

@@ -198,9 +198,10 @@ router.get('/users/:id', async (req, res) => {
   const id = req.params.id
   const user = await prisma.user.findUnique({ where: { id } })
   if (!user) { res.status(404).json({ error: 'Not found' }); return }
-  const [holdings, walletBalances, transactions, trades, watchlist, alerts, notifications] = await Promise.all([
+  const [holdings, walletBalances, walletLinks, transactions, trades, watchlist, alerts, notifications] = await Promise.all([
     prisma.holding.findMany({ where: { userId: id }, orderBy: { symbol: 'asc' } }),
     prisma.walletBalance.findMany({ where: { userId: id }, orderBy: { currency: 'asc' } }),
+    prisma.walletLink.findMany({ where: { userId: id }, orderBy: [{ isPrimary: 'desc' }, { linkedAt: 'desc' }] }),
     prisma.transaction.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
     prisma.trade.findMany({ where: { userId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
     prisma.watchlist.findMany({ where: { userId: id }, orderBy: { symbol: 'asc' } }),
@@ -209,8 +210,146 @@ router.get('/users/:id', async (req, res) => {
   ])
   res.json({
     user: publicUser(user),
-    holdings, walletBalances, transactions, trades, watchlist, alerts, notifications,
+    holdings, walletBalances, walletLinks, transactions, trades, watchlist, alerts, notifications,
   })
+})
+
+// --- admin-managed linked Web3 wallets ---------------------------------
+// Gives ops an explicit way to manually add/remove/set-primary wallet links
+// for a user. Primary is mirrored to User.walletAddress/* for backwards
+// compatibility with legacy views.
+
+const ETH_ADDRESS = /^0x[a-fA-F0-9]{40}$/
+const CHAIN_HEX = /^0x[a-fA-F0-9]{1,16}$/
+
+const adminWalletLinkSchema = z.object({
+  address: z.string().regex(ETH_ADDRESS, 'Not a valid 0x EVM address'),
+  chainId: z.string().regex(CHAIN_HEX, 'chainId must be 0x-prefixed hex').optional(),
+  provider: z.string().min(1).max(60).optional(),
+  label: z.string().min(1).max(60).optional(),
+  setPrimary: z.boolean().default(true),
+})
+
+router.get('/users/:id/wallet-links', async (req, res) => {
+  const userId = req.params.id
+  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+  if (!exists) { res.status(404).json({ error: 'User not found' }); return }
+  const links = await prisma.walletLink.findMany({
+    where: { userId },
+    orderBy: [{ isPrimary: 'desc' }, { linkedAt: 'desc' }],
+  })
+  res.json({ links })
+})
+
+router.post('/users/:id/wallet-links', async (req: AuthedRequest, res) => {
+  const userId = req.params.id
+  const parsed = adminWalletLinkSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() }); return }
+
+  const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+  if (!exists) { res.status(404).json({ error: 'User not found' }); return }
+
+  const address = parsed.data.address.toLowerCase()
+  const chainId = parsed.data.chainId?.toLowerCase() ?? null
+  const provider = parsed.data.provider ?? null
+  const label = parsed.data.label ?? null
+
+  const link = await prisma.$transaction(async (tx) => {
+    const otherCount = await tx.walletLink.count({ where: { userId, NOT: { address } } })
+    const existingLink = await tx.walletLink.findUnique({ where: { userId_address: { userId, address } } })
+    const makePrimary = parsed.data.setPrimary || otherCount === 0 || existingLink?.isPrimary === true
+
+    if (makePrimary) {
+      await tx.walletLink.updateMany({ where: { userId, isPrimary: true, NOT: { address } }, data: { isPrimary: false } })
+    }
+
+    const row = await tx.walletLink.upsert({
+      where: { userId_address: { userId, address } },
+      create: { userId, address, chainId, provider, label, isPrimary: makePrimary },
+      update: {
+        chainId,
+        provider,
+        ...(label !== null ? { label } : {}),
+        ...(makePrimary ? { isPrimary: true } : {}),
+      },
+    })
+
+    if (makePrimary) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { walletAddress: address, walletChainId: chainId, walletProvider: provider, walletLinkedAt: new Date() },
+      })
+    }
+    return row
+  })
+
+  await audit(req.userId!, 'user.walletLink.upsert', userId, {
+    address,
+    chainId,
+    provider,
+    label,
+    setPrimary: parsed.data.setPrimary,
+  })
+  res.status(201).json({ link })
+})
+
+router.post('/users/:id/wallet-links/:linkId/primary', async (req: AuthedRequest, res) => {
+  const userId = req.params.id
+  const linkId = req.params.linkId
+
+  const link = await prisma.walletLink.findFirst({ where: { id: linkId, userId } })
+  if (!link) { res.status(404).json({ error: 'Wallet link not found' }); return }
+
+  await prisma.$transaction([
+    prisma.walletLink.updateMany({ where: { userId, isPrimary: true, NOT: { id: linkId } }, data: { isPrimary: false } }),
+    prisma.walletLink.update({ where: { id: linkId }, data: { isPrimary: true } }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        walletAddress: link.address,
+        walletChainId: link.chainId,
+        walletProvider: link.provider,
+        walletLinkedAt: new Date(),
+      },
+    }),
+  ])
+
+  await audit(req.userId!, 'user.walletLink.setPrimary', userId, { linkId, address: link.address })
+  res.json({ ok: true })
+})
+
+router.delete('/users/:id/wallet-links/:linkId', async (req: AuthedRequest, res) => {
+  const userId = req.params.id
+  const linkId = req.params.linkId
+  const row = await prisma.walletLink.findFirst({ where: { id: linkId, userId } })
+  if (!row) { res.status(404).json({ error: 'Wallet link not found' }); return }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.walletLink.delete({ where: { id: linkId } })
+    if (row.isPrimary) {
+      const next = await tx.walletLink.findFirst({ where: { userId }, orderBy: { linkedAt: 'desc' } })
+      if (next) {
+        await tx.walletLink.update({ where: { id: next.id }, data: { isPrimary: true } })
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            walletAddress: next.address,
+            walletChainId: next.chainId,
+            walletProvider: next.provider,
+            walletLinkedAt: new Date(),
+          },
+        })
+      } else {
+        await tx.user.update({
+          where: { id: userId },
+          data: { walletAddress: null, walletChainId: null, walletProvider: null, walletLinkedAt: null },
+        })
+      }
+    }
+  })
+
+  await audit(req.userId!, 'user.walletLink.delete', userId, { linkId, address: row.address, wasPrimary: row.isPrimary })
+  res.json({ ok: true })
 })
 
 // --- update profile ------------------------------------------------------
