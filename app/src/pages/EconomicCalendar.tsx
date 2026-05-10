@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Dot } from 'lucide-react'
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import Navigation from '../components/Navigation'
 
 interface CalEvent {

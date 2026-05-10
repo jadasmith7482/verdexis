@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Trophy, TrendingUp, Medal, Crown, Star } from 'lucide-react'
+import { ArrowLeft, Trophy, Medal, Crown } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Scissors, Download, AlertTriangle, TrendingDown, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Scissors, Download, AlertTriangle, CheckCircle } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { toast } from 'sonner'

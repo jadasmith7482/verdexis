@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, FlaskConical, TrendingUp, TrendingDown, RefreshCw, RotateCcw, BookOpen } from 'lucide-react'
+import { ArrowLeft, FlaskConical, TrendingUp, TrendingDown, RotateCcw, BookOpen } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { toast } from 'sonner'
@@ -23,6 +23,12 @@ interface PaperTrade {
   ts: number
 }
 
+interface PaperState {
+  balance: number
+  positions: PaperPosition[]
+  trades: PaperTrade[]
+}
+
 const INITIAL_BALANCE = 100_000
 
 const MOCK_PRICES: Record<string, { name: string; price: number; change: number }> = {
@@ -38,22 +44,29 @@ const MOCK_PRICES: Record<string, { name: string; price: number; change: number 
 
 const STORAGE_KEY = 'verdexis_paper'
 
-function loadState() {
+function loadState(): PaperState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<PaperState>
+      return {
+        balance: typeof parsed.balance === 'number' ? parsed.balance : INITIAL_BALANCE,
+        positions: Array.isArray(parsed.positions) ? parsed.positions : [],
+        trades: Array.isArray(parsed.trades) ? parsed.trades : [],
+      }
+    }
   } catch {}
   return { balance: INITIAL_BALANCE, positions: [] as PaperPosition[], trades: [] as PaperTrade[] }
 }
 
-function saveState(s: { balance: number; positions: PaperPosition[]; trades: PaperTrade[] }) {
+function saveState(s: PaperState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
 }
 
 export default function PaperTrading() { return <RequireAuth><PaperTradingInner /></RequireAuth> }
 
 function PaperTradingInner() {
-  const [state, setState] = useState(loadState)
+  const [state, setState] = useState<PaperState>(loadState)
   const [symbol, setSymbol] = useState('BTC')
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [qty, setQty] = useState('')
@@ -112,7 +125,7 @@ function PaperTradingInner() {
   }
 
   const reset = () => {
-    const fresh = { balance: INITIAL_BALANCE, positions: [], trades: [] }
+    const fresh: PaperState = { balance: INITIAL_BALANCE, positions: [], trades: [] }
     setState(fresh)
     saveState(fresh)
     toast.success('Portfolio reset to $100,000')

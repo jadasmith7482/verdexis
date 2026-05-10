@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, PieChart, Plus, Trash2, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowLeft, PieChart, RefreshCw, AlertCircle } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { toast } from 'sonner'

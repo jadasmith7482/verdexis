@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Wallet2, Plus, Pencil, Trash2, ArrowRightLeft, Eye } from 'lucide-react'
+import { ArrowLeft, Wallet2, Plus, Trash2, ArrowRightLeft } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { toast } from 'sonner'
