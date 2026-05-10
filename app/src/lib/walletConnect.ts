@@ -113,7 +113,7 @@ export function getWalletConnectProvider(): Promise<Eip1193Provider | null> {
           description: 'Verdexis crypto investing — connect your wallet',
           url: typeof window !== 'undefined' ? window.location.origin : 'https://verdexis.app',
           icons: [
-            (typeof window !== 'undefined' ? window.location.origin : '') + '/assets/logo.png',
+            (typeof window !== 'undefined' ? window.location.origin : '') + '/assets/logo-icon-transparent.png',
           ],
         },
       })
