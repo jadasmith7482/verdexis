@@ -85,7 +85,7 @@ export default function AdminUsers() {
     try {
       await adminApi.setKyc(u.id, {
         status: 'approved',
-        notes: 'Manually verified by admin',
+        notes: 'Verification completed',
         notify: true,
       })
       toast.success(`${u.name} is now verified`)

@@ -12,8 +12,10 @@ export default function GreetingHeader({ name, lastUpdated, roleLabel, verified 
     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-8">
       <div>
         <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{greeting}</h1>
-          {verified && <VerifiedBadge />}
+          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+            <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{greeting}</h1>
+            {verified && <VerifiedBadge />}
+          </div>
           {roleLabel === 'Admin' && (
             <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleLabel === 'Admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
               {roleLabel}

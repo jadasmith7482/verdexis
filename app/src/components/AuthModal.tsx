@@ -221,6 +221,11 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                   spellCheck={false}
                 />
               </div>
+              {mode === 'signup' && (
+                <p className="mt-2 text-[11px] text-[#A3A3A3] leading-relaxed">
+                  Please use a real email you can access (like Gmail, Outlook, Yahoo, etc.) for account verification and security alerts.
+                </p>
+              )}
             </div>
 
             {mode !== 'forgot' && (
