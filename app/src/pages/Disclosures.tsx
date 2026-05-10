@@ -66,7 +66,7 @@ const SECTIONS: Array<{ id: string; title: string; body: string[] }> = [
       'Account & management fee: funded accounts are subject to a recurring 0.4% monthly fee, calculated on the prevailing USD wallet balance and debited on the 26th of each calendar month. The debit is itemised in your transaction history.',
       'Withdrawal fees: bank (ACH / wire) withdrawals are free. Crypto withdrawals carry a Verdexis processing fee that scales with the withdrawal amount, plus the underlying blockchain network (gas) fee. The total is always shown for confirmation before submission.',
       'Deposit fees: free for both bank and crypto deposits. Network confirmation costs for incoming crypto are paid by the sender.',
-      'Subscription fees (optional): Pro and Enterprise plans are billed monthly at the rates published on the home page and can be cancelled at any time from Settings.',
+      'No subscription fees: Verdexis is free to sign up and use. There are no monthly or annual plan fees — only the transparent trading, withdrawal and account-management fees described above.',
     ],
   },
   {

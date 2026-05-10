@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowLeft, Search, ChevronRight, LifeBuoy, Mail, BookOpen, Shield,
-  Wallet as WalletIcon, TrendingUp, Bell, AlertCircle,
+  ArrowLeft, Search, ChevronRight, LifeBuoy, BookOpen, Shield,
+  Wallet as WalletIcon, TrendingUp, Bell, AlertCircle, MessageCircle,
 } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
@@ -87,7 +87,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'Are there any subscription fees?',
-        a: 'The Starter plan is free forever. Pro and Enterprise plans (shown on the home page) are billed monthly and can be cancelled at any time from Settings.',
+        a: 'No. Verdexis is free to sign up and use — there are no monthly or annual subscription plans. The only charges are the trading and account-management fees described above, all itemised in your transaction history.',
       },
     ],
   },
@@ -246,15 +246,20 @@ export default function Help() {
         {/* Contact card */}
         <div className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-[#0C8B44]/10 to-transparent border border-[#0C8B44]/20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-[#0C8B44]/15 flex items-center justify-center flex-shrink-0">
-              <Mail className="w-5 h-5 text-[#0C8B44]" />
+            <div className="w-10 h-10 rounded-xl bg-[#25D366]/15 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-5 h-5 text-[#25D366]" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-[#E5E5E5]">Still need help?</p>
-              <p className="text-xs text-[#A0A0A0] mt-1">Our support team typically responds within 4 hours during business hours (Mon-Fri, 9am-6pm ET).</p>
+              <p className="text-xs text-[#A0A0A0] mt-1">Chat with our support team on WhatsApp at +1 (719) 679-8790. We typically respond within minutes during business hours (Mon–Fri, 9am–6pm ET).</p>
             </div>
-            <a href="mailto:support@verdexis.com" className="px-5 py-2.5 rounded-lg bg-[#0C8B44] text-white text-xs font-medium hover:bg-[#0a7539] transition-colors whitespace-nowrap">
-              Email support
+            <a
+              href="https://wa.me/17196798790?text=Hi%20Verdexis%20%E2%80%94%20I%27d%20like%20some%20help."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 rounded-lg bg-[#25D366] text-white text-xs font-medium hover:bg-[#1ebe5b] transition-colors whitespace-nowrap"
+            >
+              Chat on WhatsApp
             </a>
           </div>
         </div>

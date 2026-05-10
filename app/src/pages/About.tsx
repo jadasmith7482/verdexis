@@ -1,7 +1,7 @@
 import Navigation from '../components/Navigation'
 import { Link } from 'react-router-dom'
 import {
-  Sparkles, Shield, Globe, Users, Zap, Heart, Mail, Twitter, Linkedin, ArrowRight,
+  Sparkles, Shield, Globe, Users, Zap, Heart, MessageCircle, Twitter, Linkedin, ArrowRight,
 } from 'lucide-react'
 
 const stats = [
@@ -14,7 +14,7 @@ const stats = [
 const values = [
   { icon: Shield, title: 'Trust by default', text: 'Security and transparency are not features — they are the foundation. Every line of code is written with your assets in mind.' },
   { icon: Sparkles, title: 'AI that explains itself', text: 'Black-box predictions help no one. Every insight ships with a confidence score and the data it was based on.' },
-  { icon: Globe, title: 'Open to everyone', text: 'A free tier that is genuinely useful, not a teaser. Wealth-building tools should not be gated behind subscriptions.' },
+  { icon: Globe, title: 'Open to everyone', text: 'A genuinely useful product with no paywalls. Wealth-building tools should not be hidden behind subscriptions.' },
   { icon: Heart, title: 'Built for the long run', text: 'We optimize for decades, not quarters. No dark patterns, no surprise fees, no selling your data.' },
 ]
 
@@ -98,16 +98,18 @@ export default function About() {
           {/* Contact */}
           <div className="text-center mb-12">
             <h2 className="text-3xl font-light text-[#E5E5E5] mb-3">Get in touch</h2>
-            <p className="text-sm text-[#737373] mb-8">We read every email.</p>
+            <p className="text-sm text-[#737373] mb-8">We respond to every message.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
               <a
-                href="mailto:hello@verdexis.com"
-                className="glass-card p-5 hover:border-[#0C8B44]/30 transition-colors group"
+                href="https://wa.me/17196798790?text=Hi%20Verdexis%20%E2%80%94%20I%27d%20like%20to%20get%20in%20touch."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="glass-card p-5 hover:border-[#25D366]/40 transition-colors group"
               >
-                <Mail className="w-5 h-5 text-[#0C8B44] mx-auto mb-2" />
-                <p className="text-xs text-[#737373] mb-1">General</p>
-                <p className="text-sm text-[#E5E5E5] group-hover:text-[#0C8B44] transition-colors">hello@verdexis.com</p>
+                <MessageCircle className="w-5 h-5 text-[#25D366] mx-auto mb-2" />
+                <p className="text-xs text-[#737373] mb-1">WhatsApp</p>
+                <p className="text-sm text-[#E5E5E5] group-hover:text-[#25D366] transition-colors">+1 (719) 679-8790</p>
               </a>
               <a
                 href="https://twitter.com/verdexis"

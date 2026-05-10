@@ -41,7 +41,7 @@ const sections = [
       ['Infrastructure', 'Hosted on hardened cloud infrastructure with isolated network segments and least-privilege IAM.'],
       ['Monitoring', '24/7 anomaly detection, audit logging on all financial actions, and weekly third-party vulnerability scans.'],
       ['Compliance', 'Security controls are designed to align with the SOC 2, ISO 27001 and PCI DSS frameworks, and we honour GDPR / CCPA data rights. Verdexis is not yet certified under SOC 2 or ISO 27001 — certification work is in progress and any future report will be published on this page.'],
-      ['Disclosure', 'Found a vulnerability? Email security@verdexis.com — we acknowledge within 24h.'],
+      ['Disclosure', 'Found a vulnerability? Reach our security team on WhatsApp at +1 (719) 679-8790 — we acknowledge within 24h.'],
     ],
   },
   {
