@@ -57,4 +57,4 @@ EXPOSE 4000
 # `db push` syncs the Postgres schema without requiring a migration history;
 # safe for the current single-source-of-truth schema. Switch to
 # `prisma migrate deploy` once you generate Postgres-native migrations.
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss --skip-generate && node dist/index.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --accept-data-loss --skip-generate && node dist/index.js"]
