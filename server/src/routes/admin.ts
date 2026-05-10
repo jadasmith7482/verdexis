@@ -135,7 +135,7 @@ router.get('/users', async (req, res) => {
       where, orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit, take: limit,
       select: {
-        id: true, email: true, name: true, role: true, suspended: true,
+        id: true, email: true, name: true, role: true, suspended: true, kycStatus: true,
         twoFactor: true, createdAt: true, updatedAt: true, investmentId: true,
         _count: { select: { holdings: true, trades: true, transactions: true, alerts: true } },
       },

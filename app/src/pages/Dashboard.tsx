@@ -190,6 +190,13 @@ export default function Dashboard() {
     } catch { /* ignore */ }
     return undefined
   })()
+  const verified = (() => {
+    try {
+      const auth = localStorage.getItem('verdexis_auth')
+      if (auth) return JSON.parse(auth).kycStatus === 'approved'
+    } catch { /* ignore */ }
+    return false
+  })()
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true)
@@ -550,7 +557,7 @@ export default function Dashboard() {
         <div className="max-w-[1280px] mx-auto">
           {/* Header — greeting + toolbar */}
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
-            <GreetingHeader name={userName} lastUpdated={lastUpdated} roleLabel={roleLabel} />
+            <GreetingHeader name={userName} lastUpdated={lastUpdated} roleLabel={roleLabel} verified={verified} />
             {isAuthenticated && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-2 px-2 lg:overflow-visible lg:mx-0 lg:px-0">
                 <CurrencySelector />

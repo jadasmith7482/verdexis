@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string
   name: string
   avatar?: string | null
+  kycStatus?: 'none' | 'pending' | 'approved' | 'rejected'
 }
 
 export function getProfile(): UserProfile | null {
@@ -17,6 +18,7 @@ export function getProfile(): UserProfile | null {
       email: auth.email || '',
       name: auth.name || 'User',
       avatar: localStorage.getItem(AVATAR_KEY) || null,
+      kycStatus: auth.kycStatus || 'none',
     }
   } catch {
     return null
@@ -25,7 +27,7 @@ export function getProfile(): UserProfile | null {
 
 export function updateProfile(patch: Partial<UserProfile>): UserProfile | null {
   try {
-    const current = getProfile() || { email: '', name: 'User', avatar: null }
+    const current = getProfile() || { email: '', name: 'User', avatar: null, kycStatus: 'none' }
     const next = { ...current, ...patch }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ email: next.email, name: next.name }))
     if (patch.avatar !== undefined) {

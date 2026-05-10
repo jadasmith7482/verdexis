@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon, LifeBuoy } from 'lucide-react'
+import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon, LifeBuoy, BadgeCheck, ShieldCheck } from 'lucide-react'
 import AuthModal from './AuthModal'
 import NotificationBell from './NotificationBell'
 import { getAvatar } from '../lib/userProfile'
@@ -35,6 +35,7 @@ export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState('User')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isVerified, setIsVerified] = useState(false)
   const [avatar, setAvatar] = useState<string | null>(null)
   const { isConnected: web3Connected, isConnecting: web3Connecting, shortAddress, connect: connectWeb3, error: web3Error } = useWeb3()
   const location = useLocation()
@@ -48,12 +49,15 @@ export default function Navigation() {
         const parsed = JSON.parse(auth)
         setUserName(parsed.name || 'User')
         setIsAdmin(parsed.role === 'admin')
+        setIsVerified(parsed.kycStatus === 'approved')
       } catch {
         setUserName('User')
         setIsAdmin(false)
+        setIsVerified(false)
       }
     } else {
       setIsAdmin(false)
+      setIsVerified(false)
     }
     setAvatar(getAvatar())
   }
@@ -77,6 +81,7 @@ export default function Navigation() {
   const roleBadgeClass = isAdmin
     ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'
     : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'
+  const verifiedBadgeClass = 'text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30'
 
   const openLogin = () => {
     setAuthMode('login')
@@ -143,8 +148,13 @@ export default function Navigation() {
             ) : (
               <div className="flex items-center gap-3">
                 <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
-                  {roleLabel}
+                  <ShieldCheck className="w-3 h-3" />{roleLabel}
                 </span>
+                {isVerified && (
+                  <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${verifiedBadgeClass}`}>
+                    <BadgeCheck className="w-3 h-3" />Verified
+                  </span>
+                )}
                 <span className="text-xs text-[#737373] hidden xl:inline">{userName}</span>
                 <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
@@ -206,9 +216,16 @@ export default function Navigation() {
                     <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] overflow-hidden">{avatar ? <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" /> : (userName[0]?.toUpperCase() || 'U')}</div>
                     <div className="flex flex-col">
                       <span className="text-sm text-[#A0A0A0]">{userName}</span>
-                      <span className={`inline-flex items-center gap-1 self-start mt-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
-                        {roleLabel}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
+                          <ShieldCheck className="w-3 h-3" />{roleLabel}
+                        </span>
+                        {isVerified && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${verifiedBadgeClass}`}>
+                            <BadgeCheck className="w-3 h-3" />Verified
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">

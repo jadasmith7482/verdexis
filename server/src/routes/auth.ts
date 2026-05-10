@@ -52,7 +52,7 @@ const resetSchema = z.object({
   password: z.string().min(8).max(200),
 })
 
-function publicUser(u: { id: string; email: string; username?: string | null; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean; investmentId?: string | null }) {
+function publicUser(u: { id: string; email: string; username?: string | null; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean; investmentId?: string | null; kycStatus?: string; kycNotes?: string | null; kycReviewedAt?: Date | null; kycReviewedBy?: string | null }) {
   let prefs: Record<string, unknown> = {}
   try {
     if (u.prefs) prefs = JSON.parse(u.prefs)
@@ -69,6 +69,7 @@ function publicUser(u: { id: string; email: string; username?: string | null; na
     role: (u.role === 'admin' ? 'admin' : 'user') as 'user' | 'admin',
     suspended: !!u.suspended,
     investmentId: u.investmentId ?? null,
+    kycStatus: (u.kycStatus === 'approved' || u.kycStatus === 'pending' || u.kycStatus === 'rejected') ? u.kycStatus : 'none',
     prefs,
   }
 }

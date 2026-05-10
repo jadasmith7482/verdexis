@@ -183,10 +183,18 @@ export default function AdminUsers() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${u.role === 'admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
-                        <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
-                        {u.role === 'admin' ? 'Admin' : 'User'}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${u.role === 'admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
+                          <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
+                          {u.role === 'admin' ? 'Admin' : 'User'}
+                        </span>
+                        {u.kycStatus === 'approved' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-2 py-0.5 rounded">
+                            <span className="w-3 h-3 rounded-full bg-[#3b82f6] flex items-center justify-center text-[8px] leading-none text-white">✓</span>
+                            Verified
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {u.suspended ? (

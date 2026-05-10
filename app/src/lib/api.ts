@@ -15,6 +15,7 @@ export interface ApiUser {
   role: 'user' | 'admin'
   suspended: boolean
   investmentId: string | null
+  kycStatus: 'none' | 'pending' | 'approved' | 'rejected'
 }
 
 export interface ApiError {
@@ -42,7 +43,7 @@ export function setToken(token: string | null) {
 
 export function setStoredUser(user: ApiUser) {
   try {
-    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, username: user.username, name: user.name, role: user.role, suspended: user.suspended, investmentId: user.investmentId }))
+    localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, email: user.email, username: user.username, name: user.name, role: user.role, suspended: user.suspended, investmentId: user.investmentId, kycStatus: user.kycStatus }))
     if (user.avatar) localStorage.setItem('verdexis_avatar', user.avatar)
     else localStorage.removeItem('verdexis_avatar')
     if (user.prefs && Object.keys(user.prefs).length) {

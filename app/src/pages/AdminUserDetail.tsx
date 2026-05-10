@@ -173,6 +173,7 @@ export default function AdminUserDetail() {
             <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
             {u.role === 'admin' ? 'Admin' : 'User'}
           </span>
+          {u.kycStatus === 'approved' && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-2 py-0.5 rounded"><span className="w-3 h-3 rounded-full bg-[#3b82f6] flex items-center justify-center text-[8px] leading-none text-white">✓</span>Verified</span>}
           {u.suspended && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>}
           {u.holdActive && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded"><Lock className="w-3 h-3" />Hold: {u.holdType}</span>}
           {u.kycStatus && u.kycStatus !== 'none' && <KycBadge status={u.kycStatus} />}

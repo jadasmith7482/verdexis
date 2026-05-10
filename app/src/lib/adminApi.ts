@@ -28,6 +28,7 @@ export interface AdminUserSummary {
   name: string
   role: 'user' | 'admin'
   suspended: boolean
+  kycStatus: 'none' | 'pending' | 'approved' | 'rejected'
   twoFactor: boolean
   investmentId: string | null
   createdAt: string
