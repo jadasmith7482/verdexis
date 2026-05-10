@@ -21,6 +21,11 @@ const privateLinks = [
   { label: 'AI Analyst', path: '/ai' },
   { label: 'Wallet', path: '/wallet' },
   { label: 'Goals', path: '/goals' },
+  { label: 'Screener', path: '/screener' },
+  { label: 'Calendar', path: '/calendar' },
+  { label: 'Copy', path: '/copy-trading' },
+  { label: 'Learn', path: '/learn' },
+  { label: 'Paper', path: '/paper-trading' },
 ]
 
 export default function Navigation() {

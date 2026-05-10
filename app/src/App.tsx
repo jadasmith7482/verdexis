@@ -38,6 +38,23 @@ const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
 const AdminTransfer = lazy(() => import('./pages/AdminTransfer'))
 const AdminBroadcast = lazy(() => import('./pages/AdminBroadcast'))
+const PaperTrading = lazy(() => import('./pages/PaperTrading'))
+const EconomicCalendar = lazy(() => import('./pages/EconomicCalendar'))
+const Screener = lazy(() => import('./pages/Screener'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
+const Referral = lazy(() => import('./pages/Referral'))
+const LearnCenter = lazy(() => import('./pages/LearnCenter'))
+const KYC = lazy(() => import('./pages/KYC'))
+const Achievements = lazy(() => import('./pages/Achievements'))
+const Loyalty = lazy(() => import('./pages/Loyalty'))
+const CopyTrading = lazy(() => import('./pages/CopyTrading'))
+const DCAScheduler = lazy(() => import('./pages/DCAScheduler'))
+const Rebalance = lazy(() => import('./pages/Rebalance'))
+const SubAccounts = lazy(() => import('./pages/SubAccounts'))
+const TaxHarvesting = lazy(() => import('./pages/TaxHarvesting'))
+const NFTPortfolio = lazy(() => import('./pages/NFTPortfolio'))
+const Integrations = lazy(() => import('./pages/Integrations'))
+const Changelog = lazy(() => import('./pages/Changelog'))
 
 function PageFallback() {
   return (
@@ -98,6 +115,23 @@ function RoutedPages() {
           <Route path="/admin/transfer" element={<RequireAdmin><AdminTransfer /></RequireAdmin>} />
           <Route path="/admin/broadcast" element={<RequireAdmin><AdminBroadcast /></RequireAdmin>} />
           <Route path="/admin/deposits" element={<RequireAdmin><AdminDeposits /></RequireAdmin>} />
+          <Route path="/paper-trading" element={<RequireAuth><PaperTrading /></RequireAuth>} />
+          <Route path="/calendar" element={<EconomicCalendar />} />
+          <Route path="/screener" element={<Screener />} />
+          <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+          <Route path="/referral" element={<RequireAuth><Referral /></RequireAuth>} />
+          <Route path="/learn" element={<LearnCenter />} />
+          <Route path="/kyc" element={<RequireAuth><KYC /></RequireAuth>} />
+          <Route path="/achievements" element={<RequireAuth><Achievements /></RequireAuth>} />
+          <Route path="/loyalty" element={<RequireAuth><Loyalty /></RequireAuth>} />
+          <Route path="/copy-trading" element={<RequireAuth><CopyTrading /></RequireAuth>} />
+          <Route path="/dca" element={<RequireAuth><DCAScheduler /></RequireAuth>} />
+          <Route path="/rebalance" element={<RequireAuth><Rebalance /></RequireAuth>} />
+          <Route path="/accounts" element={<RequireAuth><SubAccounts /></RequireAuth>} />
+          <Route path="/tax" element={<RequireAuth><TaxHarvesting /></RequireAuth>} />
+          <Route path="/nft" element={<RequireAuth><NFTPortfolio /></RequireAuth>} />
+          <Route path="/integrations" element={<RequireAuth><Integrations /></RequireAuth>} />
+          <Route path="/changelog" element={<Changelog />} />
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
