@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon, LifeBuoy, BadgeCheck, ShieldCheck } from 'lucide-react'
+import { Menu, X, LogOut, Settings as SettingsIcon, Wallet as WalletIcon, LifeBuoy, ShieldCheck } from 'lucide-react'
+import VerifiedBadge from './VerifiedBadge'
 import AuthModal from './AuthModal'
 import NotificationBell from './NotificationBell'
 import { getAvatar } from '../lib/userProfile'
@@ -81,7 +82,7 @@ export default function Navigation() {
   const roleBadgeClass = isAdmin
     ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'
     : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'
-  const verifiedBadgeClass = 'text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30'
+
 
   const openLogin = () => {
     setAuthMode('login')
@@ -150,11 +151,7 @@ export default function Navigation() {
                 <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
                   <ShieldCheck className="w-3 h-3" />{roleLabel}
                 </span>
-                {isVerified && (
-                  <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${verifiedBadgeClass}`}>
-                    <BadgeCheck className="w-3 h-3" />Verified
-                  </span>
-                )}
+                {isVerified && <VerifiedBadge className="hidden xl:inline-flex" />}
                 <span className="text-xs text-[#737373] hidden xl:inline">{userName}</span>
                 <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
@@ -220,11 +217,7 @@ export default function Navigation() {
                         <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
                           <ShieldCheck className="w-3 h-3" />{roleLabel}
                         </span>
-                        {isVerified && (
-                          <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${verifiedBadgeClass}`}>
-                            <BadgeCheck className="w-3 h-3" />Verified
-                          </span>
-                        )}
+                        {isVerified && <VerifiedBadge />}
                       </div>
                     </div>
                   </div>

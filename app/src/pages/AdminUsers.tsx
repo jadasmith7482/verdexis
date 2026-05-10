@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import Navigation from '../components/Navigation'
+import VerifiedBadge from '../components/VerifiedBadge'
 import { adminApi, HOLD_TYPES, type AdminUserSummary } from '../lib/adminApi'
 import { Search, ShieldCheck, Ban, ArrowLeft, ChevronLeft, ChevronRight, UserPlus, X, Lock, LockOpen, KeyRound, Trash2, AlertTriangle } from 'lucide-react'
 
@@ -188,12 +189,7 @@ export default function AdminUsers() {
                           <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
                           {u.role === 'admin' ? 'Admin' : 'User'}
                         </span>
-                        {u.kycStatus === 'approved' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 px-2 py-0.5 rounded">
-                            <span className="w-3 h-3 rounded-full bg-[#3b82f6] flex items-center justify-center text-[8px] leading-none text-white">✓</span>
-                            Verified
-                          </span>
-                        )}
+                        {u.kycStatus === 'approved' && <VerifiedBadge />}
                       </div>
                     </td>
                     <td className="px-4 py-3">
