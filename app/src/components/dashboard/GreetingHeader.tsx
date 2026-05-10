@@ -4,13 +4,20 @@
 import { useMemo } from 'react'
 import { greetingFor } from '../../lib/streak'
 
-export default function GreetingHeader({ name, lastUpdated }: { name: string; lastUpdated: Date }) {
+export default function GreetingHeader({ name, lastUpdated, roleLabel }: { name: string; lastUpdated: Date; roleLabel?: 'User' | 'Admin' }) {
   const greeting = useMemo(() => greetingFor(name || 'there'), [name])
 
   return (
     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-8">
       <div>
-        <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{greeting}</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-3xl md:text-4xl font-light tracking-[-0.03em] text-[#E5E5E5]">{greeting}</h1>
+          {roleLabel && (
+            <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleLabel === 'Admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
+              {roleLabel}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-[#737373] mt-1 flex items-center gap-2">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#0C8B44] animate-pulse" />
           Live · Last updated {lastUpdated.toLocaleTimeString()}

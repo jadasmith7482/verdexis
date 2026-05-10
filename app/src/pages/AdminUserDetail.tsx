@@ -169,7 +169,10 @@ export default function AdminUserDetail() {
         </Link>
         <div className="flex flex-wrap items-center gap-3 mb-2">
           <h1 className="text-2xl font-light text-[#E5E5E5]">{u.name}</h1>
-          {u.role === 'admin' && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded"><ShieldCheck className="w-3 h-3" />Admin</span>}
+          <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${u.role === 'admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
+            <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
+            {u.role === 'admin' ? 'Admin' : 'User'}
+          </span>
           {u.suspended && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#f44336] bg-[#f44336]/10 px-2 py-0.5 rounded"><Ban className="w-3 h-3" />Suspended</span>}
           {u.holdActive && <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#F57C00] bg-[#F57C00]/10 px-2 py-0.5 rounded"><Lock className="w-3 h-3" />Hold: {u.holdType}</span>}
           {u.kycStatus && u.kycStatus !== 'none' && <KycBadge status={u.kycStatus} />}

@@ -73,6 +73,10 @@ export default function Navigation() {
   const showPrivateNav = isAuthenticated || isPrivatePage
   const baseLinks = showPrivateNav ? privateLinks : publicLinks
   const navLinks = isAdmin ? [...baseLinks, { label: 'Admin', path: '/admin' }] : baseLinks
+  const roleLabel = isAuthenticated ? (isAdmin ? 'Admin' : 'User') : ''
+  const roleBadgeClass = isAdmin
+    ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30'
+    : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'
 
   const openLogin = () => {
     setAuthMode('login')
@@ -138,6 +142,9 @@ export default function Navigation() {
               </>
             ) : (
               <div className="flex items-center gap-3">
+                <span className={`hidden xl:inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
+                  {roleLabel}
+                </span>
                 <span className="text-xs text-[#737373] hidden xl:inline">{userName}</span>
                 <NotificationBell />
                 <Link to="/dashboard" className="w-9 h-9 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] hover:bg-[#0C8B44]/30 transition-colors overflow-hidden" title="Dashboard">
@@ -197,7 +204,12 @@ export default function Navigation() {
                 <div className="flex items-center justify-between pt-3 border-t border-[#ffffff08]">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-[#0C8B44]/20 flex items-center justify-center text-sm font-bold text-[#0C8B44] overflow-hidden">{avatar ? <img src={avatar} alt="Your avatar" className="w-full h-full object-cover" /> : (userName[0]?.toUpperCase() || 'U')}</div>
-                    <span className="text-sm text-[#A0A0A0]">{userName}</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-[#A0A0A0]">{userName}</span>
+                      <span className={`inline-flex items-center gap-1 self-start mt-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${roleBadgeClass}`}>
+                        {roleLabel}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Link to="/settings" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 text-sm text-[#737373] hover:text-[#0C8B44] transition-colors">

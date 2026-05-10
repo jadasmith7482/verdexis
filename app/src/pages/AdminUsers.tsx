@@ -183,11 +183,10 @@ export default function AdminUsers() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {u.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded"><ShieldCheck className="w-3 h-3" />Admin</span>
-                      ) : (
-                        <span className="text-[11px] text-[#A0A0A0]">User</span>
-                      )}
+                      <span className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${u.role === 'admin' ? 'text-[#0C8B44] bg-[#0C8B44]/10 border border-[#0C8B44]/30' : 'text-[#737373] bg-[#1a1a1a] border border-[#ffffff12]'}`}>
+                        <ShieldCheck className={`w-3 h-3 ${u.role === 'admin' ? '' : 'opacity-50'}`} />
+                        {u.role === 'admin' ? 'Admin' : 'User'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       {u.suspended ? (
