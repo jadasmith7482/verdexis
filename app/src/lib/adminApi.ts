@@ -133,7 +133,7 @@ export const HOLD_TYPES: Array<{ value: 'all' | 'withdraw' | 'transfer'; label: 
 ]
 
 export const HOLDING_REASONS: Array<{ value: string; label: string }> = [
-  { value: 'admin_correction', label: 'Admin correction' },
+  { value: 'admin_correction', label: 'Manual correction' },
   { value: 'manual_purchase', label: 'Manual purchase' },
   { value: 'manual_sale', label: 'Manual sale' },
   { value: 'gift', label: 'Gift' },

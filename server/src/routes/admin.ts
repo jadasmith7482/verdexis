@@ -868,7 +868,7 @@ router.post('/users/:id/transactions', async (req: AuthedRequest, res) => {
         userId,
         kind: rest.kind,
         title: `${symbol}${magnitude.toLocaleString()} ${rest.currency} ${verb}`,
-        body: rest.reference || `Admin ${rest.kind} (${rest.status})`,
+        body: rest.reference || `${rest.currency} ${rest.kind} (${rest.status})`,
       },
     }).catch(() => { /* notification is best-effort */ })
   }
