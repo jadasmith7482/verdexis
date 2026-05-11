@@ -33,15 +33,38 @@ const adminPrivateLinks = [
   { label: 'Dashboard', path: '/dashboard' },
 ]
 
+function readAuthSnapshot() {
+  const auth = localStorage.getItem('verdexis_auth')
+  let isAuthenticated = !!auth
+  let userName = 'User'
+  let isAdmin = false
+  let isVerified = false
+  if (auth) {
+    try {
+      const parsed = JSON.parse(auth)
+      userName = parsed.name || 'User'
+      isAdmin = parsed.role === 'admin'
+      isVerified = parsed.kycStatus === 'approved'
+    } catch {
+      isAuthenticated = false
+      userName = 'User'
+      isAdmin = false
+      isVerified = false
+    }
+  }
+  return { isAuthenticated, userName, isAdmin, isVerified, avatar: getAvatar() }
+}
+
 export default function Navigation() {
+  const initial = readAuthSnapshot()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userName, setUserName] = useState('User')
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [isVerified, setIsVerified] = useState(false)
-  const [avatar, setAvatar] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(initial.isAuthenticated)
+  const [userName, setUserName] = useState(initial.userName)
+  const [isAdmin, setIsAdmin] = useState(initial.isAdmin)
+  const [isVerified, setIsVerified] = useState(initial.isVerified)
+  const [avatar, setAvatar] = useState<string | null>(initial.avatar)
   const { isConnected: web3Connected, isConnecting: web3Connecting, shortAddress, connect: connectWeb3, error: web3Error } = useWeb3()
   const location = useLocation()
 
@@ -68,7 +91,6 @@ export default function Navigation() {
   }
 
   useEffect(() => {
-    checkAuth()
     const handleStorage = () => checkAuth()
     window.addEventListener('storage', handleStorage)
     window.addEventListener('verdexis:profile', handleStorage)

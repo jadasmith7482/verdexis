@@ -4,10 +4,9 @@ import { getDensity, setDensity, type Density } from '../../lib/density'
 
 /** Toolbar button that toggles between Comfortable and Compact card padding. */
 export default function DensityToggle() {
-  const [d, setD] = useState<Density>('comfortable')
+  const [d, setD] = useState<Density>(() => getDensity())
 
   useEffect(() => {
-    setD(getDensity())
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<Density>).detail
       if (detail) setD(detail)

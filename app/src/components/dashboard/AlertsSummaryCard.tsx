@@ -17,12 +17,16 @@ interface Alert {
   createdAt: string
 }
 
+function isTriggeredWithinLastDay(createdAt: string): boolean {
+  return new Date(createdAt).getTime() > (Date.now() - 86400_000)
+}
+
 export default function AlertsSummaryCard() {
   const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(() => !getToken())
 
   useEffect(() => {
-    if (!getToken()) { setLoaded(true); return }
+    if (!getToken()) return
     let cancelled = false
     const load = async () => {
       try {
@@ -37,8 +41,7 @@ export default function AlertsSummaryCard() {
   }, [])
 
   const active = alerts.filter((a) => a.active).length
-  const todayMs = Date.now() - 86400_000
-  const triggeredToday = alerts.filter((a) => a.triggered && new Date(a.createdAt).getTime() > todayMs).length
+  const triggeredToday = alerts.filter((a) => a.triggered && isTriggeredWithinLastDay(a.createdAt)).length
   const upcoming = alerts.filter((a) => a.active && !a.triggered).slice(0, 2)
 
   return (

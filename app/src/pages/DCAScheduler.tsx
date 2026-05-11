@@ -40,6 +40,10 @@ function load(): DCASchedule[] {
 
 function save(s: DCASchedule[]) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) }
 
+function daysUntil(nextRun: string): number {
+  return Math.ceil((new Date(nextRun).getTime() - Date.now()) / 86400000)
+}
+
 export default function DCAScheduler() { return <RequireAuth><DCASchedulerInner /></RequireAuth> }
 
 function DCASchedulerInner() {
@@ -170,7 +174,7 @@ function DCASchedulerInner() {
               {schedules.map(sc => {
                 const pnl = sc.currentValue - sc.totalInvested
                 const pnlPct = (pnl / sc.totalInvested) * 100
-                const daysUntil = Math.ceil((new Date(sc.nextRun).getTime() - Date.now()) / 86400000)
+                const until = daysUntil(sc.nextRun)
                 return (
                   <div key={sc.id} className={`rounded-2xl border p-5 transition-colors ${sc.paused ? 'bg-[#0f1619]/30 border-[#ffffff05]' : 'bg-[#0f1619]/50 border-[#ffffff08] hover:border-[#ffffff15]'}`}>
                     <div className="flex flex-wrap items-center gap-4">
@@ -183,7 +187,7 @@ function DCASchedulerInner() {
                             <p className="text-sm font-medium text-[#E5E5E5]">{sc.asset}</p>
                             {sc.paused && <span className="text-[10px] text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded-full">Paused</span>}
                           </div>
-                          <p className="text-[11px] text-[#737373]">${sc.amount} / {sc.frequency} · Next run in {daysUntil}d ({sc.nextRun})</p>
+                          <p className="text-[11px] text-[#737373]">${sc.amount} / {sc.frequency} · Next run in {until}d ({sc.nextRun})</p>
                         </div>
                       </div>
 

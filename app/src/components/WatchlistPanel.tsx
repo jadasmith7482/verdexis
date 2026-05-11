@@ -12,7 +12,14 @@ export default function WatchlistPanel({ availableSymbols, onSelect }: { availab
     if (!getToken()) { setItems([]); return }
     try { const r = await api.listWatchlist(); setItems(r.watchlist) } catch { /* offline */ }
   }
-  useEffect(() => { void load(); window.addEventListener('verdexis:profile', load); return () => window.removeEventListener('verdexis:profile', load) }, [])
+  useEffect(() => {
+    const id = setTimeout(() => { void load() }, 0)
+    window.addEventListener('verdexis:profile', load)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener('verdexis:profile', load)
+    }
+  }, [])
 
   const add = async (s: { symbol: string; name: string }) => {
     if (!getToken()) { toast.error('Sign in to use the watchlist'); return }

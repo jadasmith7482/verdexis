@@ -237,7 +237,7 @@ export default function Activity() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: `${color}15`, color }}>
-                      <Icon className="w-4 h-4" />
+                      {React.createElement(Icon, { className: 'w-4 h-4' })}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm text-[#E5E5E5] truncate">{rowTitle(r)}</p>
@@ -315,7 +315,7 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#ffffff08] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: `${color}15`, color }}>
-              <Icon className="w-5 h-5" />
+              {React.createElement(Icon, { className: 'w-5 h-5' })}
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-medium text-[#E5E5E5] truncate">{rowTitle(row)}</h2>

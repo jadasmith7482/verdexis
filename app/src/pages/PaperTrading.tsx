@@ -55,7 +55,9 @@ function loadState(): PaperState {
         trades: Array.isArray(parsed.trades) ? parsed.trades : [],
       }
     }
-  } catch {}
+  } catch {
+    // ignore malformed persisted state
+  }
   return { balance: INITIAL_BALANCE, positions: [] as PaperPosition[], trades: [] as PaperTrade[] }
 }
 

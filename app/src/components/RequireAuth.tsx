@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { getToken } from '../lib/api'
 
@@ -9,22 +8,9 @@ import { getToken } from '../lib/api'
  */
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const [check, setCheck] = useState<'pending' | 'ok' | 'redirect'>('pending')
-
-  useEffect(() => {
-    const hasToken = !!getToken()
-    const hasAuth = !!localStorage.getItem('verdexis_auth')
-    setCheck(hasToken || hasAuth ? 'ok' : 'redirect')
-  }, [])
-
-  if (check === 'pending') {
-    return (
-      <div className="min-h-screen bg-[#070C0E] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#0C8B44] border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-  if (check === 'redirect') {
+  const hasToken = !!getToken()
+  const hasAuth = !!localStorage.getItem('verdexis_auth')
+  if (!(hasToken || hasAuth)) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />
   }
   return <>{children}</>

@@ -65,6 +65,22 @@ const EMPTY_CRYPTO: CryptoWallet = {
   notes: '',
 }
 
+function wireFor(currency: FiatCurrency): WireInstruction {
+  const existing = depositInstructions.getWire(currency)
+  return existing ?? { ...EMPTY_WIRE, label: `${currency} Wire Transfer` }
+}
+
+function cryptoFor(currency: CryptoCurrency): CryptoWallet {
+  const existing = depositInstructions.getCrypto(currency)
+  return existing ?? { ...EMPTY_CRYPTO, currency, network: defaultNetwork(currency) }
+}
+
+function web3For(chainId: string): Web3Payout {
+  const existing = depositInstructions.getWeb3Payout(chainId)
+  if (existing && existing.chainId === chainId) return existing
+  return { ...EMPTY_WEB3, chainId, label: WEB3_CHAINS.find(c => c.id === chainId)?.label ?? '' }
+}
+
 function AdminInner() {
   // The route is already gated by RequireAdmin (App.tsx) and the server
   // re-checks role==='admin' on every mutation, so anyone who reaches this
@@ -76,26 +92,10 @@ function AdminInner() {
   const [wireCurrency, setWireCurrency] = useState<FiatCurrency>('USD')
   const [cryptoCurrency, setCryptoCurrency] = useState<CryptoCurrency>('BTC')
 
-  const [wireForm, setWireForm] = useState<WireInstruction>(EMPTY_WIRE)
-  const [cryptoForm, setCryptoForm] = useState<CryptoWallet>({ ...EMPTY_CRYPTO, currency: 'BTC', network: 'Bitcoin' })
+  const [wireForm, setWireForm] = useState<WireInstruction>(() => wireFor('USD'))
+  const [cryptoForm, setCryptoForm] = useState<CryptoWallet>(() => cryptoFor('BTC'))
   const [web3ChainId, setWeb3ChainId] = useState<string>('default')
-  const [web3Form, setWeb3Form] = useState<Web3Payout>(EMPTY_WEB3)
-
-  // Refresh from store when currency changes or admin saves elsewhere
-  useEffect(() => {
-    const existing = depositInstructions.getWire(wireCurrency)
-    setWireForm(existing ?? { ...EMPTY_WIRE, label: `${wireCurrency} Wire Transfer` })
-  }, [wireCurrency])
-
-  useEffect(() => {
-    const existing = depositInstructions.getCrypto(cryptoCurrency)
-    setCryptoForm(existing ?? { ...EMPTY_CRYPTO, currency: cryptoCurrency, network: defaultNetwork(cryptoCurrency) })
-  }, [cryptoCurrency])
-
-  useEffect(() => {
-    const existing = depositInstructions.getWeb3Payout(web3ChainId)
-    setWeb3Form(existing && existing.chainId === web3ChainId ? existing : { ...EMPTY_WEB3, chainId: web3ChainId, label: WEB3_CHAINS.find(c => c.id === web3ChainId)?.label ?? '' })
-  }, [web3ChainId])
+  const [web3Form, setWeb3Form] = useState<Web3Payout>(() => web3For('default'))
 
   useEffect(() => onDepositInstructionsChanged(() => { /* re-render on store change */ }), [])
 
@@ -196,7 +196,7 @@ function AdminInner() {
                   {FIAT_CURRENCIES.map((c) => (
                     <button
                       key={c}
-                      onClick={() => setWireCurrency(c)}
+                      onClick={() => { setWireCurrency(c); setWireForm(wireFor(c)) }}
                       className={`py-2 text-xs rounded-lg border transition-colors ${wireCurrency === c ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#0C8B44]' : 'border-[#ffffff08] bg-[#1a1a1a] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
                     >
                       {c}
@@ -244,7 +244,7 @@ function AdminInner() {
                   {CRYPTO_CURRENCIES.map((c) => (
                     <button
                       key={c}
-                      onClick={() => setCryptoCurrency(c)}
+                      onClick={() => { setCryptoCurrency(c); setCryptoForm(cryptoFor(c)) }}
                       className={`py-2 text-xs rounded-lg border transition-colors ${cryptoCurrency === c ? 'border-[#0C8B44] bg-[#0C8B44]/10 text-[#0C8B44]' : 'border-[#ffffff08] bg-[#1a1a1a] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
                     >
                       {c}
@@ -285,7 +285,7 @@ function AdminInner() {
                 <label className="block text-[10px] uppercase tracking-[0.05em] text-[#737373] mb-2">Chain</label>
                 <select
                   value={web3ChainId}
-                  onChange={(e) => setWeb3ChainId(e.target.value)}
+                  onChange={(e) => { setWeb3ChainId(e.target.value); setWeb3Form(web3For(e.target.value)) }}
                   aria-label="Web3 chain"
                   className="w-full px-3 py-2 bg-[#0a0f11] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] focus:outline-none focus:border-[#0C8B44]"
                 >

@@ -383,17 +383,17 @@ export default function Home() {
                   logo: getCryptoLogo(c),
                 }))
                 const C = 2 * Math.PI * 40 // circumference
-                let offset = 0
+                const arcLengths = slices.map((s) => (s.pct / 100) * C)
+                const offsets = arcLengths.map((_, i) => arcLengths.slice(0, i).reduce((sum, n) => sum + n, 0))
                 return (
                   <>
                     <div className="flex items-center justify-center mb-6">
                       {slices.length > 0 ? (
                         <svg viewBox="0 0 100 100" className="w-32 h-32">
-                          {slices.map((s) => {
-                            const len = (s.pct / 100) * C
+                          {slices.map((s, i) => {
+                            const len = arcLengths[i]
                             const dasharray = `${len} ${C - len}`
-                            const dashoffset = -offset
-                            offset += len
+                            const dashoffset = -offsets[i]
                             return (
                               <circle key={s.id} cx="50" cy="50" r="40" fill="none" stroke={s.color} strokeWidth="20" strokeDasharray={dasharray} strokeDashoffset={dashoffset} transform="rotate(-90 50 50)" />
                             )

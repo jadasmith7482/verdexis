@@ -605,7 +605,7 @@ function TransactionsTab({ userId, txs, onChange }: { userId: string; txs: Admin
                   </select>
                 </td>
                 <td className="px-4 py-3 text-[11px] text-[#A0A0A0] max-w-[220px]">
-                  <ReferenceEditor value={t.reference || ''} onSave={(v) => changeReference(t.id, v)} />
+                  <ReferenceEditor key={`${t.id}:${t.reference || ''}`} value={t.reference || ''} onSave={(v) => changeReference(t.id, v)} />
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {t.status !== 'reversed' && t.kind !== 'reversal' && (
@@ -1718,7 +1718,6 @@ function AuditTab({ userId }: { userId: string }) {
   const [logs, setLogs] = useState<AdminAuditLog[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    setLoading(true)
     adminApi.userAudit(userId, 500)
       .then((r) => setLogs(r.audit))
       .catch((e: { error?: string }) => toast.error(e.error || 'Failed to load audit'))
@@ -1753,7 +1752,6 @@ function AuditTab({ userId }: { userId: string }) {
 function ReferenceEditor({ value, onSave }: { value: string; onSave: (v: string) => void | Promise<void> }) {
   const [v, setV] = useState(value)
   const [dirty, setDirty] = useState(false)
-  useEffect(() => { setV(value); setDirty(false) }, [value])
   return (
     <input
       value={v}
@@ -1763,7 +1761,7 @@ function ReferenceEditor({ value, onSave }: { value: string; onSave: (v: string)
         if (e.key === 'Escape') { setV(value); setDirty(false); (e.target as HTMLInputElement).blur() }
       }}
       onBlur={() => { if (dirty) { onSave(v.trim()); setDirty(false) } }}
-      placeholder="�"
+      placeholder="—"
       aria-label="Edit transaction description"
       className="w-full bg-transparent border border-transparent hover:border-[#ffffff10] focus:border-[#0C8B44] focus:bg-[#0a0f11] rounded px-2 py-1 text-[11px] text-[#A0A0A0] focus:text-[#E5E5E5] outline-none transition-colors"
     />

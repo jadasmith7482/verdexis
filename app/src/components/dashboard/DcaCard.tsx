@@ -7,14 +7,18 @@ import { useEffect, useState } from 'react'
 import { CalendarClock, Pause, Play, Trash2 } from 'lucide-react'
 import { dcaStore, nextRunMs, DCA_EVENT, type DcaSchedule } from '../../lib/dcaStore'
 
+function msUntil(ms: number): number {
+  return ms - Date.now()
+}
+
 export default function DcaCard() {
   const [schedules, setSchedules] = useState<DcaSchedule[]>(dcaStore.list())
-  const [, setNow] = useState(Date.now())
+  const [, setTick] = useState(0)
 
   useEffect(() => {
     const refresh = () => setSchedules(dcaStore.list())
     window.addEventListener(DCA_EVENT, refresh)
-    const t = setInterval(() => setNow(Date.now()), 60_000)
+    const t = setInterval(() => setTick((v) => v + 1), 60_000)
     return () => { window.removeEventListener(DCA_EVENT, refresh); clearInterval(t) }
   }, [])
 
@@ -43,7 +47,7 @@ export default function DcaCard() {
       ) : (
         <div className="space-y-2">
           {schedules.map((s) => {
-            const next = nextRunMs(s) - Date.now()
+            const next = msUntil(nextRunMs(s))
             return (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#1a1a1a]/50">
                 <div className="w-9 h-9 rounded-lg bg-[#FF9800]/10 flex items-center justify-center text-[10px] font-bold text-[#FF9800] shrink-0">{s.asset}</div>

@@ -45,12 +45,13 @@ export default function NotificationBell() {
   }
 
   useEffect(() => {
-    void load()
+    const kickoff = setTimeout(() => { void load() }, 0)
     const interval = setInterval(load, 10000)
     const refresh = () => void load()
     window.addEventListener(EVENT, refresh)
     window.addEventListener('verdexis:profile', refresh)
     return () => {
+      clearTimeout(kickoff)
       clearInterval(interval)
       window.removeEventListener(EVENT, refresh)
       window.removeEventListener('verdexis:profile', refresh)

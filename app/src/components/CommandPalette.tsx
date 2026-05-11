@@ -35,7 +35,14 @@ export default function CommandPalette() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        setOpen((v) => !v)
+        setOpen((v) => {
+          const next = !v
+          if (next) {
+            setQuery('')
+            setActive(0)
+          }
+          return next
+        })
       } else if (e.key === 'Escape') {
         setOpen(false)
       }
@@ -48,8 +55,6 @@ export default function CommandPalette() {
     if (open) {
       void marketData.getCryptoList().then((list) => setCoins(list.slice(0, 50))).catch(() => {})
       setTimeout(() => inputRef.current?.focus(), 50)
-      setQuery('')
-      setActive(0)
     }
   }, [open])
 
@@ -65,8 +70,6 @@ export default function CommandPalette() {
     if (!q) return all.slice(0, 12)
     return all.filter((i) => i.label.toLowerCase().includes(q)).slice(0, 12)
   }, [query, coins])
-
-  useEffect(() => { setActive(0) }, [query])
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(items.length - 1, i + 1)) }
@@ -92,7 +95,7 @@ export default function CommandPalette() {
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setActive(0) }}
             onKeyDown={onKey}
             placeholder="Search markets, pages, settings…"
             className="flex-1 bg-transparent text-sm text-[#E5E5E5] placeholder:text-[#555] focus:outline-none"

@@ -41,8 +41,11 @@ function AlertsInner() {
   }
 
   useEffect(() => {
-    void load()
-    void marketData.getCryptoList().then((c) => setCoins(c.slice(0, 30))).catch(() => {})
+    const id = setTimeout(() => {
+      void load()
+      void marketData.getCryptoList().then((c) => setCoins(c.slice(0, 30))).catch(() => {})
+    }, 0)
+    return () => clearTimeout(id)
   }, [])
 
   const create = async (e: React.FormEvent) => {

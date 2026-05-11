@@ -93,12 +93,11 @@ function LiveMarketCard({
   fmtMoney: (n: number) => string
 }) {
   const baseSpark = crypto.sparkline_in_7d?.price.slice(-20) ?? []
-  const [livePrice, setLivePrice] = useState<number>(crypto.current_price)
+  const [livePrice, setLivePrice] = useState<number>(() => liveTicker.getPrice(crypto.id) ?? crypto.current_price)
   useEffect(() => {
-    setLivePrice(liveTicker.getPrice(crypto.id) ?? crypto.current_price)
     const unsub = liveTicker.subscribe(crypto.id, (p) => setLivePrice(p))
     return unsub
-  }, [crypto.id, crypto.current_price])
+  }, [crypto.id])
   // Append the live price to the sparkline tail so the curve crawls forward
   // as new ticks arrive, instead of staying snapshot-still.
   const sparklinePrices = useMemo(() => {

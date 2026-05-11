@@ -6,6 +6,10 @@ import { Link } from 'react-router-dom'
 import { Newspaper, ExternalLink, ArrowRight } from 'lucide-react'
 import { marketData, type MarketNews } from '../../lib/marketData'
 
+function elapsedSince(ms: number): number {
+  return Date.now() - ms
+}
+
 export default function NewsSnippetCard() {
   const [news, setNews] = useState<MarketNews[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,7 +30,7 @@ export default function NewsSnippetCard() {
 
   const fmtAge = (epoch: number) => {
     const ms = epoch < 1e12 ? epoch * 1000 : epoch
-    const diff = Date.now() - ms
+    const diff = elapsedSince(ms)
     if (diff < 60_000) return 'just now'
     if (diff < 3600_000) return `${Math.floor(diff / 60_000)}m ago`
     if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}h ago`

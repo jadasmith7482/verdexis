@@ -98,6 +98,30 @@ function saveWatchlist(set: Set<string>) {
 type SortKey = 'rank' | 'price' | 'change24h' | 'change7d' | 'marketCap' | 'volume'
 type SortDir = 'asc' | 'desc'
 
+type SortHeaderProps = {
+  label: string
+  k: SortKey
+  align?: 'left' | 'right'
+  sortKey: SortKey
+  sortDir: SortDir
+  onToggleSort: (key: SortKey) => void
+}
+
+function SortHeader({ label, k, align = 'right', sortKey, sortDir, onToggleSort }: SortHeaderProps) {
+  const active = sortKey === k
+  const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown
+  return (
+    <th className={`py-3 px-2 text-${align}`}>
+      <button
+        onClick={() => onToggleSort(k)}
+        className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider transition-colors ${active ? 'text-[#0C8B44]' : 'text-[#737373] hover:text-[#E5E5E5]'}`}
+      >
+        {label} <Icon className="w-3 h-3" />
+      </button>
+    </th>
+  )
+}
+
 function pct7d(coin: CryptoQuote): number {
   const spark = coin?.sparkline_in_7d?.price
   if (!Array.isArray(spark) || spark.length < 2) return 0
@@ -160,11 +184,10 @@ function MarketRow({
   fmtMoney: (n: number) => string
 }) {
   const basePrice = typeof coin.current_price === 'number' ? coin.current_price : 0
-  const [livePrice, setLivePrice] = useState<number>(basePrice)
+  const [livePrice, setLivePrice] = useState<number>(() => liveTicker.getPrice(coin.id) ?? basePrice)
   useEffect(() => {
-    setLivePrice(liveTicker.getPrice(coin.id) ?? basePrice)
     return liveTicker.subscribe(coin.id, (p) => setLivePrice(p))
-  }, [coin.id, basePrice])
+  }, [coin.id])
 
   const change24h = typeof coin.price_change_percentage_24h === 'number' ? coin.price_change_percentage_24h : 0
   const isUp = change24h >= 0
@@ -322,21 +345,6 @@ export default function Markets() {
     return { totalCap, totalVol, avg24h, gainers, losers }
   }, [coins])
 
-  const SortHeader = ({ label, k, align = 'right' }: { label: string; k: SortKey; align?: 'left' | 'right' }) => {
-    const active = sortKey === k
-    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown
-    return (
-      <th className={`py-3 px-2 text-${align}`}>
-        <button
-          onClick={() => toggleSort(k)}
-          className={`inline-flex items-center gap-1 text-[10px] uppercase tracking-wider transition-colors ${active ? 'text-[#0C8B44]' : 'text-[#737373] hover:text-[#E5E5E5]'}`}
-        >
-          {label} <Icon className="w-3 h-3" />
-        </button>
-      </th>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-[#070C0E]">
       <Navigation />
@@ -454,11 +462,11 @@ export default function Markets() {
                       <th className="py-3 px-3 w-12" />
                       <th className="py-3 px-2 text-left text-[10px] uppercase tracking-wider text-[#737373] w-10">#</th>
                       <th className="py-3 px-2 text-left text-[10px] uppercase tracking-wider text-[#737373]">Asset</th>
-                      <SortHeader label="Price" k="price" />
-                      <SortHeader label="24h" k="change24h" />
-                      <SortHeader label="7d" k="change7d" />
-                      <SortHeader label="Market Cap" k="marketCap" />
-                      <SortHeader label="Volume" k="volume" />
+                      <SortHeader label="Price" k="price" sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
+                      <SortHeader label="24h" k="change24h" sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
+                      <SortHeader label="7d" k="change7d" sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
+                      <SortHeader label="Market Cap" k="marketCap" sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
+                      <SortHeader label="Volume" k="volume" sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
                       <th className="py-3 px-2 text-left text-[10px] uppercase tracking-wider text-[#737373]">7d Chart</th>
                       <th className="py-3 px-2" />
                     </tr>

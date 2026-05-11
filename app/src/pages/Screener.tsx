@@ -48,6 +48,26 @@ function fmt(n: number) {
   return `$${n.toLocaleString()}`
 }
 
+function SortBtn({
+  col,
+  label,
+  sortBy,
+  sortDir,
+  onSort,
+}: {
+  col: keyof Coin
+  label: string
+  sortBy: keyof Coin
+  sortDir: 'asc' | 'desc'
+  onSort: (col: keyof Coin) => void
+}) {
+  return (
+    <th className="pb-3 pr-4 font-medium cursor-pointer hover:text-[#E5E5E5] transition-colors whitespace-nowrap" onClick={() => onSort(col)}>
+      {label} {sortBy === col ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+    </th>
+  )
+}
+
 export default function Screener() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
@@ -77,12 +97,6 @@ export default function Screener() {
     const vb = b[sortBy] as number
     return sortDir === 'asc' ? va - vb : vb - va
   })
-
-  const SortBtn = ({ col, label }: { col: keyof Coin; label: string }) => (
-    <th className="pb-3 pr-4 font-medium cursor-pointer hover:text-[#E5E5E5] transition-colors whitespace-nowrap" onClick={() => sort(col)}>
-      {label} {sortBy === col ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-    </th>
-  )
 
   return (
     <div className="min-h-screen bg-[#070C0E]">
@@ -155,13 +169,13 @@ export default function Screener() {
               <thead>
                 <tr className="text-[#737373] text-left border-b border-[#ffffff08]">
                   <th className="pb-3 pr-4 font-medium">#</th>
-                  <SortBtn col="name" label="Asset" />
-                  <SortBtn col="price" label="Price" />
-                  <SortBtn col="change24h" label="24h %" />
-                  <SortBtn col="change7d" label="7d %" />
-                  <SortBtn col="marketCap" label="Market Cap" />
-                  <SortBtn col="volume" label="Volume" />
-                  <SortBtn col="rsi" label="RSI" />
+                  <SortBtn col="name" label="Asset" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="price" label="Price" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="change24h" label="24h %" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="change7d" label="7d %" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="marketCap" label="Market Cap" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="volume" label="Volume" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
+                  <SortBtn col="rsi" label="RSI" sortBy={sortBy} sortDir={sortDir} onSort={sort} />
                   <th className="pb-3 pr-4 font-medium">MACD</th>
                   <th className="pb-3 font-medium">Category</th>
                 </tr>

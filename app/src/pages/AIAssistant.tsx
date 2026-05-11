@@ -85,7 +85,7 @@ export default function AIAssistant() {
       setMessages((prev) => [...prev, assistantMessage])
     } catch (err) {
       // Surface the failure in-line so the user sees something went wrong
-      // instead of a frozen “thinking…” state. Don’t throw — keep the input usable.
+      // instead of a frozen "thinking..." state. Don't throw - keep the input usable.
       const detail = err instanceof Error ? err.message : 'Unknown error'
       setMessages((prev) => [...prev, {
         role: 'assistant',

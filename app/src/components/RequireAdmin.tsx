@@ -10,14 +10,11 @@ import { getToken, api } from '../lib/api'
  */
 export default function RequireAdmin({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const [check, setCheck] = useState<'pending' | 'ok' | 'redirect'>('pending')
+  const [check, setCheck] = useState<'pending' | 'ok' | 'redirect'>(() => (getToken() ? 'pending' : 'redirect'))
 
   useEffect(() => {
+    if (check !== 'pending') return
     let cancelled = false
-    if (!getToken()) {
-      setCheck('redirect')
-      return
-    }
     api.me()
       .then(({ user }) => {
         if (cancelled) return
@@ -32,7 +29,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
         setCheck('redirect')
       })
     return () => { cancelled = true }
-  }, [])
+  }, [check])
 
   if (check === 'pending') {
     return (

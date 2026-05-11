@@ -1556,7 +1556,7 @@ export default function WalletPage() {
                         {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, {
                           minimumFractionDigits: tx.currency === 'USD' ? 2 : 0,
                           maximumFractionDigits: tx.currency === 'USD' ? 2 : 8,
-                        })} {tx.currency}
+                        })} {tx.currency}
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         {getStatusIcon(tx.status)}

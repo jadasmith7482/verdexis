@@ -25,6 +25,7 @@ export default defineConfig([
       // visible. Static styling still belongs in Tailwind classes.
       'react/forbid-dom-props': 'off',
       'react/no-inline-styles': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

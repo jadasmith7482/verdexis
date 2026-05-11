@@ -102,9 +102,12 @@ export default function StatusPage() {
   }, [])
 
   useEffect(() => {
-    runAll()
+    const kickoff = setTimeout(() => { void runAll() }, 0)
     const id = setInterval(runAll, 60_000) // re-check every minute
-    return () => clearInterval(id)
+    return () => {
+      clearTimeout(kickoff)
+      clearInterval(id)
+    }
   }, [runAll])
 
   const overall: Status = checks.some((c) => c.status === 'down')
