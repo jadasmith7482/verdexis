@@ -185,10 +185,16 @@ class PortfolioStoreImpl {
           const kind = tx.kind
           const currency = (typeof tx.currency === 'string' && tx.currency) || 'USD'
           const amount = typeof tx.amount === 'number' && isFinite(tx.amount) ? tx.amount : 0
+          const signedAmount =
+            kind === 'withdraw'
+              ? -Math.abs(amount)
+              : kind === 'transfer'
+                ? amount
+                : Math.abs(amount)
           return {
             id: tx.id,
             type: kind,
-            amount: (kind === 'deposit' || kind === 'dividend' || kind === 'interest') ? amount : -Math.abs(amount),
+            amount: signedAmount,
             currency,
             description: tx.reference || `${(kind[0] || '?').toUpperCase()}${kind.slice(1)} ${currency}`,
             timestamp: new Date(tx.createdAt),

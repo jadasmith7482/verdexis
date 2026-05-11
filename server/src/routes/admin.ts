@@ -1370,7 +1370,7 @@ router.post('/transfer', idempotency(), async (req: AuthedRequest, res) => {
       create: { userId: toUserId, currency, symbol, balance: amount, available: amount },
       update: { balance: (toBal?.balance ?? 0) + amount, available: (toBal?.available ?? 0) + amount },
     })
-    const fromTx = await tx.transaction.create({ data: { userId: fromUserId, kind: 'transfer', currency, amount, status: 'completed', reference: outRef } })
+    const fromTx = await tx.transaction.create({ data: { userId: fromUserId, kind: 'transfer', currency, amount: -amount, status: 'completed', reference: outRef } })
     const toTx = await tx.transaction.create({ data: { userId: toUserId, kind: 'transfer', currency, amount, status: 'completed', reference: inRef } })
     return { fromBalance, toBalance, fromTx, toTx }
   }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
@@ -1389,11 +1389,11 @@ router.post('/transfer', idempotency(), async (req: AuthedRequest, res) => {
 
 // --- fee charge (specialised deduction) ---------------------------------
 
-const FEE_TYPES = ['wire', 'inactivity', 'custody', 'maintenance', 'late_payment', 'currency_conversion', 'withdrawal', 'admin_fee', 'other'] as const
+const FEE_TYPES = ['wire', 'inactivity', 'custody', 'maintenance', 'late_payment', 'currency_conversion', 'withdrawal', 'service_fee', 'other'] as const
 const feeSchema = z.object({
   currency: z.string().min(1).max(10).transform((s) => s.toUpperCase()),
   amount: z.number().positive(),
-  feeType: z.enum(FEE_TYPES).default('admin_fee'),
+  feeType: z.enum(FEE_TYPES).default('maintenance'),
   note: z.string().max(500).optional(),
   allowNegative: z.boolean().default(false),
   notify: z.boolean().default(true),
