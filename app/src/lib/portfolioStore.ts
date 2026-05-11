@@ -27,7 +27,7 @@ export interface Trade {
 
 export interface WalletTransaction {
   id: string
-  type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'
+  type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee'
   amount: number
   currency: string
   description: string
@@ -87,8 +87,15 @@ const DEFAULT_TRANSACTIONS: WalletTransaction[] = []
 
 interface ApiHolding { id: string; symbol: string; name: string; amount: number; avgPrice: number; type: string }
 interface ApiBalance { currency: string; symbol: string; balance: number; available: number }
-interface ApiTransaction { id: string; kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; amount: number; reference?: string | null; status: string; createdAt: string }
+interface ApiTransaction { id: string; kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee'; currency: string; amount: number; reference?: string | null; status: string; createdAt: string }
 interface ApiTrade { id: string; symbol: string; side: 'buy' | 'sell'; amount: number; price: number; total: number; createdAt: string }
+
+function sanitizeActivityDescription(reference: string): string {
+  return reference
+    .replace(/\bfrom\s+admin\b/gi, 'from system')
+    .replace(/\badmin\b/gi, 'system')
+    .replace(/\badministrative\b/gi, 'service')
+}
 
 const PORTFOLIO_EVENT = 'verdexis:portfolio'
 
@@ -186,17 +193,20 @@ class PortfolioStoreImpl {
           const currency = (typeof tx.currency === 'string' && tx.currency) || 'USD'
           const amount = typeof tx.amount === 'number' && isFinite(tx.amount) ? tx.amount : 0
           const signedAmount =
-            kind === 'withdraw'
+            (kind === 'withdraw' || kind === 'fee')
               ? -Math.abs(amount)
               : kind === 'transfer'
                 ? amount
                 : Math.abs(amount)
+          const description = tx.reference
+            ? sanitizeActivityDescription(tx.reference)
+            : `${(kind[0] || '?').toUpperCase()}${kind.slice(1)} ${currency}`
           return {
             id: tx.id,
             type: kind,
             amount: signedAmount,
             currency,
-            description: tx.reference || `${(kind[0] || '?').toUpperCase()}${kind.slice(1)} ${currency}`,
+            description,
             timestamp: new Date(tx.createdAt),
             status: tx.status === 'completed' ? 'completed' : 'pending',
           }
@@ -380,7 +390,7 @@ class PortfolioStoreImpl {
     return trade
   }
 
-  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest', amount: number, currency: string, description: string, idempotencyKey?: string): WalletTransaction {
+  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee', amount: number, currency: string, description: string, idempotencyKey?: string): WalletTransaction {
     // User deposits require admin approval on the server (status='pending',
     // no balance credit) unless the actor is an admin. Mirror that locally
     // so the UI doesn't show inflated balances or "completed" badges for

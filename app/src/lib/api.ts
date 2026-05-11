@@ -172,7 +172,7 @@ export const api = {
   // Wallet
   getWallet: () => request<{ balances: unknown[]; transactions: unknown[] }>('/api/wallet'),
   postTransaction: (
-    tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest'; currency: string; symbol?: string; amount: number; reference?: string },
+    tx: { kind: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee'; currency: string; symbol?: string; amount: number; reference?: string },
     idempotencyKey?: string,
   ) =>
     request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx), idempotencyKey }),

@@ -1058,6 +1058,7 @@ export default function WalletPage() {
       case 'dividend':
       case 'interest': return <ArrowDownRight className="w-5 h-5 text-[#4CAF50]" />
       case 'withdraw': return <ArrowUpRight className="w-5 h-5 text-[#f44336]" />
+      case 'fee': return <ArrowUpRight className="w-5 h-5 text-[#f44336]" />
       case 'transfer': return <ArrowLeftRight className="w-5 h-5 text-[#2196F3]" />
       default: return <ArrowLeftRight className="w-5 h-5 text-[#A0A0A0]" />
     }
@@ -1069,6 +1070,7 @@ export default function WalletPage() {
       case 'dividend':
       case 'interest': return 'bg-[#4CAF50]/10'
       case 'withdraw': return 'bg-[#f44336]/10'
+      case 'fee': return 'bg-[#f44336]/10'
       case 'transfer': return 'bg-[#2196F3]/10'
       default: return 'bg-[#1a1a1a]/50'
     }
@@ -1552,7 +1554,7 @@ export default function WalletPage() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`text-xs sm:text-sm font-medium whitespace-nowrap tabular-nums ${tx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
+                      <p className={`text-xs sm:text-sm font-medium whitespace-nowrap tabular-nums ${tx.amount > 0 ? 'text-[#4CAF50]' : tx.amount < 0 ? 'text-[#f44336]' : 'text-[#E5E5E5]'}`}>
                         {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString(undefined, {
                           minimumFractionDigits: tx.currency === 'USD' ? 2 : 0,
                           maximumFractionDigits: tx.currency === 'USD' ? 2 : 8,
@@ -2329,8 +2331,8 @@ export default function WalletPage() {
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               <div className="text-center">
                 <p className="text-[10px] sm:text-[11px] uppercase tracking-wider text-[#737373] mb-1">Amount</p>
-                <p className={`text-xl sm:text-3xl font-semibold tabular-nums break-all ${selectedTx.amount >= 0 ? 'text-[#4CAF50]' : 'text-[#E5E5E5]'}`}>
-                  {selectedTx.amount >= 0 ? '+' : ''}
+                <p className={`text-xl sm:text-3xl font-semibold tabular-nums break-all ${selectedTx.amount > 0 ? 'text-[#4CAF50]' : selectedTx.amount < 0 ? 'text-[#f44336]' : 'text-[#E5E5E5]'}`}>
+                  {selectedTx.amount > 0 ? '+' : ''}
                   {selectedTx.amount.toLocaleString(undefined, {
                     minimumFractionDigits: selectedTx.currency === 'USD' ? 2 : 0,
                     maximumFractionDigits: selectedTx.currency === 'USD' ? 2 : 8,

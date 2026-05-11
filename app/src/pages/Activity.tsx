@@ -11,13 +11,14 @@ type ActivityRow =
   | { kind: 'tx'; id: string; ts: Date; data: WalletTransaction }
   | { kind: 'trade'; id: string; ts: Date; data: Trade }
 
-type Filter = 'all' | 'deposit' | 'withdraw' | 'transfer' | 'trade' | 'dividend' | 'interest'
+type Filter = 'all' | 'deposit' | 'withdraw' | 'transfer' | 'trade' | 'dividend' | 'interest' | 'fee'
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'deposit', label: 'Deposits' },
   { value: 'withdraw', label: 'Withdrawals' },
   { value: 'transfer', label: 'Transfers' },
+  { value: 'fee', label: 'Fees' },
   { value: 'trade', label: 'Trades' },
   { value: 'dividend', label: 'Dividends' },
   { value: 'interest', label: 'Interest' },
@@ -42,12 +43,21 @@ function titleCase(s: string): string {
     .join('')
 }
 
+function txAmount(t: WalletTransaction): number {
+  if (t.type === 'fee') return -Math.abs(t.amount)
+  if (t.type === 'withdraw') return -Math.abs(t.amount)
+  if (t.type === 'transfer') return t.amount
+  return Math.abs(t.amount)
+}
+
 function rowIcon(row: ActivityRow) {
   if (row.kind === 'trade') return TrendingUp
+  const amount = txAmount(row.data)
   switch (row.data.type) {
     case 'deposit': return ArrowDownToLine
     case 'withdraw': return ArrowUpFromLine
-    case 'transfer': return ArrowLeftRight
+    case 'transfer': return amount >= 0 ? ArrowDownToLine : ArrowUpFromLine
+    case 'fee': return ArrowUpFromLine
     case 'dividend':
     case 'interest': return TrendingUp
     default: return ArrowLeftRight
@@ -56,6 +66,9 @@ function rowIcon(row: ActivityRow) {
 
 function rowColor(row: ActivityRow): string {
   if (row.kind === 'trade') return row.data.side === 'buy' ? '#4CAF50' : '#FF9800'
+  const amount = txAmount(row.data)
+  if (row.data.type === 'fee') return '#f44336'
+  if (row.data.type === 'transfer') return amount >= 0 ? '#4CAF50' : '#f44336'
   if (row.data.type === 'deposit' || row.data.type === 'dividend' || row.data.type === 'interest') return '#4CAF50'
   if (row.data.type === 'withdraw') return '#f44336'
   return '#FF9800'
@@ -68,7 +81,11 @@ function rowTitle(row: ActivityRow): string {
     const sym = (row.data.symbol || '').toUpperCase() || 'ASSET'
     return `${side} ${qty.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${sym}`
   }
-  return titleCase(row.data.description || '')
+  const cleaned = (row.data.description || '')
+    .replace(/\bfrom\s+admin\b/gi, 'from system')
+    .replace(/\badministrative\b/gi, 'service')
+    .replace(/\badmin\b/gi, 'system')
+  return titleCase(cleaned)
 }
 
 function rowSubtitle(row: ActivityRow): string {
@@ -159,7 +176,7 @@ export default function Activity() {
       if (tx.currency !== 'USD') continue // only USD lifetime totals are meaningful without per-tx FX
       if (tx.status !== 'completed') continue
       if (tx.type === 'deposit') deposited += tx.amount
-      else if (tx.type === 'withdraw') withdrawn += Math.abs(tx.amount)
+      else if (tx.type === 'withdraw' || tx.type === 'fee') withdrawn += Math.abs(txAmount(tx))
     }
     trades = portfolioStore.getTrades().length
     return { deposited, withdrawn, trades }
@@ -225,7 +242,7 @@ export default function Activity() {
             {rows.map((r) => {
               const Icon = rowIcon(r)
               const color = rowColor(r)
-              const amount = r.kind === 'tx' ? r.data.amount : (r.data.side === 'buy' ? -r.data.total : r.data.total)
+              const amount = r.kind === 'tx' ? txAmount(r.data) : (r.data.side === 'buy' ? -r.data.total : r.data.total)
               const currency = r.kind === 'tx' ? r.data.currency : 'USD'
               const status = r.kind === 'tx' ? r.data.status : 'completed'
               return (
@@ -282,7 +299,7 @@ function DetailDrawer({ row, onClose, onCopy }: { row: ActivityRow; onClose: () 
   const Icon = rowIcon(row)
   const color = rowColor(row)
   const isTx = row.kind === 'tx'
-  const amount = isTx ? row.data.amount : (row.data.side === 'buy' ? -row.data.total : row.data.total)
+  const amount = isTx ? txAmount(row.data) : (row.data.side === 'buy' ? -row.data.total : row.data.total)
   const currency = isTx ? row.data.currency : 'USD'
   const status = isTx ? row.data.status : 'completed'
   const direction = amount >= 0 ? 'Credit (inflow)' : 'Debit (outflow)'
