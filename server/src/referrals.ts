@@ -10,7 +10,7 @@ const MIN_DEPOSIT_FOR_BONUS_USD = 50    // Minimum deposit to trigger bonus
  * where XXXXXX is 6 random hex characters.
  */
 export async function generateReferralCode(): Promise<string> {
-  let code: string
+  let code = ''
   let existing: any = { referralCode: 'taken' }
   
   // Keep trying until we generate a unique code

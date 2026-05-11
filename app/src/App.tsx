@@ -37,6 +37,8 @@ const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
 const AdminTransfer = lazy(() => import('./pages/AdminTransfer'))
 const AdminBroadcast = lazy(() => import('./pages/AdminBroadcast'))
+const AdminReferrals = lazy(() => import('./pages/AdminReferrals'))
+const AdminSignupBonus = lazy(() => import('./pages/AdminSignupBonus'))
 const PaperTrading = lazy(() => import('./pages/PaperTrading'))
 const EconomicCalendar = lazy(() => import('./pages/EconomicCalendar'))
 const Screener = lazy(() => import('./pages/Screener'))
@@ -114,6 +116,8 @@ function RoutedPages() {
           <Route path="/admin/transfer" element={<RequireAdmin><AdminTransfer /></RequireAdmin>} />
           <Route path="/admin/broadcast" element={<RequireAdmin><AdminBroadcast /></RequireAdmin>} />
           <Route path="/admin/deposits" element={<RequireAdmin><AdminDeposits /></RequireAdmin>} />
+          <Route path="/admin/referrals" element={<RequireAdmin><AdminReferrals /></RequireAdmin>} />
+          <Route path="/admin/signup-bonus" element={<RequireAdmin><AdminSignupBonus /></RequireAdmin>} />
           <Route path="/paper-trading" element={<RequireAuth><PaperTrading /></RequireAuth>} />
           <Route path="/calendar" element={<EconomicCalendar />} />
           <Route path="/screener" element={<Screener />} />

@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { useState, useEffect } from 'react'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Users, Copy, Check, Share2, Gift, TrendingUp } from 'lucide-react'
@@ -30,8 +28,8 @@ function ReferralInner() {
     const load = async () => {
       try {
         const [summary, listData] = await Promise.all([
-          api.get('/api/referrals/me'),
-          api.get('/api/referrals/list'),
+          api.getReferralSummary(),
+          api.getReferralList(),
         ])
         setReferralCode(summary.referralCode)
         setTotalEarned(summary.totalEarned)

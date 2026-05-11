@@ -54,7 +54,6 @@ model User {
   // Referral program fields
   referralCode String?  @unique            // unique code for this user to share (e.g., "VERDX-AB12")
   referrerId   String?                     // id of the user who referred this user
-  referrer     User?    @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -72,7 +71,6 @@ model User {
   adminAudits   AdminAudit[]   @relation("AdminActor")
   audited       AdminAudit[]   @relation("AdminTarget")
   referrals     Referral[]     @relation("Referrer")        // people this user referred
-  referredBy    User?          @relation("ReferredBy")      // the user who referred this person (redundant with referrerId but eases querying)
   referralBonuses ReferralBonus[] // bonuses earned from referrals
 }
 
@@ -311,6 +309,7 @@ model Review {
   updatedAt DateTime @updatedAt
 
   @@index([approved, createdAt])
+}
 
 /// Referral tracking: links a referrer to a referee. Created when the referred user
 /// signs up using the referrer's code. Bonus creation is separate (ReferralBonus model)
@@ -366,5 +365,4 @@ model ReferralBonus {
 
   @@index([userId, createdAt])
   @@index([status])
-}
 }

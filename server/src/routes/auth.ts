@@ -175,6 +175,77 @@ async function recordLoginMetadata(userId: string, ip: string, userAgent?: strin
 // Admins are seeded with a treasury balance they can disburse to users via
 // the Admin → Transfer flow. Currently 1 trillion USD.
 const ADMIN_TREASURY_USD = 1_000_000_000_000
+const SIGNUP_BONUS_KEY = 'signup_bonus'
+
+type SignupBonusConfig = {
+  enabled: boolean
+  amountUsd: number
+  note?: string
+}
+
+async function getSignupBonusConfig(): Promise<SignupBonusConfig | null> {
+  const row = await prisma.appSetting.findUnique({ where: { key: SIGNUP_BONUS_KEY } })
+  if (!row?.value) return null
+  try {
+    const parsed = JSON.parse(row.value) as Partial<SignupBonusConfig>
+    const amountUsd = Number(parsed.amountUsd)
+    return {
+      enabled: parsed.enabled === true,
+      amountUsd: Number.isFinite(amountUsd) ? amountUsd : 0,
+      note: typeof parsed.note === 'string' ? parsed.note.slice(0, 300) : undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function awardSignupBonus(userId: string): Promise<void> {
+  const config = await getSignupBonusConfig()
+  if (!config?.enabled || config.amountUsd <= 0) return
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletBalance.findUnique({ where: { userId_currency: { userId, currency: 'USD' } } })
+    const currentBalance = existing?.balance ?? 0
+    const currentAvailable = existing?.available ?? 0
+
+    await tx.walletBalance.upsert({
+      where: { userId_currency: { userId, currency: 'USD' } },
+      create: {
+        userId,
+        currency: 'USD',
+        symbol: '$',
+        balance: config.amountUsd,
+        available: config.amountUsd,
+      },
+      update: {
+        balance: currentBalance + config.amountUsd,
+        available: currentAvailable + config.amountUsd,
+        symbol: '$',
+      },
+    })
+
+    await tx.transaction.create({
+      data: {
+        userId,
+        kind: 'deposit',
+        currency: 'USD',
+        amount: config.amountUsd,
+        status: 'completed',
+        subType: 'signup_bonus',
+        reference: config.note?.trim() || 'New account signup bonus',
+      },
+    })
+
+    await tx.notification.create({
+      data: {
+        userId,
+        kind: 'system',
+        title: `Signup bonus received: $${config.amountUsd}`,
+        body: config.note?.trim() || 'Welcome to Verdexis — your signup bonus has been credited.',
+      },
+    })
+  })
+}
 
 async function ensureAdminTreasury(userId: string): Promise<void> {
   const existing = await prisma.walletBalance.findFirst({ where: { userId, currency: 'USD' } })
@@ -240,6 +311,7 @@ router.post('/signup', authLimiter, async (req, res) => {
     throw e
   }
   if (user.role === 'admin') await ensureAdminTreasury(user.id)
+  await awardSignupBonus(user.id)
     // Link to referrer if code provided
     if (referrerCode) {
       try {

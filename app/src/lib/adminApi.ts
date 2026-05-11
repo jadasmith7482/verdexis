@@ -230,6 +230,13 @@ export interface AdminStats {
   recentTx: Array<AdminTransaction & { user: { id: string; email: string; name: string } }>
 }
 
+export interface AdminSignupBonusSettings {
+  enabled: boolean
+  amountUsd: number
+  note?: string
+  updatedAt?: string
+}
+
 export interface AdminAuditLog {
   id: string
   actorId: string
@@ -244,7 +251,13 @@ export interface AdminAuditLog {
 // --- API ---------------------------------------------------------------
 
 export const adminApi = {
+  get: (path: string) => request<any>(`/api/admin${path}`),
+  post: (path: string, body?: unknown) => request<any>(`/api/admin${path}`, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+
   stats: () => request<AdminStats>('/api/admin/stats'),
+  getSignupBonus: () => request<AdminSignupBonusSettings>('/api/admin/signup-bonus'),
+  setSignupBonus: (input: { enabled: boolean; amountUsd: number; note?: string }) =>
+    request<AdminSignupBonusSettings>('/api/admin/signup-bonus', { method: 'PUT', body: JSON.stringify(input) }),
 
   // --- Pending deposit approval queue ---
   listPendingDeposits: () =>

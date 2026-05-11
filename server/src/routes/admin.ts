@@ -9,6 +9,7 @@ import { env } from '../env.js'
 import { getHistoricalPrice, getCurrentCryptoPrice } from '../historicalPrice.js'
 import { generateInvestmentId } from '../investmentId.js'
 import { idempotency } from '../idempotency.js'
+import { creditReferralBonus } from '../referrals.js'
 
 const router = Router()
 
@@ -1711,6 +1712,139 @@ router.delete('/users/:id/deposit-addresses', async (req: AuthedRequest, res) =>
   await prisma.user.update({ where: { id }, data: { prefs: JSON.stringify(prefs) } })
   await audit(req.userId!, 'user.depositAddresses.clear', id, null)
   res.json({ ok: true })
+})
+
+const SIGNUP_BONUS_KEY = 'signup_bonus'
+
+type SignupBonusSettings = {
+  enabled: boolean
+  amountUsd: number
+  note?: string
+}
+
+async function readSignupBonusSettings(): Promise<SignupBonusSettings> {
+  const row = await prisma.appSetting.findUnique({ where: { key: SIGNUP_BONUS_KEY } })
+  if (!row?.value) return { enabled: false, amountUsd: 0, note: '' }
+  try {
+    const parsed = JSON.parse(row.value) as Partial<SignupBonusSettings>
+    const amountUsd = Number(parsed.amountUsd)
+    return {
+      enabled: parsed.enabled === true,
+      amountUsd: Number.isFinite(amountUsd) ? amountUsd : 0,
+      note: typeof parsed.note === 'string' ? parsed.note : '',
+    }
+  } catch {
+    return { enabled: false, amountUsd: 0, note: '' }
+  }
+}
+
+const signupBonusSchema = z.object({
+  enabled: z.boolean(),
+  amountUsd: z.number().min(0).max(100000),
+  note: z.string().max(300).optional().or(z.literal('')),
+})
+
+router.get('/signup-bonus', async (_req: AuthedRequest, res) => {
+  const settings = await readSignupBonusSettings()
+  res.json(settings)
+})
+
+router.put('/signup-bonus', async (req: AuthedRequest, res) => {
+  const parsed = signupBonusSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() })
+    return
+  }
+
+  const settings = {
+    enabled: parsed.data.enabled,
+    amountUsd: parsed.data.amountUsd,
+    note: parsed.data.note?.trim() || '',
+  }
+  const json = JSON.stringify(settings)
+  const row = await prisma.appSetting.upsert({
+    where: { key: SIGNUP_BONUS_KEY },
+    create: { key: SIGNUP_BONUS_KEY, value: json, updatedBy: req.userId! },
+    update: { value: json, updatedBy: req.userId! },
+  })
+  await audit(req.userId!, 'signupBonus.update', null, settings)
+  res.json({ ...settings, updatedAt: row.updatedAt })
+})
+
+// --- REFERRAL PROGRAM ADMIN ENDPOINTS -----------
+
+router.get('/referrals', async (req: AuthedRequest, res) => {
+  const status = (req.query.status as string) || undefined
+  const referrals = await prisma.referral.findMany({
+    where: status ? { status } : {},
+    include: { referrer: { select: { id: true, email: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  })
+  res.json({ referrals, count: referrals.length })
+})
+
+router.get('/referrals/stats', async (_req: AuthedRequest, res) => {
+  const [totalReferrals, activeReferrals, pendingReferrals, totalBonusesAwarded, totalBonusesPending] = await Promise.all([
+    prisma.referral.count(),
+    prisma.referral.count({ where: { status: 'active' } }),
+    prisma.referral.count({ where: { status: 'pending' } }),
+    prisma.referralBonus.aggregate({ where: { status: 'credited' }, _sum: { amount: true } }),
+    prisma.referralBonus.aggregate({ where: { status: 'pending' }, _sum: { amount: true } }),
+  ])
+
+  res.json({
+    totalReferrals,
+    activeReferrals,
+    pendingReferrals,
+    conversionRate: totalReferrals > 0 ? `${((activeReferrals / totalReferrals) * 100).toFixed(1)}%` : '0%',
+    totalBonusesAwarded: totalBonusesAwarded._sum.amount || 0,
+    totalBonusesPending: totalBonusesPending._sum.amount || 0,
+  })
+})
+
+router.get('/referrals/:userId', async (req: AuthedRequest, res) => {
+  const userId = req.params.userId
+  const [asReferrer, asReferee, bonuses] = await Promise.all([
+    prisma.referral.findMany({ where: { referrerId: userId }, orderBy: { createdAt: 'desc' } }),
+    prisma.referral.findMany({ where: { refereeId: userId }, orderBy: { createdAt: 'desc' } }),
+    prisma.referralBonus.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
+  ])
+  res.json({ asReferrer, asReferee, bonuses })
+})
+
+router.post('/referral-bonuses/:bonusId/credit', async (req: AuthedRequest, res) => {
+  const bonusId = req.params.bonusId
+  try {
+    const result = await creditReferralBonus(bonusId, req.body.paymentMethod || 'trading_credit')
+    await audit(req.userId!, 'referral.bonus.credited', result.userId, { bonusId, amount: result.amount })
+    res.json({ success: true, result })
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Failed to credit bonus' })
+  }
+})
+
+router.post('/referrals/:referralId/cancel', async (req: AuthedRequest, res) => {
+  const referralId = req.params.referralId
+  const { reason } = req.body as { reason?: string }
+  try {
+    const referral = await prisma.referral.update({
+      where: { id: referralId },
+      data: { status: 'cancelled' },
+    })
+    await prisma.referralBonus.updateMany({
+      where: {
+        userId: { in: [referral.referrerId] },
+        status: 'pending',
+        createdAt: { gte: referral.createdAt },
+      },
+      data: { status: 'canceled' },
+    })
+    await audit(req.userId!, 'referral.cancelled', referral.referrerId, { referralId, reason })
+    res.json({ success: true })
+  } catch {
+    res.status(400).json({ error: 'Failed to cancel referral' })
+  }
 })
 
 export default router

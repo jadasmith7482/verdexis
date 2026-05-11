@@ -241,6 +241,12 @@ export const api = {
       '/api/wallet/pending-deposits',
     ),
 
+  // Referrals
+  getReferralSummary: () =>
+    request<{ referralCode: string | null; totalEarned: number; activeReferrals: number; pendingReferrals: number }>('/api/referrals/me'),
+  getReferralList: () =>
+    request<{ referrals: Array<{ id: string; refereeEmail: string; status: string; firstDepositAt: string | null; firstDepositAmount: number | null; referrerBonusUsd: number | null }> }>('/api/referrals/list'),
+
   // Trades
   listTrades: () => request<{ trades: unknown[] }>('/api/trades'),
   postTrade: (
