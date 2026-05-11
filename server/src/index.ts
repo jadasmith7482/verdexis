@@ -27,6 +27,7 @@ import aiRoutes from './routes/ai.js'
 import marketRoutes from './routes/market.js'
 import reviewsRoutes from './routes/reviews.js'
 import adminRoutes from './routes/admin.js'
+import referralRoutes from './routes/referral.js'
 import { startAlertPoller } from './alertPoller.js'
 import { startKeepAlive } from './keepAlive.js'
 
@@ -146,6 +147,7 @@ app.use('/api/ai', aiRoutes)
 app.use('/api/market', marketRoutes)
 app.use('/api/reviews', reviewsRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/referrals', referralRoutes)
 
 // In production, serve the built frontend (copied into ./public during the
 // Docker build). API routes are registered above so they take precedence.

@@ -1,26 +1,53 @@
 import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Users, Copy, Check, Share2, Gift, TrendingUp } from 'lucide-react'
 import Navigation from '../components/Navigation'
 import RequireAuth from '../components/RequireAuth'
 import { toast } from 'sonner'
-
-const MOCK_REFERRALS = [
-  { name: 'Alex M.', joined: '2026-04-12', status: 'active', reward: 25 },
-  { name: 'Jordan K.', joined: '2026-03-28', status: 'active', reward: 25 },
-  { name: 'Sam P.', joined: '2026-02-14', status: 'pending', reward: 0 },
-]
+import { api } from '../lib/api'
 
 export default function Referral() { return <RequireAuth><ReferralInner /></RequireAuth> }
 
 function ReferralInner() {
   const [copied, setCopied] = useState(false)
-  const referralCode = 'VERDX-PJ9'
-  const referralLink = `https://verdexis.com/signup?ref=${referralCode}`
+  const [loading, setLoading] = useState(true)
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [referrals, setReferrals] = useState<Array<{
+    id: string
+    refereeEmail: string
+    status: string
+    firstDepositAt: string | null
+    firstDepositAmount: number | null
+    referrerBonusUsd: number | null
+  }>>([])
+  const [totalEarned, setTotalEarned] = useState(0)
+  const [activeCount, setActiveCount] = useState(0)
+  const [pendingCount, setPendingCount] = useState(0)
 
-  const totalEarned = MOCK_REFERRALS.reduce((a, r) => a + r.reward, 0)
-  const activeCount = MOCK_REFERRALS.filter(r => r.status === 'active').length
-  const pendingCount = MOCK_REFERRALS.filter(r => r.status === 'pending').length
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [summary, listData] = await Promise.all([
+          api.get('/api/referrals/me'),
+          api.get('/api/referrals/list'),
+        ])
+        setReferralCode(summary.referralCode)
+        setTotalEarned(summary.totalEarned)
+        setActiveCount(summary.activeReferrals)
+        setPendingCount(summary.pendingReferrals)
+        setReferrals(listData.referrals || [])
+      } catch (e) {
+        toast.error('Failed to load referral data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const referralLink = referralCode ? `https://verdexis.com/signup?ref=${referralCode}` : ''
 
   const copy = () => {
     navigator.clipboard.writeText(referralLink).then(() => {
@@ -46,26 +73,32 @@ function ReferralInner() {
             </div>
             <h1 className="text-3xl font-light text-[#E5E5E5] mb-2">Refer & Earn</h1>
             <p className="text-sm text-[#737373] mb-6 max-w-md mx-auto">
-              Invite friends to Verdexis. You get <span className="text-[#0C8B44] font-medium">$25</span> in trading credits for every friend who signs up and makes their first deposit.
+              Invite friends to Verdexis. You get <span className="text-[#0C8B44] font-medium">$250</span> in trading credits for every friend who signs up and makes their first deposit.
             </p>
 
             {/* Referral link */}
-            <div className="flex items-center gap-2 max-w-lg mx-auto">
-              <div className="flex-1 px-4 py-3 bg-[#0a0f11] border border-[#ffffff10] rounded-xl text-sm text-[#737373] text-left overflow-hidden text-ellipsis whitespace-nowrap">
-                {referralLink}
-              </div>
-              <button onClick={copy} className="flex items-center gap-2 px-4 py-3 bg-[#0C8B44] text-white text-xs font-medium rounded-xl hover:bg-[#0a7539] transition-colors shrink-0">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
+            {referralCode && referralLink ? (
+              <>
+                <div className="flex items-center gap-2 max-w-lg mx-auto">
+                  <div className="flex-1 px-4 py-3 bg-[#0a0f11] border border-[#ffffff10] rounded-xl text-sm text-[#737373] text-left overflow-hidden text-ellipsis whitespace-nowrap">
+                    {referralLink}
+                  </div>
+                  <button onClick={copy} className="flex items-center gap-2 px-4 py-3 bg-[#0C8B44] text-white text-xs font-medium rounded-xl hover:bg-[#0a7539] transition-colors shrink-0">
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
 
-            <div className="flex items-center justify-center gap-4 mt-4">
-              <span className="text-xs text-[#737373]">Your code: <span className="text-[#E5E5E5] font-mono">{referralCode}</span></span>
-              <button onClick={copy} className="flex items-center gap-1 text-xs text-[#0C8B44] hover:text-[#0a7539] transition-colors">
-                <Share2 className="w-3 h-3" />Share
-              </button>
-            </div>
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <span className="text-xs text-[#737373]">Your code: <span className="text-[#E5E5E5] font-mono">{referralCode}</span></span>
+                  <button onClick={copy} className="flex items-center gap-1 text-xs text-[#0C8B44] hover:text-[#0a7539] transition-colors">
+                    <Share2 className="w-3 h-3" />Share
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-[#737373]">Loading referral code...</div>
+            )}
           </div>
 
           {/* Stats */}
@@ -90,7 +123,7 @@ function ReferralInner() {
               {[
                 { step: '01', title: 'Share your link', desc: 'Send your unique referral link or code to friends.' },
                 { step: '02', title: 'Friend signs up', desc: 'They create an account using your link and make a deposit ≥ $50.' },
-                { step: '03', title: 'Both get rewarded', desc: 'You receive $25 in trading credits. Your friend gets a $10 bonus.' },
+                { step: '03', title: 'Both get rewarded', desc: 'You receive $250 in trading credits. Your friend gets a $10 bonus.' },
               ].map(s => (
                 <div key={s.step} className="text-center">
                   <div className="w-8 h-8 rounded-full bg-[#0C8B44]/15 text-[#0C8B44] text-xs font-bold flex items-center justify-center mx-auto mb-3">{s.step}</div>
@@ -104,22 +137,26 @@ function ReferralInner() {
           {/* Referral list */}
           <div className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
             <h2 className="text-sm font-medium text-[#E5E5E5] mb-4">Your Referrals</h2>
-            {MOCK_REFERRALS.length === 0 ? (
+            {loading ? (
+              <p className="text-xs text-[#737373] text-center py-6">Loading referrals...</p>
+            ) : referrals.length === 0 ? (
               <p className="text-xs text-[#737373] text-center py-6">No referrals yet. Share your link to get started!</p>
             ) : (
               <div className="space-y-3">
-                {MOCK_REFERRALS.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl bg-[#0a0f11] border border-[#ffffff08] px-4 py-3">
+                {referrals.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between rounded-xl bg-[#0a0f11] border border-[#ffffff08] px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-[#0C8B44]/15 flex items-center justify-center text-[10px] font-bold text-[#0C8B44]">{r.name[0]}</div>
+                      <div className="w-7 h-7 rounded-full bg-[#0C8B44]/15 flex items-center justify-center text-[10px] font-bold text-[#0C8B44]">{r.refereeEmail[0]?.toUpperCase()}</div>
                       <div>
-                        <p className="text-xs text-[#E5E5E5]">{r.name}</p>
-                        <p className="text-[10px] text-[#737373]">Joined {r.joined}</p>
+                        <p className="text-xs text-[#E5E5E5]">{r.refereeEmail}</p>
+                        <p className="text-[10px] text-[#737373]">
+                          {r.firstDepositAt ? `Joined ${new Date(r.firstDepositAt).toLocaleDateString()}` : 'Awaiting first deposit'}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.status === 'active' ? 'text-[#0C8B44] bg-[#0C8B44]/10' : 'text-yellow-400 bg-yellow-400/10'}`}>{r.status}</span>
-                      <span className="text-xs text-[#E5E5E5]">{r.reward > 0 ? `+$${r.reward}` : '—'}</span>
+                      <span className="text-xs text-[#E5E5E5]">{r.referrerBonusUsd ? `+$${r.referrerBonusUsd}` : '—'}</span>
                     </div>
                   </div>
                 ))}

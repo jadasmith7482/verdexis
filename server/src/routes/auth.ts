@@ -7,6 +7,7 @@ import { prisma } from '../db.js'
 import { signToken, requireAuth, type AuthedRequest } from '../auth.js'
 import { env } from '../env.js'
 import { generateInvestmentId } from '../investmentId.js'
+import { generateReferralCode, linkReferrer } from '../referrals.js'
 
 const router = Router()
 
@@ -209,6 +210,8 @@ router.post('/signup', authLimiter, async (req, res) => {
   }
   const passwordHash = await bcrypt.hash(password, 12)
   const investmentId = await generateInvestmentId()
+    const referralCode = await generateReferralCode()
+    const referrerCode = (req.query.ref as string) || ''  // ref query param for signup with referral
   let user
   try {
     user = await prisma.user.create({
@@ -217,6 +220,7 @@ router.post('/signup', authLimiter, async (req, res) => {
         name,
         passwordHash,
         investmentId,
+          referralCode,
         // First user signed up with an admin-listed email starts as admin.
         role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
         // Seed a USD wallet so the user can deposit immediately.
@@ -236,6 +240,14 @@ router.post('/signup', authLimiter, async (req, res) => {
     throw e
   }
   if (user.role === 'admin') await ensureAdminTreasury(user.id)
+    // Link to referrer if code provided
+    if (referrerCode) {
+      try {
+        await linkReferrer(user.id, email, referrerCode)
+      } catch {
+        // best-effort only; don't fail signup if referral linking fails
+      }
+    }
   const token = signToken({ sub: user.id, email: user.email, v: user.tokenVersion })
   res.status(201).json({ token, user: publicUser(user) })
 })

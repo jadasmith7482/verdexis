@@ -51,6 +51,10 @@ model User {
   walletProvider String?  // human label, e.g. "MetaMask", "WalletConnect"
   walletLinkedAt DateTime?
   tokenVersion Int      @default(0)        // bump to invalidate outstanding JWTs
+  // Referral program fields
+  referralCode String?  @unique            // unique code for this user to share (e.g., "VERDX-AB12")
+  referrerId   String?                     // id of the user who referred this user
+  referrer     User?    @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -67,6 +71,9 @@ model User {
   reviews       Review[]
   adminAudits   AdminAudit[]   @relation("AdminActor")
   audited       AdminAudit[]   @relation("AdminTarget")
+  referrals     Referral[]     @relation("Referrer")        // people this user referred
+  referredBy    User?          @relation("ReferredBy")      // the user who referred this person (redundant with referrerId but eases querying)
+  referralBonuses ReferralBonus[] // bonuses earned from referrals
 }
 
 /// Self-custody wallets a user has linked. A user can attach multiple
@@ -304,4 +311,60 @@ model Review {
   updatedAt DateTime @updatedAt
 
   @@index([approved, createdAt])
+
+/// Referral tracking: links a referrer to a referee. Created when the referred user
+/// signs up using the referrer's code. Bonus creation is separate (ReferralBonus model)
+/// and is triggered only after the referee makes their first deposit.
+model Referral {
+  id        String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  refereeId  String
+  // We don't create a direct foreign key to User for the referee here
+  // (to allow deletion of accounts without orphaning referrals).
+  // Instead, track the referee's email for accountability.
+  refereeEmail String
+  // 'pending' | 'active' | 'cancelled'
+  // 'pending' = referee hasn't made first deposit yet
+  // 'active' = referee has deposited and both users earned bonuses
+  // 'cancelled' = fraud detected or admin intervention
+  status    String   @default("pending")
+  // ISO datetime when referee made first deposit (if status is 'active').
+  firstDepositAt DateTime?
+  // Amount referee deposited on first deposit (if status is 'active').
+  firstDepositAmount Float?
+  // Bonus amounts awarded (if status is 'active').
+  referrerBonusUsd Float?   // $250 to referrer (if not already paid)
+  refereeBonusUsd  Float?   // $10 to referee (if not already paid)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerId, createdAt])
+  @@index([refereeEmail])
+  @@index([status])
+}
+
+/// Referral bonus tracking: stores info about bonuses awarded from referrals.
+/// Created when both a Referral becomes 'active' (referee deposits) AND the bonus
+/// is actually awarded (credited to user account or pending for later payout).
+model ReferralBonus {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Float    // USD equivalent ($250 for referrer, $10 for referee)
+  bonusType    String   // 'referrer_bonus' | 'referee_bonus'
+  // What form the bonus takes: 'trading_credit' or 'cash_deposit'
+  paymentMethod String  @default("trading_credit")
+  // 'pending' | 'credited' | 'canceled'
+  status       String   @default("pending")
+  // When the bonus was actually credited to the user (if status = 'credited').
+  creditedAt   DateTime?
+  // ID of the Transaction row created when bonus is credited (if applicable).
+  creditedTransactionId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
 }
