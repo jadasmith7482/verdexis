@@ -161,7 +161,7 @@ export const FEE_TYPES: Array<{ value: string; label: string }> = [
   { value: 'late_payment', label: 'Late payment fee' },
   { value: 'currency_conversion', label: 'Currency conversion fee' },
   { value: 'withdrawal', label: 'Withdrawal fee' },
-  { value: 'admin_fee', label: 'Administrative fee' },
+  { value: 'admin_fee', label: 'Service fee' },
   { value: 'other', label: 'Other (see note)' },
 ]
 export const KYC_STATUSES: Array<{ value: 'none' | 'pending' | 'approved' | 'rejected'; label: string; tone: string }> = [

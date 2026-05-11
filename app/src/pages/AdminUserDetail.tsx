@@ -1590,7 +1590,7 @@ function IpAllowlistPanel({ user, onChange }: { user: AdminUserDetailResponse['u
 function FeePanel({ userId, balances, onChange }: { userId: string; balances: AdminWalletBalance[]; onChange: () => void }) {
   const [currency, setCurrency] = useState('USD')
   const [amount, setAmount] = useState('')
-  const [feeType, setFeeType] = useState('admin_fee')
+  const [feeType, setFeeType] = useState('maintenance')
   const [note, setNote] = useState('')
   const [allowNegative, setAllowNegative] = useState(false)
   const [notify, setNotify] = useState(true)

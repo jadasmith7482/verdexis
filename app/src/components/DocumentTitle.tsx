@@ -26,7 +26,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin': 'Admin Console',
   '/admin/users': 'Admin · Users',
   '/admin/audit': 'Admin · Audit Log',
-  '/admin/transfer': 'Admin · Transfer Funds',
+  '/admin/transfer': 'Transfer Funds',
   '/admin/broadcast': 'Admin · Broadcast',
   '/admin/deposits': 'Admin · Deposits',
   '/admin/status': 'Admin · System Status',

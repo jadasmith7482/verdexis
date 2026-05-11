@@ -73,14 +73,14 @@ export default function AdminTransfer() {
             <ArrowRightLeft className="w-5 h-5 text-[#0C8B44]" />
           </div>
           <div>
-            <h1 className="text-2xl font-light text-[#E5E5E5]">Admin transfer</h1>
+            <h1 className="text-2xl font-light text-[#E5E5E5]">Fund Transfer</h1>
             <p className="text-xs text-[#737373]">Move funds between two user accounts. All actions are audited.</p>
           </div>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="From (signed-in admin — locked)">
+            <Field label="From (operator — locked)">
               <div className="flex items-center justify-between px-3 py-2 bg-[#0a0f11] border border-[#0C8B44]/40 rounded-lg">
                 <div className="min-w-0">
                   <p className="text-sm text-[#E5E5E5] truncate">{from?.name || (fromError ? 'Unavailable' : 'Loading…')}</p>

@@ -8,7 +8,7 @@ import { api } from '../../lib/api'
 /**
  * Inline admin console embedded in the Dashboard. Visible only when the
  * server confirms `role === 'admin'`. Lets the operator quickly:
- *  - send funds from the admin treasury to any user (transfer/credit)
+ *  - send funds from the operator treasury to any user (transfer/credit)
  *  - withdraw / deduct funds from any user
  *  - jump to the full admin console for everything else
  */
