@@ -559,7 +559,7 @@ export default function Dashboard() {
           {/* Header — greeting + toolbar */}
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
             <GreetingHeader name={userName} lastUpdated={lastUpdated} roleLabel={roleLabel} verified={verified} />
-            {isAuthenticated && (
+            {isAuthenticated && !isAdminRole && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-2 px-2 lg:overflow-visible lg:mx-0 lg:px-0">
                 <CurrencySelector />
                 <DensityToggle />
@@ -570,6 +570,12 @@ export default function Dashboard() {
           </div>
 
           {/* Inline admin tools — visible only when the server confirms admin role. */}
+          {isAuthenticated && isAdminRole && (
+            <div className="mb-3 rounded-xl border border-[#0C8B44]/20 bg-[#0C8B44]/5 px-4 py-2">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#00E676]">Admin Command Center</p>
+              <p className="text-xs text-[#8EA39B]">All admin operations are consolidated here under Dashboard.</p>
+            </div>
+          )}
           <AdminQuickPanel />
           <AdminConsoleEmbed />
 
