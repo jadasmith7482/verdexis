@@ -103,12 +103,6 @@ export default function Footer() {
                 <TelegramIcon className="w-3.5 h-3.5 text-[#229ED9]" />
                 <span>Telegram</span>
               </a>
-              <a
-                href={`tel:+${CONTACT_PHONE_E164}`}
-                className="text-[11px] text-[#A0A0A0] hover:text-[#0C8B44] transition-colors"
-              >
-                {CONTACT_PHONE_DISPLAY}
-              </a>
             </div>
           </div>
 
