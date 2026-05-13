@@ -261,7 +261,9 @@ router.post('/convert', requireAuth, moneyLimiter, idempotency(), async (req: Au
         userId: req.userId!,
         kind: 'transfer',
         currency: fromCurrency,
-        amount: fromAmount,
+        // Outgoing leg recorded as a negative amount so Recent Activity
+        // and history views render it as a debit (red, with "-" prefix).
+        amount: -Math.abs(fromAmount),
         reference: `Convert ${fromCurrency} → ${toCurrency}`,
         status: 'completed',
         subType: 'convert',
