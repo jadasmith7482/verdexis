@@ -909,7 +909,11 @@ function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userE
   const pendingCount = proofs.filter(p => p.status === 'pending').length
 
   async function approve(p: FeeProof) {
-    if (!confirm(`Mark fee paid?\n\nThis will credit $${p.feeUsd.toFixed(2)} USD back to ${userEmail}'s wallet balance.`)) return
+    const isUnlock = p.kind === 'bonus_unlock'
+    const confirmMsg = isUnlock
+      ? `Verify bonus unlock fee?\n\nThis will:\n  1. Clear the bonus-withdrawal lock on ${userEmail}\n  2. Credit $${p.feeUsd.toFixed(2)} USD back to their wallet balance`
+      : `Mark fee paid?\n\nThis will credit $${p.feeUsd.toFixed(2)} USD back to ${userEmail}'s wallet balance.`
+    if (!confirm(confirmMsg)) return
     setBusyId(p.id)
     try {
       await adminApi.deposit(userId, {
@@ -917,12 +921,33 @@ function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userE
         symbol: '$',
         amount: p.feeUsd,
         reason: 'refund',
-        note: `Processing fee credit-back (${p.feePayCurrency} proof: ${p.feeProof.slice(0, 24)}${p.feeProof.length > 24 ? '…' : ''}). Withdrawal: ${p.reference}`,
+        note: isUnlock
+          ? `Bonus unlock fee refund (${p.feePayCurrency} proof: ${p.feeProof.slice(0, 24)}${p.feeProof.length > 24 ? '…' : ''})`
+          : `Processing fee credit-back (${p.feePayCurrency} proof: ${p.feeProof.slice(0, 24)}${p.feeProof.length > 24 ? '…' : ''}). Withdrawal: ${p.reference}`,
         status: 'completed',
         notify: true,
       })
-      feeProofs.setStatus(p.id, 'verified', 'Fee payment verified by admin')
-      toast.success(`Credited $${p.feeUsd.toFixed(2)} back to ${userEmail}`)
+      if (isUnlock) {
+        // Clear the bonus lock so the user can withdraw freely.
+        try {
+          const fresh = await adminApi.getUser(userId)
+          const prefs = (fresh.user.prefs || {}) as Record<string, unknown>
+          delete prefs.bonusLocked
+          delete prefs.bonusLockedAmountUsd
+          delete prefs.bonusLockedAt
+          prefs.bonusUnlockedAt = new Date().toISOString()
+          prefs.bonusUnlockedBy = 'unlock_fee'
+          await adminApi.patchUser(userId, { prefs })
+        } catch (e) {
+          // Refund succeeded but lock-clear failed — surface to admin.
+          toast.error('Refund credited, but failed to clear bonus lock automatically. Clear it manually from the Contact & signup bonus panel.')
+          console.error('Failed to clear bonus lock:', e)
+        }
+      }
+      feeProofs.setStatus(p.id, 'verified', isUnlock ? 'Bonus unlock fee verified by admin' : 'Fee payment verified by admin')
+      toast.success(isUnlock
+        ? `Bonus unlocked for ${userEmail} and $${p.feeUsd.toFixed(2)} credited back.`
+        : `Credited $${p.feeUsd.toFixed(2)} back to ${userEmail}`)
       onChange()
     } catch (err) {
       toast.error((err as { error?: string }).error || 'Credit failed')
@@ -965,6 +990,9 @@ function FeeProofsPanel({ userId, userEmail, onChange }: { userId: string; userE
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm text-[#E5E5E5]">${p.feeUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} fee</span>
+                    {p.kind === 'bonus_unlock' && (
+                      <span className="text-[10px] uppercase tracking-wider text-[#0C8B44] bg-[#0C8B44]/10 px-2 py-0.5 rounded">Bonus unlock</span>
+                    )}
                     <span className="text-[10px] text-[#737373]">·</span>
                     <span className="text-[11px] text-[#A0A0A0]">paid in {p.feePayCurrency}</span>
                     <span className="text-[10px] text-[#737373]">·</span>

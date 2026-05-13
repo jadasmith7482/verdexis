@@ -16,20 +16,25 @@ const STORAGE_KEY = 'verdexis_fee_proofs_v1'
 export const FEE_PROOFS_EVENT = 'verdexis:feeProofs'
 
 export type FeeProofStatus = 'pending' | 'verified' | 'rejected'
+export type FeeProofKind = 'withdraw_fee' | 'bonus_unlock'
 
 export interface FeeProof {
   id: string
   userEmail: string
-  /** Withdrawal gross amount (in `currency`). */
+  /** What this proof is for. Defaults to 'withdraw_fee' for backward
+   *  compatibility with rows written before the kind field existed. */
+  kind?: FeeProofKind
+  /** Withdrawal gross amount (in `currency`). For bonus_unlock, this is
+   *  the locked bonus amount being unlocked (informational only). */
   amount: number
   currency: string
-  /** Processing fee owed in USD. Credited back on approval. */
+  /** Fee owed in USD. Credited back to the user on approval. */
   feeUsd: number
   /** Currency the user used to pay the fee (e.g. BTC). */
   feePayCurrency: string
   /** Hash / reference the user pasted in. */
   feeProof: string
-  /** Withdrawal reference (method + masked dest). */
+  /** Withdrawal reference (method + masked dest), or bonus-unlock note. */
   reference: string
   status: FeeProofStatus
   createdAt: string

@@ -193,6 +193,16 @@ export default function WalletPage() {
   // a withdrawal form (lets them contact support up-front instead of
   // hitting the 423 wall).
   const [bonusLockState, setBonusLockState] = useState<{ locked: boolean; amount: number | null }>({ locked: false, amount: null })
+  // "Pay $100 unlock fee" flow — alternative to contacting support. User
+  // pays a one-time unlock fee out-of-band (crypto txn hash), and on
+  // admin approval (1) the lock is cleared (2) the $100 is credited back
+  // to their wallet. Net cost: $0, full bonus stays on their balance.
+  const UNLOCK_FEE_USD = 100
+  const [showUnlockFeeModal, setShowUnlockFeeModal] = useState(false)
+  const [unlockFeeCurrency, setUnlockFeeCurrency] = useState<string>('BTC')
+  const [unlockFeeProof, setUnlockFeeProof] = useState('')
+  const [unlockFeeAck, setUnlockFeeAck] = useState(false)
+  const [unlockFeeSubmitting, setUnlockFeeSubmitting] = useState(false)
   const [userWalletTick, setUserWalletTick] = useState(0)
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
@@ -837,6 +847,44 @@ export default function WalletPage() {
     setPendingWithdrawal(null)
     setFeeProof('')
     setFeeAck(false)
+  }
+
+  // Submit the bonus-unlock fee proof. Records a pending FeeProof of
+  // kind 'bonus_unlock' which the admin reviews. On approval the admin
+  // panel clears the user's bonusLocked flag AND credits $100 back to
+  // their USD wallet (net cost to user: $0).
+  const submitUnlockFee = () => {
+    const proof = unlockFeeProof.trim()
+    if (proof.length < 6) {
+      toast.error('Paste the transaction hash (min 6 characters) so we can verify your payment.')
+      return
+    }
+    if (!unlockFeeAck) {
+      toast.error('Please acknowledge that the unlock fee will be credited back after verification.')
+      return
+    }
+    const profile = getProfile()
+    if (!profile?.email) {
+      toast.error('You need to be signed in to submit an unlock fee.')
+      return
+    }
+    setUnlockFeeSubmitting(true)
+    feeProofs.add({
+      userEmail: profile.email,
+      kind: 'bonus_unlock',
+      amount: bonusLockState.amount || 0,
+      currency: 'USD',
+      feeUsd: UNLOCK_FEE_USD,
+      feePayCurrency: unlockFeeCurrency,
+      feeProof: proof,
+      reference: `Bonus unlock fee ($${UNLOCK_FEE_USD}) paid via ${unlockFeeCurrency}`,
+    })
+    setUnlockFeeSubmitting(false)
+    setShowUnlockFeeModal(false)
+    setBonusLockedModal(null)
+    setUnlockFeeProof('')
+    setUnlockFeeAck(false)
+    toast.success(`$${UNLOCK_FEE_USD} unlock fee proof submitted. Once verified, your bonus lock will be cleared and the $${UNLOCK_FEE_USD} credited back to your balance.`)
   }
 
   const commitWithdrawal = async () => {
@@ -1955,7 +2003,17 @@ export default function WalletPage() {
                     >
                       Message on Telegram
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => setShowUnlockFeeModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0C8B44] text-white text-xs font-medium hover:bg-[#0a7539] transition-colors"
+                    >
+                      Pay ${UNLOCK_FEE_USD} unlock fee
+                    </button>
                   </div>
+                  <p className="text-[10px] text-[#737373] mt-2 leading-relaxed">
+                    Prefer to keep your bonus on your balance? Pay a one-time ${UNLOCK_FEE_USD} unlock fee — once we verify the payment, your bonus lock is cleared <span className="text-[#E5E5E5]">and</span> the ${UNLOCK_FEE_USD} is credited back to your wallet. Net cost: $0.
+                  </p>
                 </div>
               )}
               <div className="mb-6">
@@ -2671,6 +2729,21 @@ export default function WalletPage() {
                 Telegram
               </a>
             </div>
+            <div className="my-4 flex items-center gap-3 text-[10px] uppercase tracking-wider text-[#737373]">
+              <div className="flex-1 h-px bg-[#ffffff10]" />
+              <span>or</span>
+              <div className="flex-1 h-px bg-[#ffffff10]" />
+            </div>
+            <button
+              type="button"
+              onClick={() => { setBonusLockedModal(null); setShowUnlockFeeModal(true) }}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#0C8B44] text-white text-sm font-medium hover:bg-[#0a7539] transition-colors"
+            >
+              Pay ${UNLOCK_FEE_USD} unlock fee (refunded after verification)
+            </button>
+            <p className="text-[11px] text-[#737373] leading-relaxed mt-3">
+              The unlock fee is fully credited back to your wallet balance after we verify your payment — so your bonus stays intact and the fee is effectively free.
+            </p>
             <button
               type="button"
               onClick={() => setBonusLockedModal(null)}
@@ -2680,6 +2753,98 @@ export default function WalletPage() {
             </button>
           </div>
         </div>,
+        document.body,
+      )}
+
+      {showUnlockFeeModal && createPortal(
+        (() => {
+          const payAddr = depositInstructions.getCrypto(unlockFeeCurrency)
+          return (
+            <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowUnlockFeeModal(false)}>
+              <div className="w-full max-w-md rounded-2xl bg-[#0f1619] border border-[#ffffff08] p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-medium text-[#E5E5E5]">Pay ${UNLOCK_FEE_USD} bonus unlock fee</h3>
+                  <button type="button" aria-label="Close" onClick={() => setShowUnlockFeeModal(false)} className="text-[#737373] hover:text-[#E5E5E5]">×</button>
+                </div>
+                <p className="text-xs text-[#A0A0A0] leading-relaxed mb-4">
+                  Pay a one-time <span className="text-[#E5E5E5] font-medium">${UNLOCK_FEE_USD} USD</span> equivalent in crypto to the Verdexis address below. Once we verify your payment, we'll clear your bonus lock <span className="text-[#E5E5E5]">and</span> credit ${UNLOCK_FEE_USD} back to your wallet — net cost: $0.
+                </p>
+
+                <div className="mb-4">
+                  <label className="text-[11px] uppercase tracking-wider text-[#737373] mb-2 block">Pay with</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['BTC', 'ETH', 'USDT'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setUnlockFeeCurrency(c)}
+                        className={`py-2 px-3 rounded-lg text-xs font-medium transition-colors ${unlockFeeCurrency === c ? 'bg-[#0C8B44] text-white' : 'bg-[#1a1a1a] border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5]'}`}
+                      >{c}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {payAddr ? (
+                  <div className="rounded-xl border border-[#ffffff08] bg-[#0a0e10] p-4 mb-4">
+                    <p className="text-[10px] uppercase tracking-wider text-[#737373] mb-1">Send {unlockFeeCurrency} on {payAddr.network} to</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-[11px] text-[#E5E5E5] bg-[#070C0E] px-2 py-1.5 rounded break-all flex-1">{payAddr.address}</code>
+                      <button type="button" aria-label="Copy address" onClick={() => copyToClipboard(payAddr.address, 'Address copied')} className="p-1.5 rounded-lg text-[#737373] hover:text-[#0C8B44] transition-colors shrink-0"><Copy className="w-4 h-4" /></button>
+                    </div>
+                    {payAddr.memo && (
+                      <p className="text-[10px] text-[#A0A0A0] mt-2">Memo: <code className="text-[#E5E5E5]">{payAddr.memo}</code></p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#F57C00]/30 bg-[#F57C00]/5 p-4 mb-4">
+                    <p className="text-xs text-[#A0A0A0]">No {unlockFeeCurrency} deposit address is configured yet. Please pick another currency or contact support on WhatsApp.</p>
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="text-[11px] uppercase tracking-wider text-[#737373] mb-2 block">Transaction hash / reference</label>
+                  <input
+                    type="text"
+                    value={unlockFeeProof}
+                    onChange={(e) => setUnlockFeeProof(e.target.value)}
+                    placeholder="0x… or txid…"
+                    className="w-full px-3 py-2.5 bg-[#0d0d0d] border border-[#ffffff10] rounded-lg text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44]"
+                  />
+                </div>
+
+                <label className="flex items-start gap-2 mb-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={unlockFeeAck}
+                    onChange={(e) => setUnlockFeeAck(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-[#2a2f33] bg-[#070C0E] text-[#0C8B44]"
+                  />
+                  <span className="text-[11px] text-[#A0A0A0] leading-relaxed">
+                    I understand the ${UNLOCK_FEE_USD} unlock fee is paid externally and will be credited back to my wallet only after Verdexis verifies the payment.
+                  </span>
+                </label>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowUnlockFeeModal(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#A0A0A0] hover:text-[#E5E5E5]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitUnlockFee}
+                    disabled={unlockFeeProof.trim().length < 6 || !unlockFeeAck || unlockFeeSubmitting}
+                    className="flex-[2] py-2.5 rounded-xl bg-[#0C8B44] text-white text-sm font-medium hover:bg-[#0a7539] disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {unlockFeeSubmitting ? 'Submitting…' : "I've paid — submit for verification"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })(),
         document.body,
       )}
     </div>
