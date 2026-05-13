@@ -35,6 +35,10 @@ const signupSchema = z.object({
   email: z.string().email().toLowerCase().trim(),
   password: z.string().min(8).max(200),
   name: z.string().min(1).max(80).trim(),
+  // Phone is compulsory at signup so admins can reach the user (e.g. for
+  // KYC + the WhatsApp bonus-withdrawal verification step). Accepts E.164
+  // or local format with at least 7 digits.
+  phone: z.string().trim().min(7).max(32).regex(/^[+0-9 ()\-.]+$/, 'Invalid phone number'),
 })
 
 const loginSchema = z.object({
@@ -236,12 +240,22 @@ async function awardSignupBonus(userId: string): Promise<void> {
       },
     })
 
+    // Lock bonus withdrawals until the user contacts support on WhatsApp.
+    // Admins clear this flag via PATCH /api/admin/users/:id (prefs).
+    const u = await tx.user.findUnique({ where: { id: userId }, select: { prefs: true } })
+    let prefs: Record<string, unknown> = {}
+    try { if (u?.prefs) prefs = JSON.parse(u.prefs) } catch { prefs = {} }
+    prefs.bonusLocked = true
+    prefs.bonusLockedAmountUsd = config.amountUsd
+    prefs.bonusLockedAt = new Date().toISOString()
+    await tx.user.update({ where: { id: userId }, data: { prefs: JSON.stringify(prefs) } })
+
     await tx.notification.create({
       data: {
         userId,
         kind: 'system',
         title: `Signup bonus received: $${config.amountUsd}`,
-        body: config.note?.trim() || 'Welcome to Verdexis — your signup bonus has been credited.',
+        body: (config.note?.trim() || 'Welcome to Verdexis — your signup bonus has been credited.') + ' To withdraw your bonus, please message support on WhatsApp (https://wa.me/17196798790) or Telegram (https://t.me/+17196798790) first.',
       },
     })
   })
@@ -294,6 +308,9 @@ router.post('/signup', authLimiter, async (req, res) => {
           referralCode,
         // First user signed up with an admin-listed email starts as admin.
         role: ADMIN_EMAILS.includes(email) ? 'admin' : 'user',
+        // Persist the phone number in prefs so admins can see / contact the
+        // user. Stored alongside any future preference data.
+        prefs: JSON.stringify({ phone: parsed.data.phone }),
         // Seed a USD wallet so the user can deposit immediately.
         walletBalances: {
           create: [{ currency: 'USD', symbol: '$', balance: 0, available: 0 }],

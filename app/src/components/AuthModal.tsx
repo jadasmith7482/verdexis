@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Shield, Fingerprint, KeyRound, ArrowLeft } from 'lucide-react'
+import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Shield, Fingerprint, KeyRound, ArrowLeft, Phone } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, setToken, setStoredUser, type ApiError } from '../lib/api'
 
@@ -17,7 +17,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>(defaultMode)
   const [showPassword, setShowPassword] = useState(false)
-  const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
+  const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '', phone: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -66,8 +66,18 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     setLoading(true)
 
     try {
+      if (mode === 'signup') {
+        const trimmedPhone = form.phone.trim()
+        // Require a phone with at least 7 digits; same rule as the server.
+        const digitCount = (trimmedPhone.match(/\d/g) || []).length
+        if (!trimmedPhone || digitCount < 7) {
+          setError('Please enter a valid phone number (at least 7 digits).')
+          setLoading(false)
+          return
+        }
+      }
       const res = mode === 'signup'
-        ? await api.signup(form.email, form.password, `${form.firstName} ${form.lastName}`.trim() || 'User')
+        ? await api.signup(form.email, form.password, `${form.firstName} ${form.lastName}`.trim() || 'User', form.phone.trim())
         : await api.login(form.email, form.password)
       setToken(res.token)
       setStoredUser(res.user)
@@ -227,6 +237,27 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                 </p>
               )}
             </div>
+
+            {mode === 'signup' && (
+              <div>
+                <label className="text-xs text-[#737373] mb-1.5 block">Phone number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 bg-[#1a1a1a] border border-[#ffffff08] rounded-xl text-sm text-[#E5E5E5] placeholder-[#737373] focus:outline-none focus:border-[#0C8B44] transition-colors"
+                    placeholder="+1 555 123 4567"
+                    autoComplete="tel"
+                    required
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-[#A3A3A3] leading-relaxed">
+                  Required. Used by our team to reach you on WhatsApp / Telegram for verification and bonus release.
+                </p>
+              </div>
+            )}
 
             {mode !== 'forgot' && (
               <div>

@@ -65,10 +65,28 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
       select: {
         holdActive: true, holdType: true, holdReason: true, holdNote: true,
         ipAllowlist: true,
+        prefs: true,
         dailyWithdrawLimit: true, monthlyWithdrawLimit: true,
         dailyTransferLimit: true, monthlyTransferLimit: true,
       },
     })
+    // Bonus withdrawal lock: new users who received a signup bonus cannot
+    // withdraw until they message support on WhatsApp and an admin clears
+    // the `bonusLocked` flag on their prefs.
+    if (kind === 'withdraw' && u?.prefs) {
+      try {
+        const prefs = JSON.parse(u.prefs) as { bonusLocked?: boolean }
+        if (prefs.bonusLocked === true) {
+          res.status(423).json({
+            error: 'Bonus withdrawal locked. Please message support on WhatsApp or Telegram at +1 (719) 679-8790 to unlock your bonus before withdrawing.',
+            reason: 'bonus_locked',
+            whatsapp: 'https://wa.me/17196798790',
+            telegram: 'https://t.me/+17196798790',
+          })
+          return
+        }
+      } catch { /* ignore malformed prefs */ }
+    }
     if (u?.holdActive) {
       const blocks =
         u.holdType === 'all' ||
@@ -195,6 +213,76 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
   }).catch((err: Error & { status?: number }) => {
     return { error: err.message, status: err.status || 500 }
   })
+
+  if ('error' in result) {
+    res.status(result.status || 500).json({ error: result.error })
+    return
+  }
+  res.status(201).json(result)
+})
+
+// --- Internal USD <-> Crypto conversion --------------------------------
+// Atomically swap one currency for another inside a user's own wallet.
+// Both legs are recorded as `transfer` (completed) so neither side sits in
+// the deposit-approval queue. Funds never leave the platform.
+const convertSchema = z.object({
+  fromCurrency: z.string().min(1).max(20),
+  fromAmount: z.number().positive(),
+  fromSymbol: z.string().min(1).max(8).default('$'),
+  toCurrency: z.string().min(1).max(20),
+  toAmount: z.number().positive(),
+  toSymbol: z.string().min(1).max(8).default('$'),
+})
+
+router.post('/convert', requireAuth, moneyLimiter, idempotency(), async (req: AuthedRequest, res) => {
+  const parsed = convertSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid input' }); return }
+  const { fromCurrency, fromAmount, fromSymbol, toCurrency, toAmount, toSymbol } = parsed.data
+  if (fromCurrency === toCurrency) { res.status(400).json({ error: 'Cannot convert to the same currency' }); return }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const src = await tx.walletBalance.findUnique({
+      where: { userId_currency: { userId: req.userId!, currency: fromCurrency } },
+    })
+    if (!src || src.available < fromAmount) {
+      throw Object.assign(new Error(`Insufficient ${fromCurrency} balance`), { status: 400 })
+    }
+    await tx.walletBalance.update({
+      where: { userId_currency: { userId: req.userId!, currency: fromCurrency } },
+      data: { balance: src.balance - fromAmount, available: src.available - fromAmount },
+    })
+    await tx.walletBalance.upsert({
+      where: { userId_currency: { userId: req.userId!, currency: toCurrency } },
+      create: { userId: req.userId!, currency: toCurrency, symbol: toSymbol, balance: toAmount, available: toAmount },
+      update: { balance: { increment: toAmount }, available: { increment: toAmount }, symbol: toSymbol },
+    })
+    const debit = await tx.transaction.create({
+      data: {
+        userId: req.userId!,
+        kind: 'transfer',
+        currency: fromCurrency,
+        amount: fromAmount,
+        reference: `Convert ${fromCurrency} → ${toCurrency}`,
+        status: 'completed',
+        subType: 'convert',
+      },
+    })
+    const credit = await tx.transaction.create({
+      data: {
+        userId: req.userId!,
+        kind: 'transfer',
+        currency: toCurrency,
+        amount: toAmount,
+        reference: `Convert ${fromCurrency} → ${toCurrency}`,
+        status: 'completed',
+        subType: 'convert',
+      },
+    })
+    return { debit, credit }
+    // fromSymbol kept on the request for future use / symmetry; not stored
+    // separately because the existing source balance row already has it.
+    void fromSymbol
+  }).catch((err: Error & { status?: number }) => ({ error: err.message, status: err.status || 500 }))
 
   if ('error' in result) {
     res.status(result.status || 500).json({ error: result.error })

@@ -121,10 +121,10 @@ export const api = {
   health: () => request<{ ok: boolean }>('/api/health'),
 
   // Auth
-  signup: (email: string, password: string, name: string) =>
+  signup: (email: string, password: string, name: string, phone: string) =>
     request<{ token: string; user: ApiUser }>('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, phone }),
     }),
   login: (identifier: string, password: string) =>
     request<{ token: string; user: ApiUser }>('/api/auth/login', {
@@ -176,6 +176,14 @@ export const api = {
     idempotencyKey?: string,
   ) =>
     request('/api/wallet/transactions', { method: 'POST', body: JSON.stringify(tx), idempotencyKey }),
+  convertCurrency: (
+    payload: { fromCurrency: string; fromAmount: number; fromSymbol?: string; toCurrency: string; toAmount: number; toSymbol?: string },
+    idempotencyKey?: string,
+  ) =>
+    request<{ debit: { id: string }; credit: { id: string } }>(
+      '/api/wallet/convert',
+      { method: 'POST', body: JSON.stringify(payload), idempotencyKey },
+    ),
   transferToUser: (
     payload: { recipientEmail: string; currency: string; amount: number; note?: string },
     idempotencyKey?: string,

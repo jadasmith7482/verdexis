@@ -16,6 +16,7 @@ import {
   Save, Plus, AlertTriangle, User as UserIcon, Wallet, Briefcase,
   ArrowLeftRight, BarChart3, Eye, Bell, Mail, Download,
   ArrowDownToLine, ArrowUpFromLine, Lock, Unlock, FileCheck2, Activity, UserCog, Wifi, RotateCcw, DollarSign,
+  Phone, Gift,
 } from 'lucide-react'
 import { toCsv, downloadFile } from '../lib/csvExport'
 import { userWallets, type UserWalletOverride, hydrateUserWalletsFromServer, pushUserWalletsToServer } from '../lib/userWallets'
@@ -331,6 +332,7 @@ function ProfileTab({ data, onChange }: { data: AdminUserDetailResponse; onChang
       <div className="space-y-6">
         <HoldPanel user={u} onChange={onChange} />
         <KycPanel user={u} onChange={onChange} />
+        <ContactBonusPanel user={u} onChange={onChange} />
         <LimitsPanel user={u} onChange={onChange} />
         <IpAllowlistPanel user={u} onChange={onChange} />
         <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
@@ -1524,6 +1526,97 @@ function KycPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; o
       <Textarea label="Reviewer notes (visible to user when notified)" value={notes} onChange={setNotes} rows={3} />
       <label className="flex items-center gap-2 text-xs text-[#A0A0A0] mt-2"><input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-[#0C8B44]" />Notify user</label>
       <button type="button" onClick={save} disabled={busy} className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"><Save className="w-4 h-4" />{busy ? 'Saving…' : 'Save KYC'}</button>
+    </section>
+  )
+}
+
+// ---------- Contact + signup-bonus lock (Profile tab) ----------
+function ContactBonusPanel({ user, onChange }: { user: AdminUserDetailResponse['user']; onChange: () => void }) {
+  const prefs = (user.prefs && typeof user.prefs === 'object') ? user.prefs as Record<string, unknown> : {}
+  const phone = typeof prefs.phone === 'string' ? prefs.phone : ''
+  const bonusLocked = prefs.bonusLocked === true
+  const bonusAmount = typeof prefs.bonusLockedAmountUsd === 'number' ? prefs.bonusLockedAmountUsd : null
+  const bonusLockedAt = typeof prefs.bonusLockedAt === 'string' ? prefs.bonusLockedAt : null
+  const [busy, setBusy] = useState(false)
+  async function unlockBonus() {
+    setBusy(true)
+    try {
+      const nextPrefs: Record<string, unknown> = { ...prefs }
+      delete nextPrefs.bonusLocked
+      delete nextPrefs.bonusLockedAmountUsd
+      delete nextPrefs.bonusLockedAt
+      nextPrefs.bonusUnlockedAt = new Date().toISOString()
+      await adminApi.patchUser(user.id, { prefs: nextPrefs })
+      toast.success('Bonus withdrawal unlocked')
+      onChange()
+    } catch (err) { toast.error((err as { error?: string }).error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  const waHref = phone
+    ? `https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hi from Verdexis support — about your signup bonus withdrawal.')}`
+    : null
+  const tgHref = phone
+    ? `https://t.me/+${phone.replace(/[^0-9]/g, '')}`
+    : null
+  return (
+    <section className="rounded-2xl bg-[#0f1619]/50 border border-[#ffffff08] p-6">
+      <h2 className="text-sm font-medium text-[#E5E5E5] mb-3 flex items-center gap-2"><Phone className="w-4 h-4 text-[#0C8B44]" />Contact & signup bonus</h2>
+      <div className="space-y-2 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[#A0A0A0]">Phone</span>
+          {phone ? (
+            <span className="text-[#E5E5E5] font-mono">{phone}</span>
+          ) : (
+            <span className="text-[#737373]">Not provided</span>
+          )}
+        </div>
+        {phone && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a
+              href={waHref!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/10 transition-colors text-[11px]"
+            >WhatsApp</a>
+            <a
+              href={tgHref!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#229ED9]/30 text-[#229ED9] hover:bg-[#229ED9]/10 transition-colors text-[11px]"
+            >Telegram</a>
+            <a
+              href={`tel:${phone}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#ffffff10] text-[#A0A0A0] hover:text-[#E5E5E5] transition-colors text-[11px]"
+            >Call</a>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <span className="text-[#A0A0A0]">Signup bonus</span>
+          {bonusLocked ? (
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded text-[#F57C00] bg-[#F57C00]/10"><Lock className="w-3 h-3" />Locked{bonusAmount != null ? ` · $${bonusAmount}` : ''}</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded text-[#4CAF50] bg-[#4CAF50]/10"><Unlock className="w-3 h-3" />Withdrawal allowed</span>
+          )}
+        </div>
+        {bonusLockedAt && (
+          <div className="text-[#737373]">Locked at {new Date(bonusLockedAt).toLocaleString()}</div>
+        )}
+      </div>
+      {bonusLocked && (
+        <>
+          <p className="text-[11px] text-[#A0A0A0] mt-3">
+            Until unlocked, this user cannot withdraw funds. They've been told to message support on WhatsApp or Telegram first. Once you've confirmed the conversation, clear the lock below.
+          </p>
+          <button
+            type="button"
+            onClick={unlockBonus}
+            disabled={busy}
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2 bg-[#0C8B44] text-white text-sm rounded-lg hover:bg-[#0a7539] disabled:opacity-50"
+          >
+            <Gift className="w-4 h-4" />{busy ? 'Unlocking…' : 'Unlock bonus withdrawals'}
+          </button>
+        </>
+      )}
     </section>
   )
 }

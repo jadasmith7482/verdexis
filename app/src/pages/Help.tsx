@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'Are there withdrawal fees?',
-        a: 'Bank withdrawals are free. Crypto withdrawals incur the network gas fee plus a Verdexis processing fee that scales with the withdrawal amount (approximately 0.8% on small withdrawals down to a flat tier on very large ones). The exact fee is shown in the Withdraw screen before you confirm.',
+        a: 'Bank withdrawals are free. Crypto withdrawals incur the network gas fee plus a Verdexis processing fee that scales with the withdrawal amount (approximately 0.40% on small withdrawals down to 0.25% on very large ones — e.g. a $1,000,000 withdrawal carries roughly a $2,500 processing fee). The exact fee is shown in the Withdraw screen before you confirm.',
       },
     ],
   },

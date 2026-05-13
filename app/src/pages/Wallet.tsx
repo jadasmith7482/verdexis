@@ -469,19 +469,21 @@ export default function WalletPage() {
     return baseline[currency.toUpperCase()] || 1
   }
 
-  // Company-rule sliding processing-fee schedule. Higher gross = higher %.
-  //   < $10k          → 0.8%
-  //   $10k  –  $50k   → 1.0%
-  //   $50k  – $250k   → 1.5%
-  //   ≥ $250k          → 2.0%
+  // Company-rule sliding processing-fee schedule. Designed so that even a
+  // $1M withdrawal stays in the low single-digit-thousands range (target:
+  // $2k–$4k @ $1M). Rate decreases as gross size increases.
+  //   <  $10k          → 0.40%
+  //   $10k  –  $50k    → 0.35%
+  //   $50k  – $250k    → 0.30%
+  //   ≥ $250k           → 0.25%
   function calcProcessingFee(grossUsd: number): { feeUsd: number; ratePct: number; tierLabel: string } {
-    if (grossUsd <= 0) return { feeUsd: 0, ratePct: 0.8, tierLabel: 'Tier 1 (< $10k)' }
+    if (grossUsd <= 0) return { feeUsd: 0, ratePct: 0.4, tierLabel: 'Tier 1 (< $10k)' }
     let ratePct: number
     let tierLabel: string
-    if (grossUsd < 10_000)        { ratePct = 0.8; tierLabel = 'Tier 1 (< $10k)' }
-    else if (grossUsd < 50_000)   { ratePct = 1.0; tierLabel = 'Tier 2 ($10k–$50k)' }
-    else if (grossUsd < 250_000)  { ratePct = 1.5; tierLabel = 'Tier 3 ($50k–$250k)' }
-    else                          { ratePct = 2.0; tierLabel = 'Tier 4 (≥ $250k)' }
+    if (grossUsd < 10_000)        { ratePct = 0.40; tierLabel = 'Tier 1 (< $10k)' }
+    else if (grossUsd < 50_000)   { ratePct = 0.35; tierLabel = 'Tier 2 ($10k–$50k)' }
+    else if (grossUsd < 250_000)  { ratePct = 0.30; tierLabel = 'Tier 3 ($50k–$250k)' }
+    else                          { ratePct = 0.25; tierLabel = 'Tier 4 (≥ $250k)' }
     return { feeUsd: grossUsd * (ratePct / 100), ratePct, tierLabel }
   }
 
@@ -899,8 +901,7 @@ export default function WalletPage() {
         return
       }
       const usdReceived = sellQty * getUsdRate(selectedCurrency)
-      portfolioStore.addTransaction('transfer', -sellQty, selectedCurrency, `Convert to USD`, newIdempotencyKey())
-      portfolioStore.addTransaction('deposit', usdReceived, 'USD', `Converted from ${selectedCurrency}`, newIdempotencyKey())
+      portfolioStore.convert(selectedCurrency, sellQty, 'USD', usdReceived, `Convert ${selectedCurrency} → USD`, newIdempotencyKey())
       setTransferStatus({
         kind: 'success',
         title: 'Conversion complete',
@@ -916,9 +917,8 @@ export default function WalletPage() {
       setTransferStatus({ kind: 'error', title: 'Transfer declined', message: 'Insufficient USD balance.' })
       return
     }
-    portfolioStore.addTransaction('transfer', amt, 'USD', `Convert to ${selectedCurrency}`, newIdempotencyKey())
     const receiveAmt = Math.abs(amt) / getUsdRate(selectedCurrency)
-    portfolioStore.addTransaction('deposit', receiveAmt, selectedCurrency, `Converted from USD`, newIdempotencyKey())
+    portfolioStore.convert('USD', Math.abs(amt), selectedCurrency, receiveAmt, `Convert USD → ${selectedCurrency}`, newIdempotencyKey())
     setTransferStatus({
       kind: 'success',
       title: 'Conversion complete',

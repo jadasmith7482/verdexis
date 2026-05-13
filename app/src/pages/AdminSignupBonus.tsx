@@ -102,6 +102,16 @@ export default function AdminSignupBonus() {
                 <p className="mt-2 text-xs text-[#737373]">This appears in the credited transaction reference and the in-app notification.</p>
               </div>
 
+              <div className="rounded-xl border border-[#F57C00]/30 bg-[#F57C00]/5 px-4 py-4">
+                <p className="text-xs uppercase tracking-wider text-[#F57C00] mb-2">Bonus withdrawal lock</p>
+                <p className="text-xs text-[#E5E5E5] leading-relaxed">
+                  Whenever the signup bonus is enabled, every new account that receives it is automatically locked from withdrawals until you (the admin) clear the lock. The user is told to contact you on WhatsApp or Telegram first. You can clear the lock from the user's profile page (Admin → Users → [user] → Contact &amp; signup bonus → Unlock).
+                </p>
+                <p className="text-[11px] text-[#A0A0A0] mt-2">
+                  Existing users (signed up before the bonus was enabled) are <span className="text-[#E5E5E5]">never</span> retroactively locked.
+                </p>
+              </div>
+
               <div className="rounded-xl border border-[#ffffff08] bg-[#0a0e10] px-4 py-4">
                 <p className="text-xs uppercase tracking-wider text-[#737373] mb-2">Preview</p>
                 <p className="text-sm text-[#E5E5E5]">{form.enabled && form.amountUsd > 0 ? `New users will receive $${form.amountUsd.toFixed(2)} on signup.` : 'Signup bonus is currently disabled.'}</p>

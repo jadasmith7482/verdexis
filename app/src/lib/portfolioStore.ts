@@ -436,6 +436,56 @@ class PortfolioStoreImpl {
   }
 
   /**
+   * Internal currency conversion (USD ↔ crypto inside the user's own
+   * wallet). Records both legs locally as COMPLETED transfers — they
+   * never sit in the deposit-approval queue because funds aren't entering
+   * the platform. Also debits/credits the appropriate balances and fires
+   * a single `/api/wallet/convert` call so the server stays in sync.
+   */
+  convert(fromCurrency: string, fromAmount: number, toCurrency: string, toAmount: number, description?: string, idempotencyKey?: string): { debit: WalletTransaction; credit: WalletTransaction } {
+    const ref = description || `Convert ${fromCurrency} → ${toCurrency}`
+    const now = new Date()
+    const debit: WalletTransaction = {
+      id: `${Date.now()}-d`,
+      type: 'transfer', amount: -fromAmount, currency: fromCurrency, description: ref,
+      timestamp: now, status: 'completed',
+    }
+    const credit: WalletTransaction = {
+      id: `${Date.now()}-c`,
+      type: 'transfer', amount: toAmount, currency: toCurrency, description: ref,
+      timestamp: now, status: 'completed',
+    }
+    this.transactions.push(debit, credit)
+
+    const src = this.wallet.find(w => w.currency === fromCurrency)
+    if (src) {
+      src.balance -= fromAmount
+      src.available -= fromAmount
+    }
+    let dst = this.wallet.find(w => w.currency === toCurrency)
+    if (!dst) {
+      dst = { currency: toCurrency, symbol: symbolFor(toCurrency), balance: 0, available: 0 }
+      this.wallet.push(dst)
+    }
+    dst.balance += toAmount
+    dst.available += toAmount
+
+    this.save(STORAGE_KEYS.wallet, this.wallet)
+    this.save(STORAGE_KEYS.transactions, this.transactions)
+
+    if (getToken()) {
+      api.convertCurrency({
+        fromCurrency, fromAmount, fromSymbol: symbolFor(fromCurrency),
+        toCurrency, toAmount, toSymbol: symbolFor(toCurrency),
+      }, idempotencyKey)
+        .then(() => this.hydrate(true))
+        .catch(() => { /* offline; local cache wins */ })
+    }
+    emit()
+    return { debit, credit }
+  }
+
+  /**
    * Promote a pending deposit to completed and credit the wallet. Called by
    * the on-chain verifier once a crypto deposit's transaction hash has been
    * confirmed on the relevant network. Idempotent — re-confirming a tx that
