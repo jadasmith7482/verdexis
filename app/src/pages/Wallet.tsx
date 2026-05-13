@@ -177,6 +177,22 @@ export default function WalletPage() {
   // will be credited back to their wallet balance (account cannot be empty
   // for the next investment cycle — company rule).
   const [feeAck, setFeeAck] = useState(false)
+  // Set when the server responds with HTTP 423 / reason='bonus_locked' on
+  // a withdrawal attempt. Triggers the bonus-lock contact modal so the
+  // user has a clear path to message support on WhatsApp / Telegram.
+  const [bonusLockedModal, setBonusLockedModal] = useState<{
+    message: string
+    whatsapp: string
+    telegram: string
+  } | null>(null)
+  // Submission gate so the user can't double-click "Confirm withdrawal"
+  // while the server pre-flight is in flight.
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
+  // Cached `prefs.bonusLocked` flag fetched from /api/auth/me so the
+  // Withdraw tab can show a proactive banner BEFORE the user fills in
+  // a withdrawal form (lets them contact support up-front instead of
+  // hitting the 423 wall).
+  const [bonusLockState, setBonusLockState] = useState<{ locked: boolean; amount: number | null }>({ locked: false, amount: null })
   const [userWalletTick, setUserWalletTick] = useState(0)
   const [adminMode, setAdminMode] = useState<boolean>(() => isAdmin())
   const [instructionsTick, setInstructionsTick] = useState(0)
@@ -431,6 +447,36 @@ export default function WalletPage() {
   // On mount, pull the admin-curated deposit instructions from the server
   // so the user sees current addresses even on a fresh device / cleared cache.
   useEffect(() => { void hydrateFromServer() }, [])
+
+  // Read the cached `prefs.bonusLocked` flag (set client-side by api.ts on
+  // login/me) so the Withdraw tab can show a proactive WhatsApp/Telegram
+  // contact banner BEFORE the user fills out a withdrawal form. Then
+  // refresh from the server so newly-applied or admin-cleared locks are
+  // reflected without requiring a full reload.
+  useEffect(() => {
+    const readLocal = () => {
+      try {
+        const raw = localStorage.getItem('verdexis_prefs')
+        const prefs = raw ? JSON.parse(raw) as { bonusLocked?: boolean; bonusLockedAmountUsd?: number } : null
+        if (prefs?.bonusLocked === true) {
+          setBonusLockState({ locked: true, amount: typeof prefs.bonusLockedAmountUsd === 'number' ? prefs.bonusLockedAmountUsd : null })
+        } else {
+          setBonusLockState({ locked: false, amount: null })
+        }
+      } catch { /* ignore */ }
+    }
+    readLocal()
+    if (getToken()) {
+      api.me().then((r) => {
+        const p = (r.user.prefs || {}) as { bonusLocked?: boolean; bonusLockedAmountUsd?: number }
+        if (p.bonusLocked === true) {
+          setBonusLockState({ locked: true, amount: typeof p.bonusLockedAmountUsd === 'number' ? p.bonusLockedAmountUsd : null })
+        } else {
+          setBonusLockState({ locked: false, amount: null })
+        }
+      }).catch(() => { /* ignore — banner just stays in last-known state */ })
+    }
+  }, [])
 
   // When the connected wallet changes, refresh the linked-wallets panel so
   // the new address appears (or the removed one disappears) immediately.
@@ -793,7 +839,7 @@ export default function WalletPage() {
     setFeeAck(false)
   }
 
-  const commitWithdrawal = () => {
+  const commitWithdrawal = async () => {
     if (!pendingWithdrawal) return
     const proof = feeProof.trim()
     if (proof.length < 6) {
@@ -807,7 +853,43 @@ export default function WalletPage() {
     const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     const reference = `${pendingWithdrawal.reference} | Fee paid via ${feePayCurrency}: ${proof.slice(0, 24)}${proof.length > 24 ? '…' : ''}`
     const signed = -pendingWithdrawal.amountAbs
-    portfolioStore.addTransaction('withdraw', signed, pendingWithdrawal.currency, reference, newIdempotencyKey())
+    const txKey = newIdempotencyKey()
+
+    // Pre-flight against the server first so the bonus-lock check (and any
+    // other server-side guard) runs BEFORE we mutate local state. If the
+    // server returns HTTP 423 / reason='bonus_locked' we surface a contact
+    // modal with WhatsApp + Telegram buttons instead of recording the
+    // withdrawal locally.
+    if (getToken()) {
+      setWithdrawSubmitting(true)
+      try {
+        await api.postTransaction({
+          kind: 'withdraw',
+          currency: pendingWithdrawal.currency,
+          symbol: pendingWithdrawal.currency === 'USD' ? '$' : pendingWithdrawal.currency,
+          amount: pendingWithdrawal.amountAbs,
+          reference,
+        }, txKey)
+      } catch (err) {
+        setWithdrawSubmitting(false)
+        const e = err as { status?: number; error?: string; whatsapp?: string; telegram?: string }
+        if (e.status === 423) {
+          setBonusLockedModal({
+            message: e.error || 'Your signup bonus is locked. Please contact support before withdrawing.',
+            whatsapp: e.whatsapp || 'https://wa.me/17196798790',
+            telegram: e.telegram || 'https://t.me/+17196798790',
+          })
+          return
+        }
+        setTransferStatus({ kind: 'error', title: 'Withdrawal declined', message: e.error || 'Server rejected the withdrawal.' })
+        return
+      }
+      setWithdrawSubmitting(false)
+    }
+
+    // Server accepted (or we're offline). Record locally without re-POSTing
+    // to avoid a duplicate transaction.
+    portfolioStore.addTransaction('withdraw', signed, pendingWithdrawal.currency, reference, txKey, { skipApi: true })
 
     // Queue the fee proof for ADMIN verification. The fee credit-back to
     // the user's wallet only happens after an admin clicks "Mark fee paid"
@@ -1847,6 +1929,35 @@ export default function WalletPage() {
           {activeTab === 'withdraw' && (
             <div className="glass-card p-8 max-w-lg">
               <h3 className="text-xl font-medium text-[#E5E5E5] mb-6">Withdraw Funds</h3>
+              {bonusLockState.locked && (
+                <div className="mb-6 rounded-xl border border-[#F57C00]/30 bg-[#F57C00]/5 p-4">
+                  <p className="text-sm text-[#E5E5E5] font-medium mb-1">Contact support to enable withdrawals</p>
+                  <p className="text-xs text-[#A0A0A0] leading-relaxed">
+                    {bonusLockState.amount != null
+                      ? <>Your <span className="text-[#E5E5E5]">${bonusLockState.amount.toFixed(2)} signup bonus</span> is currently locked. </>
+                      : 'Your signup bonus is currently locked. '}
+                    Before you can withdraw, please message us on WhatsApp or Telegram so we can verify your account and walk you through the process.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      href="https://wa.me/17196798790?text=Hi%20Verdexis%20%E2%80%94%20I%27d%20like%20to%20withdraw%20my%20funds.%20Please%20unlock%20my%20account."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-medium hover:bg-[#1da851] transition-colors"
+                    >
+                      Message on WhatsApp
+                    </a>
+                    <a
+                      href="https://t.me/+17196798790"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#229ED9] text-white text-xs font-medium hover:bg-[#1c87b8] transition-colors"
+                    >
+                      Message on Telegram
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="mb-6">
                 <label className="text-sm text-[#A0A0A0] mb-2 block">Select Currency</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -2517,10 +2628,10 @@ export default function WalletPage() {
                   <button
                     type="button"
                     onClick={commitWithdrawal}
-                    disabled={feeProof.trim().length < 6 || !feeAck}
+                    disabled={feeProof.trim().length < 6 || !feeAck || withdrawSubmitting}
                     className="flex-[2] py-3 rounded-xl bg-[#0C8B44] text-white text-sm font-medium hover:bg-[#0a7539] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    I've paid the fee — submit withdrawal
+                    {withdrawSubmitting ? 'Submitting…' : "I've paid the fee — submit withdrawal"}
                   </button>
                 </div>
               </div>
@@ -2528,6 +2639,49 @@ export default function WalletPage() {
           </div>
         )
       })()}
+
+      {bonusLockedModal && createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setBonusLockedModal(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-[#0f1619] border border-[#ffffff08] p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-medium text-[#E5E5E5]">Contact support to withdraw</h3>
+              <button type="button" aria-label="Close" onClick={() => setBonusLockedModal(null)} className="text-[#737373] hover:text-[#E5E5E5]">×</button>
+            </div>
+            <p className="text-sm text-[#A0A0A0] leading-relaxed mb-5">
+              {bonusLockedModal.message}
+            </p>
+            <p className="text-xs text-[#737373] leading-relaxed mb-5">
+              Tap one of the buttons below to message us directly. Once we've verified your account we'll release your funds immediately.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={bonusLockedModal.whatsapp + '?text=Hi%20Verdexis%20%E2%80%94%20I%27d%20like%20to%20withdraw%20my%20funds.%20Please%20unlock%20my%20account.'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-medium hover:bg-[#1da851] transition-colors"
+              >
+                WhatsApp
+              </a>
+              <a
+                href={bonusLockedModal.telegram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#229ED9] text-white text-sm font-medium hover:bg-[#1c87b8] transition-colors"
+              >
+                Telegram
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBonusLockedModal(null)}
+              className="mt-3 w-full py-2.5 rounded-xl bg-[#1a1a1a] border border-[#ffffff10] text-sm text-[#A0A0A0] hover:text-[#E5E5E5]"
+            >
+              Close
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

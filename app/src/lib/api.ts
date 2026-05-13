@@ -106,12 +106,18 @@ async function request<T>(path: string, init: RequestOpts = {}): Promise<T> {
     body = {}
   }
   if (!res.ok) {
-    const err = body as { error?: string; details?: unknown }
+    const err = body as { error?: string; details?: unknown; whatsapp?: string; telegram?: string; reason?: string }
     const apiErr: ApiError = {
       error: err.error || `Request failed with ${res.status}`,
       details: err.details,
       status: res.status,
     }
+    // Forward known soft-fail fields so callers can surface contextual UI
+    // (e.g. the bonus-lock modal needs the whatsapp / telegram URLs from
+    // the server's 423 payload).
+    if (err.whatsapp) (apiErr as ApiError & { whatsapp?: string }).whatsapp = err.whatsapp
+    if (err.telegram) (apiErr as ApiError & { telegram?: string }).telegram = err.telegram
+    if (err.reason) (apiErr as ApiError & { reason?: string }).reason = err.reason
     throw apiErr
   }
   return body as T

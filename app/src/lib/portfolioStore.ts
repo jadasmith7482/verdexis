@@ -390,7 +390,7 @@ class PortfolioStoreImpl {
     return trade
   }
 
-  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee', amount: number, currency: string, description: string, idempotencyKey?: string): WalletTransaction {
+  addTransaction(type: 'deposit' | 'withdraw' | 'transfer' | 'dividend' | 'interest' | 'fee', amount: number, currency: string, description: string, idempotencyKey?: string, opts?: { skipApi?: boolean }): WalletTransaction {
     // User deposits require admin approval on the server (status='pending',
     // no balance credit) unless the actor is an admin. Mirror that locally
     // so the UI doesn't show inflated balances or "completed" badges for
@@ -426,7 +426,7 @@ class PortfolioStoreImpl {
       }
     }
 
-    if (getToken()) {
+    if (getToken() && !opts?.skipApi) {
       api.postTransaction({ kind: type, currency, symbol: symbolFor(currency), amount: Math.abs(amount), reference: description }, idempotencyKey)
         .then(() => this.hydrate(true))
         .catch(() => { /* offline; local cache wins */ })
