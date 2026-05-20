@@ -49,6 +49,16 @@ const txSchema = z.object({
   reference: z.string().max(200).optional(),
 })
 
+// Transaction kinds that *credit* the wallet. Only admins can post these
+// directly via this endpoint. Regular users obtain credits exclusively via:
+//   - `deposit` (which is queued as `pending` until an admin approves)
+//   - `transfer` from another user (handled by /transfer)
+//   - server-side reward/yield jobs running with admin privileges
+// Without this restriction, ANY signed-in user could self-credit unlimited
+// funds by POSTing {kind: 'interest', amount: 1e9}. Verified exploitable
+// during QA on 2026-05-13.
+const PRIVILEGED_CREDIT_KINDS = new Set(['dividend', 'interest'])
+
 router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (req: AuthedRequest, res) => {
   const parsed = txSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -56,6 +66,17 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
     return
   }
   const { kind, currency, symbol, amount, reference } = parsed.data
+
+  // Gate privileged credit kinds (`dividend`, `interest`) to admin callers.
+  // See PRIVILEGED_CREDIT_KINDS above for the rationale.
+  if (PRIVILEGED_CREDIT_KINDS.has(kind) && req.userRole !== 'admin') {
+    res.status(403).json({
+      error: 'Only an administrator can post this transaction kind from this endpoint.',
+      reason: 'admin_only_kind',
+      kind,
+    })
+    return
+  }
 
   // Account-hold gate: even though `requireAuth` lets the user in, an admin
   // may have placed a hold on money-movement. Block the relevant kinds.
@@ -66,10 +87,24 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
         holdActive: true, holdType: true, holdReason: true, holdNote: true,
         ipAllowlist: true,
         prefs: true,
+        emailVerified: true,
         dailyWithdrawLimit: true, monthlyWithdrawLimit: true,
         dailyTransferLimit: true, monthlyTransferLimit: true,
       },
     })
+    // Email-verification gate: a user must confirm ownership of their inbox
+    // before money leaves the account. This is a cheap account-takeover
+    // mitigation — even if a credential leak grants login, the attacker
+    // can't drain funds without also controlling the user's email.
+    // Admins are exempt so an admin acting on behalf of a user (e.g.
+    // refunds) isn't blocked.
+    if (kind === 'withdraw' && u && !u.emailVerified && req.userRole !== 'admin') {
+      res.status(403).json({
+        error: 'Verify your email before withdrawing.',
+        reason: 'email_unverified',
+      })
+      return
+    }
     // Bonus withdrawal lock: new users who received a signup bonus cannot
     // withdraw until they message support on WhatsApp and an admin clears
     // the `bonusLocked` flag on their prefs.
@@ -104,9 +139,9 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
     }
     // IP allowlist (simple substring-match against comma-separated entries).
     if (u?.ipAllowlist && u.ipAllowlist.trim()) {
-      const allowed = u.ipAllowlist.split(',').map((s) => s.trim()).filter(Boolean)
+      const allowed = u.ipAllowlist.split(',').map((s: string) => s.trim()).filter(Boolean)
       const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || ''
-      const ok = allowed.some((entry) => ip === entry || ip.startsWith(entry))
+      const ok = allowed.some((entry: string) => ip === entry || ip.startsWith(entry))
       if (!ok) {
         res.status(403).json({ error: 'Source IP not in allowlist for this account', ip })
         return
@@ -123,8 +158,8 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
         where: { userId: req.userId!, kind, status: 'completed', createdAt: { gte: monthAgo } },
         select: { amount: true, createdAt: true },
       })
-      const monthSum = recent.reduce((s, t) => s + t.amount, 0)
-      const daySum = recent.filter((t) => t.createdAt >= dayAgo).reduce((s, t) => s + t.amount, 0)
+      const monthSum = recent.reduce((s: number, t: { amount: number }) => s + t.amount, 0)
+      const daySum = recent.filter((t: { createdAt: Date }) => t.createdAt >= dayAgo).reduce((s: number, t: { amount: number }) => s + t.amount, 0)
       if (dailyCap && daySum + amount > dailyCap) {
         res.status(429).json({ error: `Daily ${kind} cap exceeded`, limit: dailyCap, used: daySum, attempted: amount })
         return
@@ -145,7 +180,7 @@ router.post('/transactions', requireAuth, moneyLimiter, idempotency(), async (re
   const isAdmin = req.userRole === 'admin'
   const userDepositRequiresApproval = kind === 'deposit' && !isAdmin
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     if (userDepositRequiresApproval) {
       // Just record the pending transaction; do not touch balances.
       const transaction = await tx.transaction.create({
@@ -240,7 +275,37 @@ router.post('/convert', requireAuth, moneyLimiter, idempotency(), async (req: Au
   const { fromCurrency, fromAmount, fromSymbol, toCurrency, toAmount, toSymbol } = parsed.data
   if (fromCurrency === toCurrency) { res.status(400).json({ error: 'Cannot convert to the same currency' }); return }
 
-  const result = await prisma.$transaction(async (tx) => {
+  // Account-state gates: a converted balance is fungible with any other
+  // balance the user holds, so anything that blocks withdraw/transfer must
+  // also block convert (otherwise a held user can rearrange portfolio, and
+  // a bonus-locked user can split the bonus across currencies to make later
+  // unlock disputes harder to reconcile).
+  if (req.userRole !== 'admin') {
+    const u = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { holdActive: true, holdType: true, holdReason: true, holdNote: true, prefs: true },
+    })
+    if (u?.holdActive && (u.holdType === 'all' || u.holdType === 'transfer' || u.holdType === 'withdraw')) {
+      res.status(423).json({ error: 'Account on hold', reason: u.holdReason, note: u.holdNote, scope: u.holdType })
+      return
+    }
+    if (u?.prefs) {
+      try {
+        const prefs = JSON.parse(u.prefs) as { bonusLocked?: boolean }
+        if (prefs.bonusLocked === true) {
+          res.status(423).json({
+            error: 'Bonus is locked. Please contact support before converting.',
+            reason: 'bonus_locked',
+            whatsapp: 'https://wa.me/17196798790',
+            telegram: 'https://t.me/+17196798790',
+          })
+          return
+        }
+      } catch { /* ignore malformed prefs */ }
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const src = await tx.walletBalance.findUnique({
       where: { userId_currency: { userId: req.userId!, currency: fromCurrency } },
     })
@@ -330,20 +395,50 @@ router.post('/transfer', requireAuth, moneyLimiter, idempotency(), async (req: A
   const sender = await prisma.user.findUnique({
     where: { id: req.userId! },
     select: {
-      email: true, name: true,
+      email: true, name: true, role: true,
+      emailVerified: true,
+      prefs: true,
       holdActive: true, holdType: true, holdReason: true, holdNote: true,
       ipAllowlist: true,
       dailyTransferLimit: true, monthlyTransferLimit: true,
     },
   })
+  // Email verification: required for ALL outbound money movement, not just
+  // withdraws — otherwise an attacker who hijacked the password could
+  // siphon funds to a confederate via internal transfer before the rightful
+  // owner notices.
+  if (sender && !sender.emailVerified && sender.role !== 'admin') {
+    res.status(403).json({
+      error: 'Verify your email before sending funds to another user.',
+      reason: 'email_unverified',
+    })
+    return
+  }
+  // Bonus lock: an internal transfer would otherwise be a trivial way to
+  // launder a locked signup bonus into a sibling account that the same
+  // person controls, and then withdraw freely from there.
+  if (sender?.prefs && sender.role !== 'admin') {
+    try {
+      const prefs = JSON.parse(sender.prefs) as { bonusLocked?: boolean }
+      if (prefs.bonusLocked === true) {
+        res.status(423).json({
+          error: 'Bonus withdrawal locked. Please message support on WhatsApp or Telegram at +1 (719) 679-8790 to unlock your bonus before transferring.',
+          reason: 'bonus_locked',
+          whatsapp: 'https://wa.me/17196798790',
+          telegram: 'https://t.me/+17196798790',
+        })
+        return
+      }
+    } catch { /* ignore */ }
+  }
   if (sender?.holdActive && (sender.holdType === 'all' || sender.holdType === 'transfer')) {
     res.status(423).json({ error: 'Account on hold', reason: sender.holdReason, note: sender.holdNote, scope: sender.holdType })
     return
   }
   if (sender?.ipAllowlist && sender.ipAllowlist.trim()) {
-    const allowed = sender.ipAllowlist.split(',').map((s) => s.trim()).filter(Boolean)
+    const allowed = sender.ipAllowlist.split(',').map((s: string) => s.trim()).filter(Boolean)
     const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || ''
-    if (!allowed.some((entry) => ip === entry || ip.startsWith(entry))) {
+    if (!allowed.some((entry: string) => ip === entry || ip.startsWith(entry))) {
       res.status(403).json({ error: 'Source IP not in allowlist for this account', ip })
       return
     }
@@ -356,8 +451,8 @@ router.post('/transfer', requireAuth, moneyLimiter, idempotency(), async (req: A
       where: { userId: req.userId!, kind: 'transfer', status: 'completed', createdAt: { gte: monthAgo } },
       select: { amount: true, createdAt: true },
     })
-    const monthSum = recent.reduce((s, t) => s + t.amount, 0)
-    const daySum = recent.filter((t) => t.createdAt >= dayAgo).reduce((s, t) => s + t.amount, 0)
+    const monthSum = recent.reduce((s: number, t: { amount: number }) => s + t.amount, 0)
+    const daySum = recent.filter((t: { createdAt: Date }) => t.createdAt >= dayAgo).reduce((s: number, t: { amount: number }) => s + t.amount, 0)
     if (sender.dailyTransferLimit && daySum + amount > sender.dailyTransferLimit) {
       res.status(429).json({ error: 'Daily transfer cap exceeded', limit: sender.dailyTransferLimit, used: daySum, attempted: amount })
       return
@@ -368,7 +463,7 @@ router.post('/transfer', requireAuth, moneyLimiter, idempotency(), async (req: A
     }
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const senderBal = await tx.walletBalance.findUnique({
       where: { userId_currency: { userId: req.userId!, currency } },
     })
@@ -463,7 +558,7 @@ router.post('/link', requireAuth, async (req: AuthedRequest, res) => {
   // primary only when the user has no other wallet yet \u2014 otherwise we
   // keep their existing primary so connecting a fresh wallet doesn't
   // silently change deposit attribution.
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.walletLink.findUnique({
       where: { userId_address: { userId: req.userId!, address } },
     })
@@ -549,7 +644,7 @@ router.post('/links', requireAuth, async (req: AuthedRequest, res) => {
   const provider = parsed.data.provider ?? null
   const label = parsed.data.label ?? null
 
-  const link = await prisma.$transaction(async (tx) => {
+  const link = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.walletLink.findUnique({
       where: { userId_address: { userId: req.userId!, address } },
     })
@@ -585,7 +680,7 @@ router.post('/links', requireAuth, async (req: AuthedRequest, res) => {
 
 router.delete('/links/:id', requireAuth, async (req: AuthedRequest, res) => {
   const id = req.params.id
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const row = await tx.walletLink.findFirst({ where: { id, userId: req.userId! } })
     if (!row) return { ok: false as const }
     await tx.walletLink.delete({ where: { id } })
@@ -616,7 +711,7 @@ router.delete('/links/:id', requireAuth, async (req: AuthedRequest, res) => {
 
 router.post('/links/:id/primary', requireAuth, async (req: AuthedRequest, res) => {
   const id = req.params.id
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const row = await tx.walletLink.findFirst({ where: { id, userId: req.userId! } })
     if (!row) return { ok: false as const }
     await tx.walletLink.updateMany({
