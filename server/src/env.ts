@@ -8,6 +8,7 @@ const schema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:3000'),
   APP_BASE_URL: z.string().url().default('http://localhost:5173'),
+  PRODUCTION_ORIGIN: z.string().url().optional(),
   ALERT_POLL_ENABLED: z.coerce.boolean().default(true),
   ALERT_POLL_INTERVAL_MS: z.coerce.number().int().min(15_000).default(60_000),
   // Comma-separated list of emails that auto-promote to admin on next login.

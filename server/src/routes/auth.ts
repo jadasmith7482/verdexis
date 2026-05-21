@@ -8,6 +8,7 @@ import { signToken, requireAuth, type AuthedRequest } from '../auth.js'
 import { env } from '../env.js'
 import { generateInvestmentId } from '../investmentId.js'
 import { generateReferralCode, linkReferrer } from '../referrals.js'
+import { isDbUnavailableError } from '../dbError.js'
 
 const router = Router()
 
@@ -57,7 +58,7 @@ const resetSchema = z.object({
   password: z.string().min(8).max(200),
 })
 
-function publicUser(u: { id: string; email: string; username?: string | null; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean; investmentId?: string | null; kycStatus?: string; kycNotes?: string | null; kycReviewedAt?: Date | null; kycReviewedBy?: string | null }) {
+function publicUser(u: { id: string; email: string; username?: string | null; name: string; avatar: string | null; prefs: string | null; twoFactor: boolean; role?: string; suspended?: boolean; investmentId?: string | null; kycStatus?: string; kycNotes?: string | null; kycReviewedAt?: Date | null; kycReviewedBy?: string | null; emailVerified?: boolean; emailVerifiedAt?: Date | null }) {
   let prefs: Record<string, unknown> = {}
   try {
     if (u.prefs) prefs = JSON.parse(u.prefs)
@@ -75,6 +76,8 @@ function publicUser(u: { id: string; email: string; username?: string | null; na
     suspended: !!u.suspended,
     investmentId: u.investmentId ?? null,
     kycStatus: (u.kycStatus === 'approved' || u.kycStatus === 'pending' || u.kycStatus === 'rejected') ? u.kycStatus : 'none',
+    emailVerified: !!u.emailVerified,
+    emailVerifiedAt: u.emailVerifiedAt ?? null,
     prefs,
   }
 }
@@ -382,6 +385,13 @@ router.post('/login', authLimiter, async (req, res) => {
     res.json({ token, user: publicUser({ ...user, role }) })
   } catch (err) {
     console.error('[verdexis-api] /login crashed:', err)
+    if (isDbUnavailableError(err)) {
+      res.status(503).json({
+        error: 'Database unavailable',
+        detail: err instanceof Error ? err.message : String(err),
+      })
+      return
+    }
     res.status(500).json({
       error: 'Login failed',
       detail: err instanceof Error ? err.message : String(err),
@@ -552,6 +562,78 @@ router.get('/export', requireAuth, async (req: AuthedRequest, res) => {
     user: publicUser(user),
     holdings, walletBalances, transactions, trades, watchlist, alerts, notifications,
   })
+})
+
+// --- Email verification ---------------------------------------------------
+// Tokens are one-shot, expire after 24h. Hashed at rest so a DB leak doesn't
+// hand attackers a free verification on every account. The actual link is
+// surfaced via:
+//   1. A persisted Notification (kind='security') so the user can copy it
+//      from the bell menu in the UI even without SMTP wired up, and
+//   2. Returned in the API response when NODE_ENV !== 'production' to make
+//      local / staging testing trivial.
+const verifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: AuthedRequest) => req.userId || req.ip || 'anon',
+})
+
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000
+
+function clientOriginFromReq(req: { headers: Record<string, string | string[] | undefined> }): string {
+  const fromHeader = req.headers['origin']
+  if (typeof fromHeader === 'string' && fromHeader) return fromHeader.replace(/\/$/, '')
+  return env.APP_BASE_URL?.replace(/\/$/, '') || ''
+}
+
+router.post('/send-verification', requireAuth, verifyLimiter, async (req: AuthedRequest, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { id: true, email: true, emailVerified: true } })
+  if (!user) { res.status(404).json({ error: 'User not found' }); return }
+  if (user.emailVerified) { res.json({ alreadyVerified: true }); return }
+
+  const raw = crypto.randomBytes(32).toString('hex')
+  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex')
+  const expiresAt = new Date(Date.now() + VERIFY_TTL_MS)
+
+  // Invalidate any prior outstanding tokens for this user so attackers can't
+  // hoard intercepted links — only the most-recent send is valid.
+  await prisma.emailVerification.updateMany({ where: { userId: user.id, used: false }, data: { used: true } })
+  await prisma.emailVerification.create({ data: { userId: user.id, tokenHash, expiresAt } })
+
+  const origin = clientOriginFromReq(req)
+  const link = origin ? `${origin}/verify-email?token=${raw}` : `/verify-email?token=${raw}`
+
+  await prisma.notification.create({
+    data: {
+      userId: user.id,
+      kind: 'security',
+      title: 'Verify your email',
+      body: `Tap the link to confirm ${user.email}: ${link} (expires in 24h)`,
+    },
+  })
+
+  const isDev = (env.NODE_ENV || 'development') !== 'production'
+  res.json({ sent: true, expiresAt, ...(isDev ? { devLink: link } : {}) })
+})
+
+const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) })
+
+router.post('/verify-email', authLimiter, async (req, res) => {
+  const parsed = verifyEmailSchema.safeParse(req.body)
+  if (!parsed.success) { res.status(400).json({ error: 'Invalid token' }); return }
+  const tokenHash = crypto.createHash('sha256').update(parsed.data.token).digest('hex')
+  const record = await prisma.emailVerification.findUnique({ where: { tokenHash } })
+  if (!record || record.used || record.expiresAt < new Date()) {
+    res.status(400).json({ error: 'Invalid or expired verification link' })
+    return
+  }
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { emailVerified: true, emailVerifiedAt: new Date() } }),
+    prisma.emailVerification.update({ where: { id: record.id }, data: { used: true } }),
+  ])
+  res.json({ verified: true })
 })
 
 export default router

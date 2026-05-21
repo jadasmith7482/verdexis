@@ -5,12 +5,14 @@ import dns from 'node:dns'
 // fetches snappy.
 dns.setDefaultResultOrder('ipv4first')
 import { env } from './env.js'
+import { prisma } from './db.js'
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
 import helmet from 'helmet'
 import compression from 'compression'
+import jwt from 'jsonwebtoken'
 import rateLimit from 'express-rate-limit'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -28,8 +30,11 @@ import marketRoutes from './routes/market.js'
 import reviewsRoutes from './routes/reviews.js'
 import adminRoutes from './routes/admin.js'
 import referralRoutes from './routes/referral.js'
+import dcaRoutes from './routes/dca.js'
 import { startAlertPoller } from './alertPoller.js'
+import { startDcaPoller } from './dcaPoller.js'
 import { startKeepAlive } from './keepAlive.js'
+import { isDbUnavailableError } from './dbError.js'
 
 const app = express()
 // Disable ETag generation on JSON responses. The client polls /api/wallet,
@@ -39,11 +44,20 @@ const app = express()
 app.set('etag', false)
 const PORT = env.PORT
 const IS_PROD = env.NODE_ENV === 'production'
+if (IS_PROD && !process.env.JWT_SECRET) {
+  console.error('[verdexis-api] JWT_SECRET is required in production')
+  process.exit(1)
+}
 const CORS_ORIGIN = env.CORS_ORIGIN.split(',').map((s) => s.trim())
+const normalizeOrigin = (value: string): string => value.trim().replace(/\/+$|\s+/g, '')
+const SELF_ORIGINS = [process.env.RENDER_EXTERNAL_URL, process.env.PUBLIC_URL, process.env.PRODUCTION_ORIGIN, env.APP_BASE_URL]
+  .filter((s): s is string => !!s)
+  .map(normalizeOrigin)
 // Allow any LAN origin (192.168.x.x / 10.x.x.x / 172.16-31.x.x) on port 3000
 // or 5173 so phones / other devices on the same wifi can hit the dev API.
 // Only enabled in non-production to avoid widening the prod CORS surface.
 const LAN_ORIGIN_RE = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|localhost|127\.0\.0\.1)(:\d+)?$/
+const ALLOWED_ORIGINS = new Set([...CORS_ORIGIN, ...SELF_ORIGINS])
 
 // Trust the first proxy hop (Railway / Cloudflare) so rate-limit + IP logging
 // see the real client IP rather than the load balancer.
@@ -59,10 +73,6 @@ app.use(compression())
 // Build the set of allowed origins. We always allow the server's own public
 // hostname (so the bundled SPA can call its own API without operators
 // having to remember to set CORS_ORIGIN) plus anything explicitly listed.
-const SELF_ORIGINS = [process.env.RENDER_EXTERNAL_URL, process.env.PUBLIC_URL]
-  .filter((s): s is string => !!s)
-  .map((s) => s.replace(/\/+$/, ''))
-const ALLOWED_ORIGINS = new Set([...CORS_ORIGIN, ...SELF_ORIGINS])
 app.use(
   cors({
     origin: (origin, cb) => {
@@ -96,7 +106,6 @@ app.use(morgan(IS_PROD ? 'combined' : 'dev'))
 // still falls back to IP. We don't verify the token here — this is just
 // a bucket key, and a forged token only earns the attacker their own
 // bucket (no security value).
-import jwt from 'jsonwebtoken'
 function rateLimitKey(req: express.Request): string {
   const header = req.headers.authorization
   if (header?.startsWith('Bearer ')) {
@@ -122,6 +131,19 @@ app.use(
 )
 
 const SERVER_BOOT_TIME = Date.now()
+let DB_READY = false
+
+async function initializeDatabase(): Promise<void> {
+  try {
+    await prisma.$connect()
+    DB_READY = true
+    console.log('[verdexis-api] Database initialized and schema synced')
+  } catch (err) {
+    console.error('[verdexis-api] Database initialization failed:', err)
+  }
+}
+
+initializeDatabase()
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -132,6 +154,8 @@ app.get('/api/health', (_req, res) => {
     uptimeSec: Math.round((Date.now() - SERVER_BOOT_TIME) / 1000),
     nodeVersion: process.version,
     bootedAt: new Date(SERVER_BOOT_TIME).toISOString(),
+    database: DB_READY ? 'Ready' : 'Unavailable',
+    databaseReady: DB_READY,
   })
 })
 
@@ -148,6 +172,7 @@ app.use('/api/market', marketRoutes)
 app.use('/api/reviews', reviewsRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/referrals', referralRoutes)
+app.use('/api/dca', dcaRoutes)
 
 // In production, serve the built frontend (copied into ./public during the
 // Docker build). API routes are registered above so they take precedence.
@@ -182,6 +207,14 @@ app.use((req, res) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(`[verdexis-api] unhandled error on ${req.method} ${req.path}:`, err)
+  if (isDbUnavailableError(err)) {
+    res.status(503).json({
+      error: 'Database unavailable',
+      detail: err.message || String(err),
+      path: req.path,
+    })
+    return
+  }
   res.status(500).json({
     error: 'Internal server error',
     detail: err?.message || String(err),
@@ -193,6 +226,12 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`[verdexis-api] listening on http://0.0.0.0:${PORT} (LAN reachable)`)
   if (env.ALERT_POLL_ENABLED) {
     startAlertPoller({ intervalMs: env.ALERT_POLL_INTERVAL_MS })
+  }
+  // DCA cron: every minute. Reuses ALERT_POLL_ENABLED as the master kill
+  // switch since both are background pollers; the interval is fixed at 60s
+  // (no point checking more often than that for a daily-resolution feature).
+  if (env.ALERT_POLL_ENABLED) {
+    startDcaPoller({ intervalMs: 60_000 })
   }
   startKeepAlive()
   // Best-effort: ensure ADMIN_EMAILS users are promoted on every boot.
