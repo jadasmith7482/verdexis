@@ -23,7 +23,7 @@ model User {
   role         String   @default("user")  // 'user' | 'admin'
   suspended    Boolean  @default(false)
   suspendedReason String?
-  // Soft "hold" \u2014 less drastic than suspended. Login still works but
+  // Soft "hold" — less drastic than suspended. Login still works but
   // money-movement endpoints (withdraw / transfer) are blocked when active.
   // holdType controls scope: 'all' (block everything monetary), 'withdraw'
   // (block only withdraws), or 'transfer' (block only transfers).
@@ -61,6 +61,8 @@ model User {
   referrerId   String?                     // id of the user who referred this user
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  emailVerifications EmailVerification[]
 
   holdings      Holding[]
   walletBalances WalletBalance[]
@@ -115,26 +117,14 @@ model PendingDeposit {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Block-explorer transaction hash (0x...).
   txHash      String   @unique
-  // EIP-155 chain id hex, e.g. "0x1" Ethereum, "0x89" Polygon, "0x2105" Base.
   chainId     String
-  // Treasury address the funds were sent to (lower-cased).
   toAddress   String
-  // User's wallet address that sent the funds (lower-cased).
   fromAddress String
-  // Asset symbol the user thinks they sent ("ETH", "MATIC", ...).
   asset       String
-  // Amount in the native unit (ETH / MATIC). Stored as Float for parity with
-  // the rest of the schema; small precision loss is acceptable here because
-  // the on-chain receipt is the authoritative record.
   amount      Float
-  // 'pending' | 'confirmed' | 'credited' | 'rejected'
   status      String   @default("pending")
-  // Admin / chain-watcher note explaining a status change.
   note        String?
-  // When status becomes 'credited', this points to the Transaction row that
-  // actually moved the user's WalletBalance.
   creditedTxId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -174,7 +164,7 @@ model Holding {
   name      String
   amount    Float
   avgPrice  Float
-  type      String  // 'crypto' | 'stock' | 'etf'
+  type      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -186,7 +176,7 @@ model WalletBalance {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currency  String   // 'USD' | 'BTC' | 'ETH' | 'SOL' ...
+  currency  String
   symbol    String
   balance   Float    @default(0)
   available Float    @default(0)
@@ -200,14 +190,12 @@ model Transaction {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind        String   // 'deposit' | 'withdraw' | 'transfer' | 'fee' | 'reversal'
+  kind        String
   currency    String
   amount      Float
   status      String   @default("completed")
-  reference   String?  // address / counterparty
-  // Optional pointer back to a transaction this one reverses (for /reverse).
+  reference   String?
   reversedFromId String?
-  // Optional sub-classification (e.g. fee type: 'wire' | 'inactivity' | 'custody').
   subType     String?
   createdAt   DateTime @default(now())
 
@@ -220,7 +208,7 @@ model Trade {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   symbol    String
-  side      String   // 'buy' | 'sell'
+  side      String
   amount    Float
   price     Float
   total     Float
@@ -235,7 +223,7 @@ model Watchlist {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   symbol    String
   name      String
-  type      String   @default("crypto") // 'crypto' | 'stock' | 'etf'
+  type      String   @default("crypto")
   createdAt DateTime @default(now())
 
   @@unique([userId, symbol])
@@ -248,7 +236,7 @@ model PriceAlert {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   symbol     String
   name       String
-  direction  String   // 'above' | 'below'
+  direction  String
   target     Float
   active     Boolean  @default(true)
   triggered  Boolean  @default(false)
@@ -262,7 +250,7 @@ model Notification {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind      String   // 'alert' | 'trade' | 'deposit' | 'system'
+  kind      String
   title     String
   body      String?
   read      Boolean  @default(false)
@@ -277,8 +265,8 @@ model AdminAudit {
   actor        User     @relation("AdminActor", fields: [actorId], references: [id], onDelete: Cascade)
   targetUserId String?
   target       User?    @relation("AdminTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
-  action       String   // 'user.update', 'wallet.set', 'transaction.create', ...
-  payload      String?  // JSON snapshot of what changed
+  action       String
+  payload      String?
   createdAt    DateTime @default(now())
 
   @@index([actorId, createdAt])
@@ -291,11 +279,7 @@ model AdminAudit {
 // instead of living only in one admin's localStorage.
 model AppSetting {
   key       String   @id
-  // JSON-encoded value (stored as String for parity with our other JSON
-  // blobs like User.prefs).
   value     String
-  // userId of the admin who last wrote this row — useful for the audit
-  // trail when paired with the AdminAudit log.
   updatedBy String?
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
@@ -311,16 +295,10 @@ model Review {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // 1..5 stars.
   rating    Int
-  // 1..400 chars. Plain text — no markdown / html rendered.
   text      String
-  // Pinned at write-time so the testimonial keeps the name+avatar the
-  // user wanted associated with this review.
   authorName   String
   authorAvatar String?
-  // Whether this review is shown publicly on the homepage. Default true;
-  // admins can flip to false from the audit page if it needs pulling.
   approved  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -336,22 +314,12 @@ model Referral {
   referrerId String
   referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
   refereeId  String
-  // We don't create a direct foreign key to User for the referee here
-  // (to allow deletion of accounts without orphaning referrals).
-  // Instead, track the referee's email for accountability.
   refereeEmail String
-  // 'pending' | 'active' | 'cancelled'
-  // 'pending' = referee hasn't made first deposit yet
-  // 'active' = referee has deposited and both users earned bonuses
-  // 'cancelled' = fraud detected or admin intervention
   status    String   @default("pending")
-  // ISO datetime when referee made first deposit (if status is 'active').
   firstDepositAt DateTime?
-  // Amount referee deposited on first deposit (if status is 'active').
   firstDepositAmount Float?
-  // Bonus amounts awarded (if status is 'active').
-  referrerBonusUsd Float?   // $250 to referrer (if not already paid)
-  refereeBonusUsd  Float?   // $10 to referee (if not already paid)
+  referrerBonusUsd Float?
+  refereeBonusUsd  Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -367,15 +335,11 @@ model ReferralBonus {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       Float    // USD equivalent ($250 for referrer, $10 for referee)
-  bonusType    String   // 'referrer_bonus' | 'referee_bonus'
-  // What form the bonus takes: 'trading_credit' or 'cash_deposit'
+  amount       Float
+  bonusType    String
   paymentMethod String  @default("trading_credit")
-  // 'pending' | 'credited' | 'canceled'
   status       String   @default("pending")
-  // When the bonus was actually credited to the user (if status = 'credited').
   creditedAt   DateTime?
-  // ID of the Transaction row created when bonus is credited (if applicable).
   creditedTransactionId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -387,7 +351,7 @@ model ReferralBonus {
 
 // Recurring dollar-cost-average buy schedule. The dca-poller (server-side
 // cron) wakes every minute and fires any active schedule whose nextRunAt
-// has passed � debits USD wallet, upserts the holding with weighted-avg
+// has passed — debits USD wallet, upserts the holding with weighted-avg
 // cost basis, writes a Trade row, and updates lastRunAt + nextRunAt.
 model DcaSchedule {
   id            String   @id @default(cuid())
@@ -415,3 +379,4 @@ model DcaSchedule {
   @@index([userId])
   @@index([active, nextRunAt])
 }
+
