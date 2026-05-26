@@ -80,12 +80,12 @@ model User {
   dcaSchedules  DcaSchedule[]
 }
 
-/// Self-custody wallets a user has linked. A user can attach multiple
-/// addresses (e.g. one MetaMask + one Trust mobile + one hardware wallet)
-/// and pick which one is the "primary" \u2014 that one is mirrored back into
-/// the legacy User.walletAddress / walletChainId / walletProvider fields
-/// for backward compat with everywhere that still reads from there
-/// (deposit attribution, admin user detail page, etc.).
+// Self-custody wallets a user has linked. A user can attach multiple
+// addresses (e.g. one MetaMask + one Trust mobile + one hardware wallet)
+// and pick which one is the "primary" \u2014 that one is mirrored back into
+// the legacy User.walletAddress / walletChainId / walletProvider fields
+// for backward compat with everywhere that still reads from there
+// (deposit attribution, admin user detail page, etc.).
 model WalletLink {
   id          String   @id @default(cuid())
   userId      String
@@ -107,10 +107,10 @@ model WalletLink {
   @@index([userId, isPrimary])
 }
 
-/// On-chain deposit attempt the user kicked off from their linked wallet.
-/// The frontend captures the tx hash + chain immediately on submit; the
-/// admin (or future chain-watcher job) verifies the tx on a block explorer
-/// and credits the user's WalletBalance once it has enough confirmations.
+// On-chain deposit attempt the user kicked off from their linked wallet.
+// The frontend captures the tx hash + chain immediately on submit; the
+// admin (or future chain-watcher job) verifies the tx on a block explorer
+// and credits the user's WalletBalance once it has enough confirmations.
 model PendingDeposit {
   id          String   @id @default(cuid())
   userId      String
@@ -285,10 +285,10 @@ model AdminAudit {
   @@index([targetUserId, createdAt])
 }
 
-/// Generic key/value store for admin-managed app settings.
-/// Currently used for the deposit instructions blob (wire / crypto / web3
-/// destination addresses) so they're shared across devices and persist
-/// instead of living only in one admin's localStorage.
+// Generic key/value store for admin-managed app settings.
+// Currently used for the deposit instructions blob (wire / crypto / web3
+// destination addresses) so they're shared across devices and persist
+// instead of living only in one admin's localStorage.
 model AppSetting {
   key       String   @id
   // JSON-encoded value (stored as String for parity with our other JSON
@@ -301,12 +301,12 @@ model AppSetting {
   createdAt DateTime @default(now())
 }
 
-/// Public testimonial / review left by a real user. Surfaced on the
-/// marketing homepage. One row per user (upserted on POST) so the same
-/// person can update their review without spawning duplicates. We pin
-/// the user's name + avatar at write-time so renaming/avatar changes
-/// don't retroactively rewrite the homepage testimonial unless the
-/// user explicitly re-submits.
+// Public testimonial / review left by a real user. Surfaced on the
+// marketing homepage. One row per user (upserted on POST) so the same
+// person can update their review without spawning duplicates. We pin
+// the user's name + avatar at write-time so renaming/avatar changes
+// don't retroactively rewrite the homepage testimonial unless the
+// user explicitly re-submits.
 model Review {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -328,9 +328,9 @@ model Review {
   @@index([approved, createdAt])
 }
 
-/// Referral tracking: links a referrer to a referee. Created when the referred user
-/// signs up using the referrer's code. Bonus creation is separate (ReferralBonus model)
-/// and is triggered only after the referee makes their first deposit.
+// Referral tracking: links a referrer to a referee. Created when the referred user
+// signs up using the referrer's code. Bonus creation is separate (ReferralBonus model)
+// and is triggered only after the referee makes their first deposit.
 model Referral {
   id        String   @id @default(cuid())
   referrerId String
@@ -360,9 +360,9 @@ model Referral {
   @@index([status])
 }
 
-/// Referral bonus tracking: stores info about bonuses awarded from referrals.
-/// Created when both a Referral becomes 'active' (referee deposits) AND the bonus
-/// is actually awarded (credited to user account or pending for later payout).
+// Referral bonus tracking: stores info about bonuses awarded from referrals.
+// Created when both a Referral becomes 'active' (referee deposits) AND the bonus
+// is actually awarded (credited to user account or pending for later payout).
 model ReferralBonus {
   id           String   @id @default(cuid())
   userId       String
@@ -385,10 +385,10 @@ model ReferralBonus {
 }
 
 
-/// Recurring dollar-cost-average buy schedule. The dca-poller (server-side
-/// cron) wakes every minute and fires any active schedule whose nextRunAt
-/// has passed � debits USD wallet, upserts the holding with weighted-avg
-/// cost basis, writes a Trade row, and updates lastRunAt + nextRunAt.
+// Recurring dollar-cost-average buy schedule. The dca-poller (server-side
+// cron) wakes every minute and fires any active schedule whose nextRunAt
+// has passed � debits USD wallet, upserts the holding with weighted-avg
+// cost basis, writes a Trade row, and updates lastRunAt + nextRunAt.
 model DcaSchedule {
   id            String   @id @default(cuid())
   userId        String
