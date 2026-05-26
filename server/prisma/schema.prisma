@@ -1,3 +1,4 @@
+// Normalized schema: cleaned up invalid truncated line that caused P1012
 generator client {
   provider = "prisma-client-js"
 }
@@ -36,6 +37,10 @@ model User {
   kycNotes     String?
   kycReviewedAt DateTime?
   kycReviewedBy String?
+  // Email verification — required before withdrawals are unlocked. New users
+  // start unverified and receive a token via /api/auth/send-verification.
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
   // Per-user money-movement caps (USD-equivalent). 0 / null = unlimited.
   dailyWithdrawLimit  Float?
   monthlyWithdrawLimit Float?
@@ -72,6 +77,7 @@ model User {
   audited       AdminAudit[]   @relation("AdminTarget")
   referrals     Referral[]     @relation("Referrer")        // people this user referred
   referralBonuses ReferralBonus[] // bonuses earned from referrals
+  dcaSchedules  DcaSchedule[]
 }
 
 /// Self-custody wallets a user has linked. A user can attach multiple
@@ -141,6 +147,17 @@ model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
   tokenHash String   @unique
   expiresAt DateTime
   used      Boolean  @default(false)
@@ -365,4 +382,36 @@ model ReferralBonus {
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+
+/// Recurring dollar-cost-average buy schedule. The dca-poller (server-side
+/// cron) wakes every minute and fires any active schedule whose nextRunAt
+/// has passed � debits USD wallet, upserts the holding with weighted-avg
+/// cost basis, writes a Trade row, and updates lastRunAt + nextRunAt.
+model DcaSchedule {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset         String   // symbol e.g. BTC
+  assetId       String   // CoinGecko id e.g. bitcoin
+  name          String
+  amountUsd     Float
+  intervalDays  Int
+  active        Boolean  @default(true)
+  // Cumulative bookkeeping so the UI can show invested / acquired / runs
+  // without recomputing from Trade history every render.
+  totalInvested Float    @default(0)
+  totalAcquired Float    @default(0)
+  runs          Int      @default(0)
+  lastRunAt     DateTime?
+  // Authoritative next-fire time. Set on create, updated after each run.
+  nextRunAt     DateTime
+  // Set when a tick is skipped (e.g. insufficient USD). Cleared on success.
+  lastSkipReason String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([active, nextRunAt])
 }
