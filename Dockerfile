@@ -22,9 +22,12 @@ FROM node:20-slim AS api
 WORKDIR /api
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-COPY server/package.json server/package-lock.json* ./
-RUN npm install --no-audit --no-fund
+# Copy the full server directory before installing to ensure any changes
+# to server files (package.json, prisma schema, .d.ts stubs) invalidate
+# the npm install cache layer on rebuild. This guarantees the build uses
+# the latest package.json and runs prisma generate prior to tsc.
 COPY server/ ./
+RUN npm install --no-audit --no-fund
 # Prisma's schema parser requires DATABASE_URL to exist even though
 # `generate` never connects. The real value is injected at runtime by
 # Render/Railway from the Postgres add-on.
