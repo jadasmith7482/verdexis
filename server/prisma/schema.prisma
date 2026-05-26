@@ -108,4 +108,239 @@ model WalletLink {
   @@index([userId, isPrimary])
 }
 
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model DcaSchedule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol      String
+  amount      Float
+  frequency   String   // 'daily' | 'weekly' | 'monthly'
+  active      Boolean  @default(true)
+  nextRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, active])
+}
+
+model PendingDeposit {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  txHash      String   @unique
+  chainId     String
+  toAddress   String
+  fromAddress String
+  asset       String
+  amount      Float
+  status      String   @default("pending")
+  note        String?
+  creditedTxId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Holding {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  name      String
+  amount    Float
+  avgPrice  Float
+  type      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, symbol])
+  @@index([userId])
+}
+
+model WalletBalance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency  String
+  symbol    String
+  balance   Float    @default(0)
+  available Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, currency])
+  @@index([userId])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String
+  currency    String
+  amount      Float
+  status      String   @default("completed")
+  reference   String?
+  reversedFromId String?
+  subType     String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([reversedFromId])
+}
+
+model Trade {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  side      String
+  amount    Float
+  price     Float
+  total     Float
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String
+  name      String
+  type      String   @default("crypto")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+  @@index([userId])
+}
+
+model PriceAlert {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol     String
+  name       String
+  direction  String
+  target     Float
+  active     Boolean  @default(true)
+  triggered  Boolean  @default(false)
+  triggeredAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, active])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model AdminAudit {
+  id           String   @id @default(cuid())
+  actorId      String
+  actor        User     @relation("AdminActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUserId String?
+  target       User?    @relation("AdminTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  action       String
+  payload      String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  text      String
+  authorName   String
+  authorAvatar String?
+  approved  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([approved, createdAt])
+}
+
+model Referral {
+  id        String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  refereeId  String
+  refereeEmail String
+  status    String   @default("pending")
+  firstDepositAt DateTime?
+  firstDepositAmount Float?
+  referrerBonusUsd Float?
+  refereeBonusUsd  Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerId, createdAt])
+  @@index([refereeEmail])
+  @@index([status])
+}
+
+model ReferralBonus {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Float
+  bonusType    String
+  paymentMethod String  @default("trading_credit")
+  status       String   @default("pending")
+  creditedAt   DateTime?
+  creditedTransactionId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
 ... (truncated for brevity) ...
